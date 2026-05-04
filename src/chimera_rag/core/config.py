@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from chimera_rag.core.exceptions import ConfigError
 
@@ -61,6 +61,9 @@ class EmbeddingConfig(BaseModel):
     dim: int
     batch_size: int = 32
     normalize: bool = True
+    # Device for local embeddings (sentence-transformers). "auto" picks
+    # CUDA when available, else CPU. Ignored by mock/remote providers.
+    device: Literal["cpu", "cuda", "mps", "auto"] | str = "cpu"
 
 
 # ---------------------------------------------------------------------------
@@ -74,11 +77,32 @@ class GraphStoreConfig(BaseModel):
     neo4j_password_env: str | None = None
 
 
+class HNSWParams(BaseModel):
+    """HNSW graph index hyper-parameters."""
+
+    M: int = Field(default=32, ge=4, le=128, description="max edges per node")
+    ef_construction: int = Field(default=200, ge=8, description="build-time search width")
+    ef_search: int = Field(default=64, ge=1, description="query-time search width")
+
+
+class IVFParams(BaseModel):
+    """IVF coarse-quantiser index hyper-parameters."""
+
+    nlist: int = Field(default=100, ge=1, description="number of Voronoi cells")
+    nprobe: int = Field(default=8, ge=1, description="cells probed per query")
+    train_size: int | None = Field(
+        default=None, description="points used for k-means; null = all"
+    )
+
+
 class VectorStoreConfig(BaseModel):
     backend: Literal["faiss"] = "faiss"
-    index_type: Literal["flat_ip", "flat_l2"] = "flat_ip"
+    index_type: Literal["flat_ip", "flat_l2", "hnsw", "ivf_flat"] = "hnsw"
+    metric: Literal["ip", "l2"] = "ip"
     persist_path: str
     top_k: int = 5
+    hnsw: HNSWParams = Field(default_factory=HNSWParams)
+    ivf: IVFParams = Field(default_factory=IVFParams)
 
 
 class StorageConfig(BaseModel):
@@ -90,10 +114,50 @@ class StorageConfig(BaseModel):
 # Datasets
 # ---------------------------------------------------------------------------
 class DatasetConfig(BaseModel):
+    """Named dataset entry (declared in ``config.datasets``).
+
+    Supports two path-declaration styles:
+
+    * Legacy single path::
+
+          path: ./data/hotpotqa.json
+
+    * Explicit split paths (preferred for HotpotQA-like formats where
+      corpus and QA are separate files)::
+
+          corpus_path: ./data/hotpotqa/corpus.json
+          qa_path:     ./data/hotpotqa/qa.json
+          output_dir:  ./output/hotpotqa
+
+    At least one of ``path`` / ``corpus_path`` / ``qa_path`` must be set.
+    """
+
     loader: str
-    path: str
+    path: str | None = None
+    corpus_path: str | None = None
+    qa_path: str | None = None
+    output_dir: str | None = None
     split: str | None = None
     eval_field_mapping: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("output_dir", mode="after")
+    @classmethod
+    def _empty_to_none(cls, v: str | None) -> str | None:
+        return None if v == "" else v
+
+    def model_post_init(self, _ctx: Any) -> None:
+        if not any((self.path, self.corpus_path, self.qa_path)):
+            raise ValueError(
+                "dataset entry must declare at least one of "
+                "'path' / 'corpus_path' / 'qa_path'"
+            )
+
+    # ------------------------------------------------------------------
+    def output_for(self, config_name: str) -> Path:
+        """Return ``<output_dir>/<config_name>.json`` (output_dir must be set)."""
+        if not self.output_dir:
+            raise ValueError("output_dir is not set for this dataset entry")
+        return Path(self.output_dir) / f"{config_name}.json"
 
 
 # ---------------------------------------------------------------------------
@@ -206,10 +270,13 @@ __all__ = [
     "AdaGraphConfig",
     "AppConfig",
     "AppMeta",
+    "ConfigError",
     "DatasetConfig",
     "EmbeddingConfig",
     "EvaluationConfig",
     "GraphStoreConfig",
+    "HNSWParams",
+    "IVFParams",
     "IngestionConfig",
     "IntentAgentConfig",
     "LLMConfig",

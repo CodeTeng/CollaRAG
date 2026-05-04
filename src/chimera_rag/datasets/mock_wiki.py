@@ -1,10 +1,19 @@
 """Combined corpus + QA loader for the synthetic wiki dataset.
 
-Expects a directory layout of::
+Accepts either
 
-    <path>/
-    ├── <corpus_file>   (default: corpus.txt, paragraphs split on blank lines)
-    └── <qa_file>       (default: qa.jsonl, {qid, question, answer} per line)
+* a directory ``path`` with default filenames inside::
+
+    MockWikiLoader(path="data/mock_wiki")
+    # expects data/mock_wiki/{corpus.txt, qa.jsonl}
+
+* or explicit paths (preferred when ingestion and evaluation files
+  don't sit next to each other)::
+
+    MockWikiLoader(
+        corpus_path="data/mock_wiki/corpus.txt",
+        qa_path="data/mock_wiki/qa.jsonl",
+    )
 
 Keeping both artefacts under one loader means a single
 ``config.datasets.mock_wiki`` entry drives ingestion and evaluation
@@ -27,13 +36,29 @@ class MockWikiLoader(BaseDatasetLoader):
 
     def __init__(
         self,
-        path: str,
+        path: str | None = None,
         corpus_file: str = "corpus.txt",
         qa_file: str = "qa.jsonl",
+        corpus_path: str | None = None,
+        qa_path: str | None = None,
     ) -> None:
-        self.root = Path(path)
-        self.corpus_path = self.root / corpus_file if self.root.is_dir() else Path(path)
-        self.qa_path = self.root / qa_file if self.root.is_dir() else self.root.parent / qa_file
+        # Explicit paths win.
+        if corpus_path is not None:
+            self.corpus_path = Path(corpus_path)
+        elif path is not None:
+            root = Path(path)
+            self.corpus_path = root / corpus_file if root.is_dir() else Path(path)
+        else:
+            raise DatasetError("need at least one of 'path' / 'corpus_path'")
+
+        if qa_path is not None:
+            self.qa_path = Path(qa_path)
+        elif path is not None:
+            root = Path(path)
+            self.qa_path = root / qa_file if root.is_dir() else Path(path).parent / qa_file
+        else:
+            # qa is optional at construction (ingest-only use cases)
+            self.qa_path = Path("__missing__")
 
     # ------------------------------------------------------------------
     def load_documents(self) -> list[Document]:

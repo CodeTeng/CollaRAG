@@ -57,6 +57,13 @@ def _default_base_url(provider: str) -> str | None:
     }.get(provider)
 
 
+def _default_model(provider: str) -> str | None:
+    return {
+        "deepseek": "deepseek-chat",
+        "openai": "gpt-4o-mini",
+    }.get(provider)
+
+
 def _make_async_client(*, api_key: str, base_url: str | None, timeout: float):
     """Isolated factory so tests can monkeypatch without touching the openai SDK."""
     try:
@@ -111,11 +118,12 @@ class OpenAILLMProvider(BaseLLMProvider):
             base_url = _default_base_url(provider)
 
         # ---- Model --------------------------------------------------
-        model = os.getenv("LLM_MODEL") or cfg.model
+        model = os.getenv("LLM_MODEL") or cfg.model or _default_model(provider)
         if not model:
             raise ProviderError(
-                "model not specified; set LLM_MODEL in .env "
-                "or declare llm.model in config.yaml."
+                "model not specified; set LLM_MODEL in .env, "
+                "declare llm.model in config.yaml, or use a provider with a "
+                f"built-in default (got provider={provider!r})."
             )
         self.model = model
 

@@ -238,7 +238,14 @@ class ChimeraRAG:
         else:  # pragma: no cover - guarded by Pydantic
             raise ValueError(f"unknown graph backend: {graph_cfg.backend}")
 
-        vec = FAISSVectorStore(dim=self.config.embedding.dim, index_type=self.config.storage.vector.index_type)
+        vec_cfg = self.config.storage.vector
+        vec = FAISSVectorStore(
+            dim=self.config.embedding.dim,
+            index_type=vec_cfg.index_type,
+            metric=vec_cfg.metric,
+            hnsw=vec_cfg.hnsw.model_dump(),
+            ivf=vec_cfg.ivf.model_dump(),
+        )
         return graph, vec
 
     # --- instantiators isolate slot-specific dependency wiring --------

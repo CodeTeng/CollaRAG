@@ -27,6 +27,7 @@ embedding:
   dim: 384
   batch_size: 32
   normalize: true
+  device: cpu                   # cpu / cuda / mps / auto
 
 storage:
   graph:
@@ -34,14 +35,24 @@ storage:
     persist_path: ./storage/deepseek_vanilla/graph.gpickle
   vector:
     backend: faiss
-    index_type: flat_ip
+    index_type: hnsw            # flat_ip / flat_l2 / ivf_flat / hnsw
+    metric: ip                  # ip / l2
     persist_path: ./storage/deepseek_vanilla/vectors
     top_k: 5
+    hnsw:
+      M: 32
+      ef_construction: 200
+      ef_search: 64
+    ivf:
+      nlist: 100
+      nprobe: 8
 
 datasets:
   mock_wiki:
     loader: mock_wiki
-    path: ./data/mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
 
 ingestion:
   chunker:

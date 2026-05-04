@@ -21,8 +21,10 @@ logging:
 # ---------------------------------------------------------------------------
 llm:
   provider: mock           # mock / openai / deepseek / ollama
+  # model / api_key / base_url 可直接从 .env 读取（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）；
+  # 也保留旧的 api_key_env / base_url_env 字段做向后兼容。
   model: mock-llm
-  api_key_env: OPENAI_API_KEY   # 从该环境变量读取 api_key
+  api_key_env: OPENAI_API_KEY
   base_url_env: OPENAI_BASE_URL
   temperature: 0.1
   max_tokens: 1024
@@ -35,9 +37,10 @@ llm:
 embedding:
   provider: mock           # mock / openai / ollama / sentence_transformer
   model: mock-embedding
-  dim: 64                  # mock 与 sentence_transformer 由模型决定
+  dim: 64                  # sentence_transformer 会在加载时和模型维度核对
   batch_size: 32
   normalize: true
+  device: cpu              # cpu / cuda / mps / auto（仅 sentence_transformer 生效）
 
 # ---------------------------------------------------------------------------
 # 存储层
@@ -52,12 +55,21 @@ storage:
     neo4j_password_env: NEO4J_PASSWORD
   vector:
     backend: faiss
-    index_type: flat_ip    # flat_ip / flat_l2
+    index_type: hnsw       # flat_ip / flat_l2 / ivf_flat / hnsw（默认）
+    metric: ip             # ip / l2（仅对 hnsw/ivf 有意义；flat_* 由索引名决定）
     persist_path: ./storage/default/vectors
     top_k: 5
+    hnsw:
+      M: 32                # 节点最大连接度
+      ef_construction: 200 # 构建期搜索宽度
+      ef_search: 64        # 查询期搜索宽度（可在线 set_ef_search 调整）
+    ivf:
+      nlist: 100           # 粗聚类桶数（至少有 nlist 个向量才能训练）
+      nprobe: 8            # 每次查询探测的桶数
 
 # ---------------------------------------------------------------------------
 # 数据集（命名注册；由 main.py --dataset <name> 选用）
+# 优先使用 corpus_path / qa_path / output_dir；legacy path 仍兼容。
 # ---------------------------------------------------------------------------
 datasets:
   sample:
@@ -65,7 +77,9 @@ datasets:
     path: ./examples/data/sample.txt
   hotpotqa:
     loader: hotpotqa
-    path: ./data/hotpotqa/hotpot_dev_distractor_v1.json
+    corpus_path: ./data/hotpotqa/hotpotqa_corpus.json
+    qa_path:     ./data/hotpotqa/hotpotqa.json
+    output_dir:  ./output/hotpotqa
     split: dev
     eval_field_mapping:
       question: question
@@ -74,12 +88,20 @@ datasets:
   two_wiki:
     loader: two_wiki
     path: ./data/two_wiki/dev.json
+    output_dir: ./output/two_wiki
   musique:
     loader: musique
     path: ./data/musique/musique_ans_v1.0_dev.jsonl
+    output_dir: ./output/musique
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path:     ./data/mock_wiki/qa.jsonl
+    output_dir:  ./output/mock_wiki
   custom_jsonl:
     loader: generic_jsonl
     path: ./data/custom.jsonl
+    output_dir: ./output/custom
     eval_field_mapping:
       question: question
       answer: answer

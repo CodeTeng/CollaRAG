@@ -84,10 +84,15 @@ def test_model_can_be_empty_in_config_when_env_provides_it(monkeypatch):
 
 
 def test_missing_both_env_and_config_model_raises(monkeypatch):
+    """If the provider has no built-in default, model must be set somewhere."""
     monkeypatch.setenv("LLM_API_KEY", "sk-x")
     monkeypatch.delenv("LLM_MODEL", raising=False)
     from chimera_rag.core.exceptions import ProviderError
     from chimera_rag.providers.llm import openai_provider
+
+    # Patch the default-model table to return None, simulating a provider
+    # without a baked-in default.
+    monkeypatch.setattr(openai_provider, "_default_model", lambda _p: None)
 
     with patch.object(openai_provider, "_make_async_client", return_value=MagicMock()):
         with pytest.raises(ProviderError, match="model"):

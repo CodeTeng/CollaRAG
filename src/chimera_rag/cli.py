@@ -115,10 +115,32 @@ def _load_dataset_from_config(config, dataset_name: str):
         ) from e
 
     loader_cls = get_dataset_loader(ds_cfg.loader)
-    kwargs: dict = {"path": ds_cfg.path}
+    kwargs: dict = {}
+    # New-style explicit paths win when present.
+    if ds_cfg.corpus_path:
+        kwargs["corpus_path"] = ds_cfg.corpus_path
+    if ds_cfg.qa_path:
+        kwargs["qa_path"] = ds_cfg.qa_path
+    # Legacy single-path.
+    if ds_cfg.path and not kwargs:
+        kwargs["path"] = ds_cfg.path
+    # Some loaders still expect ``path`` even alongside explicit split paths
+    # (e.g. HotpotQA reads a single distractor file).
+    elif ds_cfg.path:
+        kwargs.setdefault("path", ds_cfg.path)
+
     if ds_cfg.eval_field_mapping:
         kwargs["eval_field_mapping"] = ds_cfg.eval_field_mapping
-    return loader_cls(**kwargs)
+    try:
+        return loader_cls(**kwargs)
+    except TypeError as e:
+        # Some loaders (plain_text / hotpotqa / ...) don't accept
+        # corpus_path/qa_path yet; fall back to ``path``-only if set.
+        if ds_cfg.path:
+            return loader_cls(path=ds_cfg.path)
+        raise DatasetError(
+            f"loader {ds_cfg.loader!r} does not accept the given arguments: {e}"
+        ) from e
 
 
 # ------------------- ingest
@@ -179,9 +201,20 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         config_name=Path(args.config).stem,
     )
     payload = result.model_dump()
+
+    # Resolve output path: explicit --out wins; else per-dataset output_dir.
+    out_path: Path | None = None
     if args.out:
-        Path(args.out).write_text(json.dumps(payload, indent=2, ensure_ascii=False))
-        print(f"wrote {args.out}")
+        out_path = Path(args.out)
+    else:
+        ds_cfg = crag.config.datasets.get(args.dataset)
+        if ds_cfg and ds_cfg.output_dir:
+            out_path = ds_cfg.output_for(Path(args.config).stem)
+
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+        print(f"wrote {out_path}")
     else:
         print(json.dumps({"config": result.config_name, "metrics": result.metrics}, indent=2))
     return 0
@@ -193,6 +226,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
     config_paths = [c.strip() for c in args.configs.split(",") if c.strip()]
     results = []
+    per_config_files: list[Path] = []
     for cfg in config_paths:
         crag = _build_chimera(cfg)
         loader = _load_dataset_from_config(crag.config, args.dataset)
@@ -208,11 +242,22 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         )
         results.append({"config": r.config_name, "metrics": r.metrics})
 
+        # Per-dataset / per-config output path if requested.
+        ds_cfg = crag.config.datasets.get(args.dataset)
+        if ds_cfg and ds_cfg.output_dir:
+            sub = ds_cfg.output_for(Path(cfg).stem)
+            sub.parent.mkdir(parents=True, exist_ok=True)
+            sub.write_text(json.dumps(r.model_dump(), indent=2, ensure_ascii=False))
+            per_config_files.append(sub)
+
     if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(json.dumps(results, indent=2, ensure_ascii=False))
         print(f"wrote {args.out}")
     else:
         print(json.dumps(results, indent=2, ensure_ascii=False))
+    for p in per_config_files:
+        print(f"  detail -> {p}")
     return 0
 
 

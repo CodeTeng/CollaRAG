@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _load_model(model_name: str) -> Any:
+def _load_model(model_name: str, *, device: str = "cpu") -> Any:
     """Isolated factory so tests can monkeypatch without the heavy import."""
     try:
         from sentence_transformers import SentenceTransformer  # type: ignore
@@ -33,8 +33,27 @@ def _load_model(model_name: str) -> Any:
         raise ProviderError(
             f"sentence-transformers not installed; run `uv sync --extra st` ({e})"
         ) from e
-    logger.info("loading sentence-transformers model %r (first load may download weights)", model_name)
-    return SentenceTransformer(model_name)
+    logger.info(
+        "loading sentence-transformers model %r on device %r (first load may download weights)",
+        model_name, device,
+    )
+    return SentenceTransformer(model_name, device=device)
+
+
+def _resolve_device(requested: str) -> str:
+    """Map ``auto`` → ``cuda`` / ``mps`` / ``cpu`` based on availability."""
+    if requested != "auto":
+        return requested
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+        if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            return "mps"
+    except ImportError:  # pragma: no cover - torch is a hard dep via st
+        pass
+    return "cpu"
 
 
 class SentenceTransformerEmbeddingProvider(BaseEmbeddingProvider):
@@ -44,8 +63,9 @@ class SentenceTransformerEmbeddingProvider(BaseEmbeddingProvider):
         self.cfg = cfg
         self._normalize = bool(cfg.normalize)
         self._batch_size = int(cfg.batch_size)
+        self._device = _resolve_device(cfg.device)
 
-        self._model = _load_model(cfg.model)
+        self._model = _load_model(cfg.model, device=self._device)
 
         actual_dim = int(self._model.get_sentence_embedding_dimension())
         if actual_dim != cfg.dim:
