@@ -192,12 +192,52 @@ class ChimeraRAG:
         return cls(**params)
 
     def _instantiate_intent(self, cls: type, params: dict) -> "BaseIntentClassifier":
-        return cls(**params)
+        import inspect
+
+        sig = inspect.signature(cls.__init__)
+        call_params = dict(params)
+        # If the class wants an LLM (e.g. LLMIntentClassifier), inject ours.
+        if "llm" in sig.parameters and "llm" not in call_params:
+            call_params["llm"] = self.llm
+        return cls(**call_params)
 
     def _instantiate_retriever(self, cls: type, params: dict) -> "BaseRetriever":
+        import inspect
+
+        sig = inspect.signature(cls.__init__)
         call_params = dict(params)
-        # top_k is handled by QueryPipeline, not by the retriever ctor.
+        # top_k is handled by QueryPipeline.
         call_params.pop("top_k", None)
+
+        # Classic retrievers (DirectRetriever) want vector_store + graph_store + embedder
+        # + chunk_lookup. Smart retrievers (IntentAgentRetriever) want a base_retriever
+        # + classifier + optional hooks. We inspect the ctor and adapt.
+        param_names = set(sig.parameters.keys())
+
+        if "base_retriever" in param_names:
+            # IntentAgent-style retriever: wrap a DirectRetriever under the hood.
+            from chimera_rag.defaults.direct_retriever import DirectRetriever
+
+            inner_hops = int(call_params.pop("neighbor_hops", 1))
+            base = DirectRetriever(
+                vector_store=self.vector_store,
+                graph_store=self.graph_store,
+                embedder=self.embedder,
+                chunk_lookup=self.state.chunk_lookup,
+                neighbor_hops=inner_hops,
+            )
+            wiring: dict = {"base_retriever": base}
+            if "classifier" in param_names:
+                # Use the already-instantiated query intent classifier if we have one,
+                # otherwise create a default LLM one.
+                from chimera_rag.plugins.intent_agent.intent_classifier import (
+                    LLMIntentClassifier,
+                )
+
+                wiring["classifier"] = LLMIntentClassifier(llm=self.llm)
+            return cls(**{**wiring, **call_params})
+
+        # Classic DirectRetriever signature.
         return cls(
             vector_store=self.vector_store,
             graph_store=self.graph_store,
