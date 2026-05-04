@@ -130,9 +130,12 @@ class QueryPipeline:
         retrieval = self.retriever.retrieve(query, top_k=self.top_k)
         answer = self.generator.generate(query, retrieval)
 
-        # Enrich trace with intent label.
+        # Enrich trace with intent + retrieval provenance so downstream
+        # UIs and examples can inspect the decision without re-running.
         answer.intent_label = intent.label
         answer.trace.setdefault("intent_confidence", intent.confidence)
+        answer.trace["retrieval_metadata"] = dict(retrieval.metadata)
+        answer.strategy_name = retrieval.metadata.get("strategy")
         return answer
 
 
