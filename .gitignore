@@ -79,8 +79,9 @@ web-ui/yarn-error.log*
 web-ui/pnpm-debug.log*
 
 # ---------- CodeBuddy ----------
-# 保留 .codebuddy（它存储项目相关数据，不是临时缓存）
-# .codebuddy/ 不忽略
+# 保留 .codebuddy 目录（它存储项目相关数据，不是临时缓存）
+# 但忽略 plan 草稿，避免污染提交历史
+.codebuddy/plans/
 
 # ---------- Jupyter ----------
 .ipynb_checkpoints/
