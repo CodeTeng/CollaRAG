@@ -134,6 +134,66 @@ class ChimeraRAG:
         return dict(self._active_implementations)
 
     # ------------------------------------------------------------------
+    # Live reconfiguration (Web hot-toggle)
+    # ------------------------------------------------------------------
+    def toggle_plugin(self, name: str, enabled: bool) -> None:
+        """Flip a plugin's enabled flag and rebuild the pipelines.
+
+        Preserves the existing :class:`PipelineState` (graph + vector +
+        chunk_lookup) so callers don't have to re-ingest. When a plugin
+        is enabled we also swap the active slot names to the plugin's
+        canonical names; when disabled, we revert to the ``defaults.*``
+        baseline.
+        """
+        if name == "adagraph":
+            self.config.plugins.adagraph.enabled = enabled
+            if enabled:
+                self.config.ingestion.chunker.active = "adagraph.dynamic"
+                self.config.ingestion.extractor.active = "adagraph.layered"
+                self.config.ingestion.pruner.active = "adagraph.dual_redundancy"
+            else:
+                self.config.ingestion.chunker.active = "defaults.fixed"
+                self.config.ingestion.extractor.active = "defaults.simple_llm"
+                self.config.ingestion.pruner.active = "defaults.noop"
+        elif name == "intent_agent":
+            self.config.plugins.intent_agent.enabled = enabled
+            if enabled:
+                self.config.query.intent_classifier.active = "intent_agent.llm"
+                self.config.query.retriever.active = "intent_agent.strategy_selector"
+            else:
+                self.config.query.intent_classifier.active = "defaults.rule"
+                self.config.query.retriever.active = "defaults.direct"
+        else:
+            raise ValueError(f"unknown plugin name: {name!r}")
+
+        self._rebuild_pipelines_preserving_state()
+
+    def _rebuild_pipelines_preserving_state(self) -> None:
+        """Re-run _build() but keep the existing stores + chunk_lookup."""
+        saved_state = self.state
+        saved_graph = self.graph_store
+        saved_vector = self.vector_store
+        self._build()
+        # Restore prior state (graph + vectors + chunks).
+        self.graph_store = saved_graph
+        self.vector_store = saved_vector
+        self.state = saved_state
+        # Re-attach to the query retriever so it sees the same chunk_lookup.
+        retr = self._query.retriever
+        if hasattr(retr, "chunk_lookup"):
+            retr.chunk_lookup = self.state.chunk_lookup
+        if hasattr(retr, "graph_store"):
+            retr.graph_store = self.graph_store
+        if hasattr(retr, "vector_store"):
+            retr.vector_store = self.vector_store
+        # IntentAgentRetriever wraps a base retriever; patch its base too.
+        base = getattr(retr, "base", None)
+        if base is not None:
+            base.chunk_lookup = self.state.chunk_lookup
+            base.graph_store = self.graph_store
+            base.vector_store = self.vector_store
+
+    # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
     def _load_enabled_plugins(self) -> None:
@@ -178,24 +238,40 @@ class ChimeraRAG:
         return graph, vec
 
     # --- instantiators isolate slot-specific dependency wiring --------
+    @staticmethod
+    def _filter_params(cls: type, params: dict) -> dict:
+        """Keep only kwargs accepted by ``cls.__init__`` to avoid TypeError.
+
+        This lets us reuse the same ``params`` dict across different
+        implementations of the same slot (e.g. defaults.fixed vs
+        adagraph.dynamic), which is essential for live plugin toggling.
+        """
+        import inspect
+
+        sig = inspect.signature(cls.__init__)
+        allowed = {p for p in sig.parameters if p != "self"}
+        if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            return dict(params)  # ctor accepts **kwargs
+        return {k: v for k, v in params.items() if k in allowed}
+
     def _instantiate_chunker(self, cls: type, params: dict) -> "BaseChunker":
-        return cls(**params)
+        return cls(**self._filter_params(cls, params))
 
     def _instantiate_extractor(self, cls: type, params: dict) -> "BaseTripleExtractor":
-        # Strip out prompt_template if it's a label rather than a template string.
-        call_params = dict(params)
+        call_params = self._filter_params(cls, params)
+        # Strip labels like "default" that refer to the built-in template.
         if call_params.get("prompt_template") == "default":
             call_params.pop("prompt_template", None)
         return cls(llm=self.llm, **call_params)
 
     def _instantiate_pruner(self, cls: type, params: dict) -> "BasePruner":
-        return cls(**params)
+        return cls(**self._filter_params(cls, params))
 
     def _instantiate_intent(self, cls: type, params: dict) -> "BaseIntentClassifier":
         import inspect
 
         sig = inspect.signature(cls.__init__)
-        call_params = dict(params)
+        call_params = self._filter_params(cls, params)
         # If the class wants an LLM (e.g. LLMIntentClassifier), inject ours.
         if "llm" in sig.parameters and "llm" not in call_params:
             call_params["llm"] = self.llm
@@ -205,7 +281,7 @@ class ChimeraRAG:
         import inspect
 
         sig = inspect.signature(cls.__init__)
-        call_params = dict(params)
+        call_params = self._filter_params(cls, params)
         # top_k is handled by QueryPipeline.
         call_params.pop("top_k", None)
 
@@ -247,7 +323,7 @@ class ChimeraRAG:
         )
 
     def _instantiate_generator(self, cls: type, params: dict) -> "BaseAnswerGenerator":
-        call_params = dict(params)
+        call_params = self._filter_params(cls, params)
         if call_params.get("prompt_template") == "default":
             call_params.pop("prompt_template", None)
         return cls(llm=self.llm, **call_params)
