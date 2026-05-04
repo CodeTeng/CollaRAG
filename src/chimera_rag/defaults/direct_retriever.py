@@ -38,7 +38,9 @@ class DirectRetriever(BaseRetriever):
         self.vector_store = vector_store
         self.graph_store = graph_store
         self.embedder = embedder
-        self.chunk_lookup: dict[str, Chunk] = chunk_lookup or {}
+        self.chunk_lookup: dict[str, Chunk] = (
+            chunk_lookup if chunk_lookup is not None else {}
+        )
         self.neighbor_hops = neighbor_hops
 
     # ------------------------------------------------------------------

@@ -9,8 +9,208 @@ Two research innovations are optional plugins, controlled by ``config.yaml``:
 
 With both plugins disabled the framework degrades gracefully to a working
 "vanilla" KG-RAG baseline.
+
+The top-level facade :class:`ChimeraRAG` wires together all slots from an
+``AppConfig`` and exposes three user-facing methods:
+
+* :meth:`ChimeraRAG.from_config` — classmethod constructor from a yaml path,
+* :meth:`ChimeraRAG.ingest`      — build the knowledge graph from documents,
+* :meth:`ChimeraRAG.query`       — ask a question and get an :class:`Answer`.
 """
+
+from __future__ import annotations
 
 __version__ = "0.1.0"
 
-__all__ = ["__version__"]
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from chimera_rag.core.config import AppConfig, load_config
+from chimera_rag.core.pipeline import IngestionPipeline, PipelineState, QueryPipeline
+from chimera_rag.core.registry import get_registry
+from chimera_rag.core.types import Answer, Document, Query
+
+# Trigger default @register decorators.
+from chimera_rag import defaults as _defaults  # noqa: F401
+
+if TYPE_CHECKING:
+    from chimera_rag.interfaces.chunker import BaseChunker
+    from chimera_rag.interfaces.extractor import BaseTripleExtractor
+    from chimera_rag.interfaces.generator import BaseAnswerGenerator
+    from chimera_rag.interfaces.intent_classifier import BaseIntentClassifier
+    from chimera_rag.interfaces.pruner import BasePruner
+    from chimera_rag.interfaces.retriever import BaseRetriever
+
+
+class ChimeraRAG:
+    """Top-level facade. Build it with :meth:`from_config`."""
+
+    def __init__(self, config: AppConfig) -> None:
+        self.config = config
+        self._build()
+
+    # ------------------------------------------------------------------
+    @classmethod
+    def from_config(cls, path: str | Path) -> "ChimeraRAG":
+        return cls(load_config(path))
+
+    # ------------------------------------------------------------------
+    def _build(self) -> None:
+        # Trigger plugin registration side-effects (only if enabled) before
+        # resolving slots through the Registry.
+        self._load_enabled_plugins()
+
+        registry = get_registry()
+        cfg = self.config
+
+        # Providers.
+        from chimera_rag.providers import build_embedding_provider, build_llm_provider
+
+        self.llm = build_llm_provider(cfg.llm)
+        self.embedder = build_embedding_provider(cfg.embedding)
+
+        # Stores.
+        self.graph_store, self.vector_store = self._build_stores()
+        self.state = PipelineState(
+            graph_store=self.graph_store,
+            vector_store=self.vector_store,
+        )
+
+        # Resolve slot classes via Registry.
+        chunker_cls = registry.get("chunker", cfg.ingestion.chunker.active)
+        extractor_cls = registry.get("extractor", cfg.ingestion.extractor.active)
+        pruner_cls = registry.get("pruner", cfg.ingestion.pruner.active)
+        intent_cls = registry.get("intent_classifier", cfg.query.intent_classifier.active)
+        retriever_cls = registry.get("retriever", cfg.query.retriever.active)
+        generator_cls = registry.get("generator", cfg.query.generator.active)
+
+        # Instantiate slot implementations, injecting dependencies as
+        # required.
+        self._active_implementations = {
+            "chunker": cfg.ingestion.chunker.active,
+            "extractor": cfg.ingestion.extractor.active,
+            "pruner": cfg.ingestion.pruner.active,
+            "intent_classifier": cfg.query.intent_classifier.active,
+            "retriever": cfg.query.retriever.active,
+            "generator": cfg.query.generator.active,
+        }
+
+        chunker = self._instantiate_chunker(chunker_cls, cfg.ingestion.chunker.params)
+        extractor = self._instantiate_extractor(extractor_cls, cfg.ingestion.extractor.params)
+        pruner = self._instantiate_pruner(pruner_cls, cfg.ingestion.pruner.params)
+        intent_classifier = self._instantiate_intent(intent_cls, cfg.query.intent_classifier.params)
+        retriever = self._instantiate_retriever(retriever_cls, cfg.query.retriever.params)
+        generator = self._instantiate_generator(generator_cls, cfg.query.generator.params)
+
+        self._ingest = IngestionPipeline(
+            chunker=chunker,
+            extractor=extractor,
+            pruner=pruner,
+            embedder=self.embedder,
+            state=self.state,
+        )
+        self._query = QueryPipeline(
+            intent_classifier=intent_classifier,
+            retriever=retriever,
+            generator=generator,
+            top_k=int(cfg.query.retriever.params.get("top_k", cfg.storage.vector.top_k)),
+        )
+
+    # ------------------------------------------------------------------
+    # Public surface
+    # ------------------------------------------------------------------
+    def ingest(self, documents: list[Document]) -> dict:
+        return self._ingest.run(documents)
+
+    def query(self, query: Query | str) -> Answer:
+        if isinstance(query, str):
+            query = Query(text=query)
+        return self._query.run(query)
+
+    def stats(self) -> dict:
+        return self.state.stats()
+
+    def active_implementations(self) -> dict[str, str]:
+        return dict(self._active_implementations)
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+    def _load_enabled_plugins(self) -> None:
+        import importlib
+
+        plugins_cfg = self.config.plugins
+        if plugins_cfg.adagraph.enabled:
+            try:
+                importlib.import_module("chimera_rag.plugins.adagraph")
+            except ImportError as e:  # pragma: no cover - optional
+                import logging
+
+                logging.getLogger(__name__).warning("adagraph plugin not available: %s", e)
+
+        if plugins_cfg.intent_agent.enabled:
+            try:
+                importlib.import_module("chimera_rag.plugins.intent_agent")
+            except ImportError as e:  # pragma: no cover - optional
+                import logging
+
+                logging.getLogger(__name__).warning("intent_agent plugin not available: %s", e)
+
+    def _build_stores(self):
+        from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+        from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+
+        graph_cfg = self.config.storage.graph
+        if graph_cfg.backend == "networkx":
+            graph = NetworkXGraphStore()
+        elif graph_cfg.backend == "neo4j":  # pragma: no cover - placeholder
+            from chimera_rag.stores.graph.neo4j_store import Neo4jGraphStore
+
+            graph = Neo4jGraphStore(
+                uri=graph_cfg.neo4j_uri or "bolt://localhost:7687",
+                user=graph_cfg.neo4j_user or "neo4j",
+                password="",
+            )
+        else:  # pragma: no cover - guarded by Pydantic
+            raise ValueError(f"unknown graph backend: {graph_cfg.backend}")
+
+        vec = FAISSVectorStore(dim=self.config.embedding.dim, index_type=self.config.storage.vector.index_type)
+        return graph, vec
+
+    # --- instantiators isolate slot-specific dependency wiring --------
+    def _instantiate_chunker(self, cls: type, params: dict) -> "BaseChunker":
+        return cls(**params)
+
+    def _instantiate_extractor(self, cls: type, params: dict) -> "BaseTripleExtractor":
+        # Strip out prompt_template if it's a label rather than a template string.
+        call_params = dict(params)
+        if call_params.get("prompt_template") == "default":
+            call_params.pop("prompt_template", None)
+        return cls(llm=self.llm, **call_params)
+
+    def _instantiate_pruner(self, cls: type, params: dict) -> "BasePruner":
+        return cls(**params)
+
+    def _instantiate_intent(self, cls: type, params: dict) -> "BaseIntentClassifier":
+        return cls(**params)
+
+    def _instantiate_retriever(self, cls: type, params: dict) -> "BaseRetriever":
+        call_params = dict(params)
+        # top_k is handled by QueryPipeline, not by the retriever ctor.
+        call_params.pop("top_k", None)
+        return cls(
+            vector_store=self.vector_store,
+            graph_store=self.graph_store,
+            embedder=self.embedder,
+            chunk_lookup=self.state.chunk_lookup,
+            **call_params,
+        )
+
+    def _instantiate_generator(self, cls: type, params: dict) -> "BaseAnswerGenerator":
+        call_params = dict(params)
+        if call_params.get("prompt_template") == "default":
+            call_params.pop("prompt_template", None)
+        return cls(llm=self.llm, **call_params)
+
+
+__all__ = ["ChimeraRAG", "__version__"]

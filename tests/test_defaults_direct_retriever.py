@@ -96,3 +96,24 @@ def test_direct_retriever_registers_under_slot():
     from chimera_rag.defaults.direct_retriever import DirectRetriever
 
     assert get_registry().get("retriever", "defaults.direct") is DirectRetriever
+
+
+def test_direct_retriever_shares_chunk_lookup_reference_when_empty():
+    """Regression: empty-dict falsy trap used to break pipeline integration.
+
+    Callers (the top-level Pipeline) pass an initially-empty dict and later
+    fill it during ingest. The retriever must hold the same reference.
+    """
+    from chimera_rag.defaults.direct_retriever import DirectRetriever
+    from chimera_rag.providers.embedding.mock_embedding import MockEmbeddingProvider
+    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+
+    shared: dict = {}
+    r = DirectRetriever(
+        vector_store=FAISSVectorStore(dim=8),
+        graph_store=NetworkXGraphStore(),
+        embedder=MockEmbeddingProvider(dim=8, normalize=True),
+        chunk_lookup=shared,
+    )
+    assert r.chunk_lookup is shared
