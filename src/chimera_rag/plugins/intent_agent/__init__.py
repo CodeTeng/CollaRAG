@@ -15,4 +15,5 @@ from chimera_rag.plugins.intent_agent import (  # noqa: F401
     intent_classifier,
     memory,
     reasoning,
+    strategies,
 )
