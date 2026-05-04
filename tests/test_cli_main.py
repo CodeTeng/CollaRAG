@@ -26,8 +26,11 @@ def test_main_help_lists_all_subcommands():
     r = _run(["--help"])
     assert r.returncode == 0
     out = r.stdout + r.stderr
-    for sub in ["ingest", "query", "evaluate", "benchmark", "export", "serve"]:
+    for sub in ["ingest", "query", "infer", "export", "serve"]:
         assert sub in out
+    # evaluate/benchmark are intentionally removed; scoring lives in eval.py now.
+    assert "evaluate" not in out
+    assert "benchmark" not in out
 
 
 def test_main_ingest_runs_end_to_end_with_vanilla_config(

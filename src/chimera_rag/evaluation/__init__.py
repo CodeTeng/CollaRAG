@@ -1,7 +1,24 @@
-"""Evaluation metrics and evaluator harness."""
+"""Evaluation metrics, runner and reporter."""
 
 from chimera_rag.evaluation.evaluator import Evaluator
+from chimera_rag.evaluation.inference import InferenceRunner
 from chimera_rag.evaluation.metrics import exact_match, rouge_l, token_f1
-from chimera_rag.evaluation.reporter import EvalReporter
+from chimera_rag.evaluation.predictions_io import (
+    read_predictions_dir,
+    write_predictions_dir,
+)
+from chimera_rag.evaluation.reporter import CompareReporter, EvalReporter
+from chimera_rag.evaluation.scorer import Scorer
 
-__all__ = ["EvalReporter", "Evaluator", "exact_match", "rouge_l", "token_f1"]
+__all__ = [
+    "CompareReporter",
+    "EvalReporter",
+    "Evaluator",
+    "InferenceRunner",
+    "Scorer",
+    "exact_match",
+    "read_predictions_dir",
+    "rouge_l",
+    "token_f1",
+    "write_predictions_dir",
+]

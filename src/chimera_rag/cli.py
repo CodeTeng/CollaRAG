@@ -1,17 +1,22 @@
 """Command-line entry point for Chimera-RAG.
 
-``main.py`` at the repo root imports :func:`main` from here. Six
-subcommands are dispatched via :mod:`argparse`:
+``main.py`` at the repo root imports :func:`main` from here.
+Subcommands are dispatched via :mod:`argparse`:
 
-* ``ingest``    — build the knowledge graph from a configured dataset
-* ``query``     — single-shot question answering
-* ``evaluate``  — batch run a QA dataset with EM/F1 metrics
-* ``benchmark`` — compare multiple configs on the same dataset
-* ``export``    — dump graph/vectors/stats to ``output/``
-* ``serve``     — start the FastAPI + React web UI
+* ``ingest``  — build the knowledge graph from a configured dataset
+* ``query``   — single-shot question answering
+* ``infer``   — batch-run a QA dataset and write predictions to disk
+                (no metric calculation; use ``eval.py`` for that)
+* ``export``  — dump graph/vectors/stats to ``output/``
+* ``serve``   — start the FastAPI + React web UI
 
-Each subcommand is intentionally small and delegates to the ChimeraRAG
-facade / dataset / evaluator modules.
+Evaluation is now split into two stages:
+
+* ``main.py infer`` produces predictions.jsonl + meta.json
+* ``eval.py``       reads those, computes metrics, and renders the report
+
+This decoupling means expensive inference only runs once, while metric
+iteration and report regeneration are free.
 """
 
 from __future__ import annotations
@@ -59,22 +64,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_q.add_argument("question", help="natural-language question")
     p_q.set_defaults(func=cmd_query)
 
-    # evaluate ----------------------------------------------------------
-    p_e = sub.add_parser("evaluate", help="batch-evaluate on a QA dataset")
-    _add_common(p_e)
-    p_e.add_argument("--dataset", required=True)
-    p_e.add_argument("--limit", type=int, default=None)
-    p_e.add_argument("--out", default=None, help="path to write JSON results")
-    p_e.set_defaults(func=cmd_evaluate)
-
-    # benchmark ---------------------------------------------------------
-    p_b = sub.add_parser("benchmark", help="compare multiple configs on one dataset")
-    p_b.add_argument("--configs", required=True, help="comma-separated yaml paths")
-    p_b.add_argument("--dataset", required=True)
-    p_b.add_argument("--limit", type=int, default=None)
-    p_b.add_argument("--out", default=None)
-    p_b.add_argument("--log-level", default="INFO")
-    p_b.set_defaults(func=cmd_benchmark)
+    # infer -------------------------------------------------------------
+    p_i = sub.add_parser(
+        "infer",
+        help="batch-run QA dataset and write predictions.jsonl + meta.json",
+    )
+    _add_common(p_i)
+    p_i.add_argument("--dataset", required=True)
+    p_i.add_argument("--limit", type=int, default=None)
+    p_i.add_argument(
+        "--out",
+        default=None,
+        help=(
+            "output directory for predictions.jsonl + meta.json; "
+            "defaults to <dataset.output_dir>/<config_stem>/"
+        ),
+    )
+    p_i.set_defaults(func=cmd_infer)
 
     # export ------------------------------------------------------------
     p_x = sub.add_parser("export", help="dump graph / vectors / stats")
@@ -96,7 +102,6 @@ def build_parser() -> argparse.ArgumentParser:
 # Subcommand implementations
 # ---------------------------------------------------------------------------
 def _build_chimera(config_path: str):
-    # Import lazily to avoid pulling heavy deps for --help invocations.
     from chimera_rag import ChimeraRAG
 
     return ChimeraRAG.from_config(config_path)
@@ -116,16 +121,12 @@ def _load_dataset_from_config(config, dataset_name: str):
 
     loader_cls = get_dataset_loader(ds_cfg.loader)
     kwargs: dict = {}
-    # New-style explicit paths win when present.
     if ds_cfg.corpus_path:
         kwargs["corpus_path"] = ds_cfg.corpus_path
     if ds_cfg.qa_path:
         kwargs["qa_path"] = ds_cfg.qa_path
-    # Legacy single-path.
     if ds_cfg.path and not kwargs:
         kwargs["path"] = ds_cfg.path
-    # Some loaders still expect ``path`` even alongside explicit split paths
-    # (e.g. HotpotQA reads a single distractor file).
     elif ds_cfg.path:
         kwargs.setdefault("path", ds_cfg.path)
 
@@ -134,8 +135,6 @@ def _load_dataset_from_config(config, dataset_name: str):
     try:
         return loader_cls(**kwargs)
     except TypeError as e:
-        # Some loaders (plain_text / hotpotqa / ...) don't accept
-        # corpus_path/qa_path yet; fall back to ``path``-only if set.
         if ds_cfg.path:
             return loader_cls(path=ds_cfg.path)
         raise DatasetError(
@@ -175,10 +174,9 @@ def cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
-# ------------------- evaluate
-def cmd_evaluate(args: argparse.Namespace) -> int:
-    from chimera_rag.evaluation import Evaluator
-    from chimera_rag.evaluation.reporter import EvalReporter
+# ------------------- infer
+def cmd_infer(args: argparse.Namespace) -> int:
+    from chimera_rag.evaluation import InferenceRunner, write_predictions_dir
 
     crag = _build_chimera(args.config)
     loader = _load_dataset_from_config(crag.config, args.dataset)
@@ -187,81 +185,42 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         print(f"dataset {args.dataset!r} yielded no examples", file=sys.stderr)
         return 1
 
-    # If the pipeline has an empty graph, attempt to ingest documents first.
+    # 如果图谱尚未注入，尝试用同一份 dataset 的 documents 注入一次
     if crag.stats()["chunks"] == 0:
         try:
             docs = loader.load_documents()
             if docs:
                 crag.ingest(docs)
         except NotImplementedError:
-            pass  # dataset does not provide documents; proceed regardless
+            pass  # 部分 loader 只提供 QA，跳过
 
-    result = Evaluator(metrics=crag.config.evaluation.metrics).run(
+    config_stem = Path(args.config).stem
+    per_example, meta = InferenceRunner().run(
         pipeline=crag,
         dataset_examples=examples,
-        config_name=Path(args.config).stem,
+        config_name=config_stem,
     )
 
-    # Resolve output directory: explicit --out (treated as dir) wins;
-    # else per-dataset output_dir.
-    out_dir: Path | None = None
+    # 元信息补充：配置、数据集、limit，便于离线打分展示
+    meta["config_path"] = str(Path(args.config).resolve())
+    meta["dataset"] = args.dataset
+    if args.limit is not None:
+        meta["limit"] = args.limit
+
+    # 输出目录解析：--out 优先；否则 <dataset.output_dir>/<config_stem>/
     if args.out:
-        out = Path(args.out)
-        out_dir = out if out.suffix == "" else out.parent
+        out_dir = Path(args.out)
     else:
         ds_cfg = crag.config.datasets.get(args.dataset)
         if ds_cfg and ds_cfg.output_dir:
-            out_dir = Path(ds_cfg.output_dir)
+            out_dir = Path(ds_cfg.output_dir) / config_stem
+        else:
+            out_dir = Path("output") / args.dataset / config_stem
 
-    stem = Path(args.config).stem
-    if out_dir is not None:
-        paths = EvalReporter(result).write(out_dir, stem)
-        print("wrote report:")
-        for kind, p in paths.items():
-            print(f"  {kind:5s} -> {p}")
-    else:
-        print(json.dumps({"config": result.config_name, "metrics": result.metrics}, indent=2))
-    return 0
-
-
-# ------------------- benchmark
-def cmd_benchmark(args: argparse.Namespace) -> int:
-    from chimera_rag.evaluation import Evaluator
-
-    config_paths = [c.strip() for c in args.configs.split(",") if c.strip()]
-    results = []
-    per_config_files: list[Path] = []
-    for cfg in config_paths:
-        crag = _build_chimera(cfg)
-        loader = _load_dataset_from_config(crag.config, args.dataset)
-        examples = loader.load_examples(limit=args.limit)
-        try:
-            docs = loader.load_documents()
-            if docs:
-                crag.ingest(docs)
-        except NotImplementedError:
-            pass
-        r = Evaluator(metrics=crag.config.evaluation.metrics).run(
-            pipeline=crag, dataset_examples=examples, config_name=Path(cfg).stem
-        )
-        results.append({"config": r.config_name, "metrics": r.metrics})
-
-        # Per-dataset / per-config output path if requested.
-        ds_cfg = crag.config.datasets.get(args.dataset)
-        if ds_cfg and ds_cfg.output_dir:
-            sub = ds_cfg.output_for(Path(cfg).stem)
-            sub.parent.mkdir(parents=True, exist_ok=True)
-            sub.write_text(json.dumps(r.model_dump(), indent=2, ensure_ascii=False))
-            per_config_files.append(sub)
-
-    if args.out:
-        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.out).write_text(json.dumps(results, indent=2, ensure_ascii=False))
-        print(f"wrote {args.out}")
-    else:
-        print(json.dumps(results, indent=2, ensure_ascii=False))
-    for p in per_config_files:
-        print(f"  detail -> {p}")
+    paths = write_predictions_dir(out_dir, per_example=per_example, meta=meta)
+    print("wrote predictions:")
+    for kind, p in paths.items():
+        print(f"  {kind:12s} -> {p}")
     return 0
 
 
@@ -271,7 +230,6 @@ def cmd_export(args: argparse.Namespace) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    # graph triples
     triples = [
         {
             "subject": t.subject,
@@ -285,14 +243,12 @@ def cmd_export(args: argparse.Namespace) -> int:
     ]
     (out / "triples.json").write_text(json.dumps(triples, indent=2, ensure_ascii=False))
 
-    # chunks
     chunks = [
         {"chunk_id": c.chunk_id, "doc_id": c.doc_id, "index": c.index, "text": c.text}
         for c in crag.state.chunk_lookup.values()
     ]
     (out / "chunks.json").write_text(json.dumps(chunks, indent=2, ensure_ascii=False))
 
-    # stats
     (out / "stats.json").write_text(json.dumps(crag.stats(), indent=2))
     print(f"exported to {out}")
     return 0
