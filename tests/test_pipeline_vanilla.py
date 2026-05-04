@@ -20,12 +20,12 @@ import pytest
 
 
 @pytest.fixture()
-def vanilla_config(tmp_path: Path) -> Path:
+def vanilla_config(mock_vanilla_yaml: str, tmp_path: Path) -> Path:
     """Return a vanilla config whose workspace_dir is under tmp_path."""
     from chimera_rag.core.config import load_config  # noqa: F401
 
     repo = Path(__file__).resolve().parent.parent
-    raw = (repo / "configs" / "mock_vanilla.yaml").read_text()
+    raw = Path(mock_vanilla_yaml).read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),

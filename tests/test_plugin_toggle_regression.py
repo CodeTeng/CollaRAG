@@ -16,21 +16,15 @@ def test_filter_params_rejects_kwargs_for_classes_without_own_init():
     assert ChimeraRAG._filter_params(NoOpPruner, {"foo": 1, "bar": 2}) == {}
 
 
-def test_plugin_toggle_from_full_to_vanilla_does_not_crash(tmp_path: Path):
+def test_plugin_toggle_from_full_to_vanilla_does_not_crash(
+    mock_full_yaml: str, tmp_path: Path
+):
     """Regression: toggling adagraph off while its params are still in
     config.ingestion.pruner.params must not crash on NoOpPruner instantiation.
     """
     from chimera_rag import ChimeraRAG
 
-    raw = (REPO / "configs" / "mock_full.yaml").read_text()
-    raw = raw.replace(
-        "./storage/full",
-        str(tmp_path / "storage").replace("\\", "/"),
-    )
-    p = tmp_path / "config.yaml"
-    p.write_text(raw)
-
-    crag = ChimeraRAG.from_config(p)
+    crag = ChimeraRAG.from_config(mock_full_yaml)
     assert crag.active_implementations()["pruner"] == "adagraph.dual_redundancy"
 
     # Flip adagraph off — config.ingestion.pruner.active becomes 'defaults.noop'

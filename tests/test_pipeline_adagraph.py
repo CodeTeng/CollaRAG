@@ -18,17 +18,8 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture()
-def adagraph_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "mock_adagraph_only.yaml").read_text()
-    raw = raw.replace(
-        "./storage/adagraph_only",
-        str(tmp_path / "storage").replace("\\", "/"),
-    )
-    p = tmp_path / "config.yaml"
-    p.write_text(raw)
-    return p
-
-
+def adagraph_config(mock_adagraph_only_yaml: str) -> str:
+    return mock_adagraph_only_yaml
 def test_adagraph_plugin_activates_when_enabled(adagraph_config: Path):
     from chimera_rag import ChimeraRAG
 

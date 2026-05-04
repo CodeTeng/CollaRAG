@@ -10,14 +10,14 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture()
-def client_with_triples(tmp_path: Path):
+def client_with_triples(mock_vanilla_yaml: str, tmp_path: Path):
     from fastapi.testclient import TestClient
 
     from chimera_rag import ChimeraRAG
     from chimera_rag.core.types import Triple
     from chimera_rag.web.app import create_app
 
-    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
+    raw = Path(mock_vanilla_yaml).read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),

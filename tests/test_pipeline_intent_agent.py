@@ -10,17 +10,8 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture()
-def intent_agent_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "mock_intent_only.yaml").read_text()
-    raw = raw.replace(
-        "./storage/intent_agent_only",
-        str(tmp_path / "storage").replace("\\", "/"),
-    )
-    p = tmp_path / "config.yaml"
-    p.write_text(raw)
-    return p
-
-
+def intent_agent_config(mock_intent_only_yaml: str) -> str:
+    return mock_intent_only_yaml
 def test_intent_agent_plugin_activates_when_enabled(intent_agent_config: Path):
     from chimera_rag import ChimeraRAG
 

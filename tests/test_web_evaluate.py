@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture()
-def client_with_eval_ds(tmp_path: Path):
+def client_with_eval_ds(mock_vanilla_yaml: str, tmp_path: Path):
     from fastapi.testclient import TestClient
 
     from chimera_rag import ChimeraRAG
@@ -24,7 +24,7 @@ def client_with_eval_ds(tmp_path: Path):
         for i in range(3)
     ))
 
-    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
+    raw = Path(mock_vanilla_yaml).read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
@@ -45,7 +45,7 @@ datasets:
     path: {ds_path}
 """
     # Simpler: inject by replacing datasets section.
-    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text().replace(
+    raw = Path(mock_vanilla_yaml).read_text().replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
     )

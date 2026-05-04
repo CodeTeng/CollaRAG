@@ -10,17 +10,8 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture()
-def full_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "mock_full.yaml").read_text()
-    raw = raw.replace(
-        "./storage/full",
-        str(tmp_path / "storage").replace("\\", "/"),
-    )
-    p = tmp_path / "config.yaml"
-    p.write_text(raw)
-    return p
-
-
+def full_config(mock_full_yaml: str) -> str:
+    return mock_full_yaml
 def test_full_config_activates_both_plugins_across_all_slots(full_config: Path):
     from chimera_rag import ChimeraRAG
 

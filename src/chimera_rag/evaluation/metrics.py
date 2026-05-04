@@ -1,6 +1,6 @@
-"""Evaluation metrics: EM and token-F1 (SQuAD-style).
+"""Evaluation metrics: EM, token-F1, ROUGE-L (SQuAD + summarisation style).
 
-Both use the canonical text normalisation:
+All use the canonical text normalisation:
 1. lowercase
 2. strip punctuation
 3. remove leading articles (a, an, the)
@@ -45,4 +45,37 @@ def token_f1(pred: str, ref: str) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
-__all__ = ["exact_match", "token_f1"]
+def _lcs_length(a: list[str], b: list[str]) -> int:
+    """Standard O(len(a) * len(b)) longest-common-subsequence length."""
+    if not a or not b:
+        return 0
+    # Use a 1-D rolling row to keep memory small for long sequences.
+    prev = [0] * (len(b) + 1)
+    for x in a:
+        curr = [0] * (len(b) + 1)
+        for j, y in enumerate(b, start=1):
+            curr[j] = prev[j - 1] + 1 if x == y else max(curr[j - 1], prev[j])
+        prev = curr
+    return prev[-1]
+
+
+def rouge_l(pred: str, ref: str) -> float:
+    """Return ROUGE-L F1 between prediction and reference.
+
+    Computed as the F1 of the longest common subsequence against the
+    normalised, whitespace-tokenised pred/ref. Zero-length inputs give 0.
+    """
+    pred_tokens = _normalise(pred).split()
+    ref_tokens = _normalise(ref).split()
+    if not pred_tokens or not ref_tokens:
+        return 0.0
+    lcs = _lcs_length(pred_tokens, ref_tokens)
+    if lcs == 0:
+        return 0.0
+    p = lcs / len(pred_tokens)
+    r = lcs / len(ref_tokens)
+    return 2 * p * r / (p + r)
+
+
+__all__ = ["exact_match", "rouge_l", "token_f1"]
+

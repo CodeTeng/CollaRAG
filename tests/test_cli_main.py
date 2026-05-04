@@ -30,17 +30,10 @@ def test_main_help_lists_all_subcommands():
         assert sub in out
 
 
-def test_main_ingest_runs_end_to_end_with_vanilla_config(tmp_path: Path):
-    # Prepare a vanilla config whose workspace is redirected under tmp_path.
-    raw = (REPO_ROOT / "configs" / "mock_vanilla.yaml").read_text()
-    raw = raw.replace(
-        "./storage/vanilla",
-        str(tmp_path / "storage").replace("\\", "/"),
-    )
-    cfg = tmp_path / "config.yaml"
-    cfg.write_text(raw)
-
-    r = _run(["ingest", "--config", str(cfg), "--dataset", "sample"])
+def test_main_ingest_runs_end_to_end_with_vanilla_config(
+    mock_vanilla_yaml: str, tmp_path: Path
+):
+    r = _run(["ingest", "--config", mock_vanilla_yaml, "--dataset", "sample"])
     assert r.returncode == 0, f"stderr={r.stderr}\nstdout={r.stdout}"
     # Summary line should mention doc / chunk / triple counts.
     out = r.stdout + r.stderr

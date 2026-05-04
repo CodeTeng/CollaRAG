@@ -132,11 +132,16 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
 
 
 # ---------------------------------------------------------------------------
-# Real configs
+# Shipped configs — only the 4 deepseek variants live in configs/ now.
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "filename",
-    ["mock_vanilla.yaml", "mock_adagraph_only.yaml", "mock_intent_only.yaml", "mock_full.yaml", "default.yaml"],
+    [
+        "deepseek_vanilla.yaml",
+        "deepseek_adagraph_only.yaml",
+        "deepseek_intent_only.yaml",
+        "deepseek_full.yaml",
+    ],
 )
 def test_shipped_configs_are_valid(filename: str):
     """Every yaml we ship must pass full Pydantic validation."""
@@ -148,15 +153,16 @@ def test_shipped_configs_are_valid(filename: str):
     assert cfg.app.name == "chimera-rag"
 
 
-def test_plugin_enabled_flag_reflected_per_config():
+def test_plugin_enabled_flag_reflected_per_config(
+    mock_vanilla_yaml: str, mock_full_yaml: str
+):
+    """The generated Mock yamls must faithfully reflect their plugin toggles."""
     from chimera_rag.core.config import load_config
 
-    repo_root = Path(__file__).resolve().parent.parent
-
-    vanilla = load_config(repo_root / "configs" / "mock_vanilla.yaml")
+    vanilla = load_config(mock_vanilla_yaml)
     assert vanilla.plugins.adagraph.enabled is False
     assert vanilla.plugins.intent_agent.enabled is False
 
-    full = load_config(repo_root / "configs" / "mock_full.yaml")
+    full = load_config(mock_full_yaml)
     assert full.plugins.adagraph.enabled is True
     assert full.plugins.intent_agent.enabled is True

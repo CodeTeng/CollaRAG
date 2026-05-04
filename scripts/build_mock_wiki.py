@@ -114,7 +114,7 @@ def build_qa() -> list[dict]:
         qa.append({"question": f"What field does {person} research?",     "answer": field})
 
     # --- factual about companies (15) ---
-    for person, company, _city, _field in PEOPLE[:15]:
+    for _person, company, _city, _field in PEOPLE[:15]:
         year = FOUNDATION_YEARS[company]
         qa.append({"question": f"In what year was {company} founded?",    "answer": str(year)})
 
@@ -131,7 +131,7 @@ def build_qa() -> list[dict]:
 
     # --- multi-hop: person -> company -> city (10) ---
     mh_city_count = 0
-    for person, company, city, _field in PEOPLE:
+    for person, _company, city, _field in PEOPLE:
         if mh_city_count < 10:
             qa.append({
                 "question": f"In which city is the company that {person} works at headquartered?",
@@ -165,7 +165,7 @@ def build_qa() -> list[dict]:
         })
 
     # --- extra factual to reach 100 (7) ---
-    for person, company, city, _field in PEOPLE[:7]:
+    for _person, company, city, _field in PEOPLE[:7]:
         qa.append({
             "question": f"What is the headquarters city of {company}?",
             "answer": city,

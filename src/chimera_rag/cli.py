@@ -178,6 +178,7 @@ def cmd_query(args: argparse.Namespace) -> int:
 # ------------------- evaluate
 def cmd_evaluate(args: argparse.Namespace) -> int:
     from chimera_rag.evaluation import Evaluator
+    from chimera_rag.evaluation.reporter import EvalReporter
 
     crag = _build_chimera(args.config)
     loader = _load_dataset_from_config(crag.config, args.dataset)
@@ -200,21 +201,24 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         dataset_examples=examples,
         config_name=Path(args.config).stem,
     )
-    payload = result.model_dump()
 
-    # Resolve output path: explicit --out wins; else per-dataset output_dir.
-    out_path: Path | None = None
+    # Resolve output directory: explicit --out (treated as dir) wins;
+    # else per-dataset output_dir.
+    out_dir: Path | None = None
     if args.out:
-        out_path = Path(args.out)
+        out = Path(args.out)
+        out_dir = out if out.suffix == "" else out.parent
     else:
         ds_cfg = crag.config.datasets.get(args.dataset)
         if ds_cfg and ds_cfg.output_dir:
-            out_path = ds_cfg.output_for(Path(args.config).stem)
+            out_dir = Path(ds_cfg.output_dir)
 
-    if out_path is not None:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
-        print(f"wrote {out_path}")
+    stem = Path(args.config).stem
+    if out_dir is not None:
+        paths = EvalReporter(result).write(out_dir, stem)
+        print(f"wrote report:")
+        for kind, p in paths.items():
+            print(f"  {kind:5s} -> {p}")
     else:
         print(json.dumps({"config": result.config_name, "metrics": result.metrics}, indent=2))
     return 0
