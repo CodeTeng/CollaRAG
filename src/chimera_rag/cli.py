@@ -27,6 +27,7 @@ import logging
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from chimera_rag.core.exceptions import ChimeraError
 from chimera_rag.core.logging import setup_logging
@@ -175,7 +176,23 @@ def cmd_query(args: argparse.Namespace) -> int:
 
 
 # ------------------- infer
+def _snapshot_usage(crag) -> dict[str, int]:
+    """读取 crag.llm.usage（OpenAI/DeepSeek provider）的累计值。"""
+    llm = getattr(crag, "llm", None)
+    usage = getattr(llm, "usage", None)
+    if isinstance(usage, dict):
+        return dict(usage)
+    return {}
+
+
+def _diff_usage(after: dict[str, int], before: dict[str, int]) -> dict[str, int]:
+    keys = set(after) | set(before)
+    return {k: int(after.get(k, 0)) - int(before.get(k, 0)) for k in keys}
+
+
 def cmd_infer(args: argparse.Namespace) -> int:
+    import time as _time
+
     from chimera_rag.evaluation import InferenceRunner, write_predictions_dir
 
     crag = _build_chimera(args.config)
@@ -185,14 +202,41 @@ def cmd_infer(args: argparse.Namespace) -> int:
         print(f"dataset {args.dataset!r} yielded no examples", file=sys.stderr)
         return 1
 
-    # 如果图谱尚未注入，尝试用同一份 dataset 的 documents 注入一次
+    # 如果图谱尚未注入，先触发一次 ingest；把 token/耗时/图谱规模单独记录，
+    # 便于在报告里区分"构图消耗"与"推理消耗"。
+    ingest_info: dict[str, Any] | None = None
     if crag.stats()["chunks"] == 0:
         try:
             docs = loader.load_documents()
-            if docs:
-                crag.ingest(docs)
         except NotImplementedError:
-            pass  # 部分 loader 只提供 QA，跳过
+            docs = []
+        if docs:
+            print(
+                f">>> 首次使用 config `{Path(args.config).stem}` + dataset "
+                f"`{args.dataset}`，开始构图（{len(docs)} 篇文档），"
+                "请稍候……",
+                file=sys.stderr,
+            )
+            usage_before = _snapshot_usage(crag)
+            t0 = _time.perf_counter()
+            ingest_stats = crag.ingest(docs)
+            elapsed = _time.perf_counter() - t0
+            usage_delta = _diff_usage(_snapshot_usage(crag), usage_before)
+            ingest_info = {
+                "elapsed_s": round(elapsed, 3),
+                "usage": usage_delta,
+                "documents": int(ingest_stats.get("documents", len(docs))),
+                "chunks": int(ingest_stats.get("chunks", 0)),
+                "triples_raw": int(ingest_stats.get("triples_raw", 0)),
+                "triples_pruned": int(ingest_stats.get("triples_pruned", 0)),
+            }
+            print(
+                f">>> 构图完成：{ingest_info['chunks']} 个 chunk、"
+                f"{ingest_info['triples_pruned']} 个三元组，耗时 "
+                f"{elapsed:.1f}s，LLM 调用 {int(usage_delta.get('calls', 0))} 次、"
+                f"token {int(usage_delta.get('total_tokens', 0))}",
+                file=sys.stderr,
+            )
 
     config_stem = Path(args.config).stem
     per_example, meta = InferenceRunner().run(
@@ -206,6 +250,8 @@ def cmd_infer(args: argparse.Namespace) -> int:
     meta["dataset"] = args.dataset
     if args.limit is not None:
         meta["limit"] = args.limit
+    if ingest_info is not None:
+        meta["ingest"] = ingest_info
 
     # 输出目录解析：--out 优先；否则 <dataset.output_dir>/<config_stem>/
     if args.out:

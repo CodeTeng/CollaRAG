@@ -128,6 +128,8 @@ class EvalReporter:
         # ---- 1. 总览 -------------------------------------------------
         lines.append("## 一、总览")
         lines.append("")
+        lines.append("### 推理阶段")
+        lines.append("")
         lines.append("| 指标 | 数值 |")
         lines.append("|---|---|")
         lines.append(f"| 样本数 | {_fmt_int(n)} |")
@@ -149,6 +151,58 @@ class EvalReporter:
                 if n > 0:
                     lines.append(f"| 平均每题 Token | {total_t / n:.1f} |")
         lines.append("")
+
+        # ---- 1b. 构图阶段（只在 meta.ingest 存在时显示） ----------
+        if r.ingest:
+            ing = r.ingest
+            ing_usage = ing.get("usage") or {}
+            lines.append("### 构图阶段（一次性）")
+            lines.append("")
+            lines.append("| 指标 | 数值 |")
+            lines.append("|---|---|")
+            if "documents" in ing:
+                lines.append(f"| 文档数 | {_fmt_int(int(ing['documents']))} |")
+            if "chunks" in ing:
+                lines.append(f"| Chunk 数 | {_fmt_int(int(ing['chunks']))} |")
+            if "triples_pruned" in ing:
+                raw_t = int(ing.get("triples_raw", ing["triples_pruned"]))
+                kept = int(ing["triples_pruned"])
+                lines.append(f"| 三元组 | {_fmt_int(raw_t)} 抽取 → {_fmt_int(kept)} 保留 |")
+            if ing.get("elapsed_s"):
+                lines.append(f"| 构图耗时 | {_fmt_duration(float(ing['elapsed_s']))} |")
+            if ing_usage:
+                i_calls = int(ing_usage.get("calls", 0))
+                i_total = int(ing_usage.get("total_tokens", 0))
+                if i_calls:
+                    lines.append(f"| LLM 调用次数 | {_fmt_int(i_calls)} |")
+                if i_total:
+                    lines.append(f"| 合计 Token | {_fmt_int(i_total)} |")
+            lines.append("")
+
+            # 构图 + 推理 合计
+            total_elapsed = float(ing.get("elapsed_s", 0.0)) + float(r.elapsed_s or 0.0)
+            total_calls = int(ing_usage.get("calls", 0)) + int(r.usage.get("calls", 0))
+            total_tokens = int(ing_usage.get("total_tokens", 0)) + int(r.usage.get("total_tokens", 0))
+            lines.append("### 总计（构图 + 推理）")
+            lines.append("")
+            lines.append("| 指标 | 构图 | 推理 | 合计 |")
+            lines.append("|---|---|---|---|")
+            lines.append(
+                f"| 耗时 | {_fmt_duration(float(ing.get('elapsed_s', 0.0)))} | "
+                f"{_fmt_duration(float(r.elapsed_s or 0.0))} | "
+                f"{_fmt_duration(total_elapsed)} |"
+            )
+            lines.append(
+                f"| LLM 调用 | {_fmt_int(int(ing_usage.get('calls', 0)))} | "
+                f"{_fmt_int(int(r.usage.get('calls', 0)))} | "
+                f"{_fmt_int(total_calls)} |"
+            )
+            lines.append(
+                f"| Token | {_fmt_int(int(ing_usage.get('total_tokens', 0)))} | "
+                f"{_fmt_int(int(r.usage.get('total_tokens', 0)))} | "
+                f"{_fmt_int(total_tokens)} |"
+            )
+            lines.append("")
 
         lines.append("### 综合指标")
         lines.append("")
@@ -386,7 +440,10 @@ class CompareReporter:
         # ---- 总览 ----
         lines.append("## 一、总览")
         lines.append("")
-        header = ["配置", "样本数", "总耗时", "LLM 调用", "合计 Token", "吞吐(题/秒)"]
+        header = [
+            "配置", "样本数", "推理耗时", "推理 LLM 调用", "推理 Token",
+            "构图耗时", "构图 Token", "吞吐(题/秒)",
+        ]
         lines.append("| " + " | ".join(header) + " |")
         lines.append("|" + "|".join(["---"] * len(header)) + "|")
         for r in results:
@@ -394,9 +451,18 @@ class CompareReporter:
             total_t = int(r.usage.get("total_tokens", 0))
             calls = int(r.usage.get("calls", 0))
             qps = n / r.elapsed_s if r.elapsed_s > 0 else 0.0
+            if r.ingest:
+                ing_elapsed = float(r.ingest.get("elapsed_s", 0.0))
+                ing_tok = int((r.ingest.get("usage") or {}).get("total_tokens", 0))
+                ing_elapsed_s = _fmt_duration(ing_elapsed) if ing_elapsed else "-"
+                ing_tok_s = _fmt_int(ing_tok) if ing_tok else "-"
+            else:
+                ing_elapsed_s = "-"
+                ing_tok_s = "-"
             lines.append(
                 f"| `{r.config_name}` | {n} | {_fmt_duration(r.elapsed_s)} | "
-                f"{_fmt_int(calls)} | {_fmt_int(total_t)} | {qps:.2f} |"
+                f"{_fmt_int(calls)} | {_fmt_int(total_t)} | "
+                f"{ing_elapsed_s} | {ing_tok_s} | {qps:.2f} |"
             )
         lines.append("")
 

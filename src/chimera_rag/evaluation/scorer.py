@@ -43,6 +43,7 @@ class Scorer:
         config_name: str = "default",
         usage: dict[str, int] | None = None,
         elapsed_s: float = 0.0,
+        ingest: dict[str, Any] | None = None,
     ) -> EvalResult:
         aggregates: dict[str, list[float]] = {m: [] for m in self.metrics}
         scored_rows: list[dict[str, Any]] = []
@@ -75,6 +76,7 @@ class Scorer:
             per_example=scored_rows,
             usage=dict(usage or {}),
             elapsed_s=round(float(elapsed_s), 3),
+            ingest=dict(ingest) if ingest else None,
         )
 
 

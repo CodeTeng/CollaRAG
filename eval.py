@@ -113,6 +113,7 @@ def _score_one(pred_path: Path, metrics: list[str]):
         config_name=config_name,
         usage=meta.get("usage_total", {}),
         elapsed_s=float(meta.get("elapsed_s", 0.0)),
+        ingest=meta.get("ingest"),
     )
     return result
 
