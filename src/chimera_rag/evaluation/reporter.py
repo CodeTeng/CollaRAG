@@ -93,7 +93,7 @@ class EvalReporter:
                     vals = [r_.get(mk, 0.0) for r_ in grp]
                     metric_cells.append(f"{statistics.mean(vals):.3f}" if vals else "-")
                 lines.append(
-                    "| " + " | ".join([label, str(len(grp))] + metric_cells + [f"{avg_latency:.2f}"]) + " |"
+                    "| " + " | ".join([label, str(len(grp)), *metric_cells, f"{avg_latency:.2f}"]) + " |"
                 )
             lines.append("")
 

@@ -216,7 +216,7 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     stem = Path(args.config).stem
     if out_dir is not None:
         paths = EvalReporter(result).write(out_dir, stem)
-        print(f"wrote report:")
+        print("wrote report:")
         for kind, p in paths.items():
             print(f"  {kind:5s} -> {p}")
     else:
