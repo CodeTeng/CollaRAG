@@ -151,6 +151,9 @@ class EvalResult(BaseModel):
     config_name: str
     metrics: dict[str, float]
     per_example: list[dict[str, Any]] = Field(default_factory=list)
+    # Optional run-level diagnostics populated by Evaluator.run when available.
+    usage: dict[str, int] = Field(default_factory=dict)  # prompt/completion/total tokens + calls
+    elapsed_s: float = 0.0  # wall-clock seconds of the evaluation loop
 
 
 __all__ = [

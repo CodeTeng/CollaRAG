@@ -133,6 +133,20 @@ class OpenAILLMProvider(BaseLLMProvider):
             timeout=cfg.timeout,
         )
 
+        # Token usage accumulator — shared across all .complete() calls on
+        # this provider instance. Read via .usage / reset via .reset_usage().
+        self.usage: dict[str, int] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "calls": 0,
+        }
+
+    # ------------------------------------------------------------------
+    def reset_usage(self) -> None:
+        for k in self.usage:
+            self.usage[k] = 0
+
     # ------------------------------------------------------------------
     async def complete(self, prompt: str, **kwargs: Any) -> str:
         retry_cfg = self.cfg.retry
@@ -153,6 +167,13 @@ class OpenAILLMProvider(BaseLLMProvider):
                         temperature=kwargs.get("temperature", self.temperature),
                         max_tokens=kwargs.get("max_tokens", self.max_tokens),
                     )
+                    # Accumulate usage if the SDK populated it
+                    u = getattr(resp, "usage", None)
+                    if u is not None:
+                        self.usage["prompt_tokens"] += int(getattr(u, "prompt_tokens", 0) or 0)
+                        self.usage["completion_tokens"] += int(getattr(u, "completion_tokens", 0) or 0)
+                        self.usage["total_tokens"] += int(getattr(u, "total_tokens", 0) or 0)
+                    self.usage["calls"] += 1
                     return resp.choices[0].message.content or ""
         except RetryError as re:
             last_error = re.last_attempt.exception() if re.last_attempt else re

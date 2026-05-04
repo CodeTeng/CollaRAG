@@ -42,7 +42,9 @@ storage:
     persist_path: ./storage/deepseek_intent_only/graph.gpickle
   vector:
     backend: faiss
-    index_type: hnsw            # flat_ip / flat_l2 / ivf_flat / hnsw
+    # 100 条规模下 flat_ip 最准（100% 召回）且速度完全够用；
+    # 若语料扩到 10k+ 再切换到 hnsw。
+    index_type: flat_ip         # flat_ip / flat_l2 / ivf_flat / hnsw
     metric: ip                  # ip / l2
     persist_path: ./storage/deepseek_intent_only/vectors
     top_k: 5
