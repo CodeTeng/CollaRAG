@@ -1,0 +1,86 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---------- uv / venv ----------
+.venv/
+venv/
+env/
+ENV/
+# NOTE: uv.lock 必须提交到版本库，保证可复现构建
+# !uv.lock
+
+# ---------- Testing / Coverage ----------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ---------- IDE / Editor ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- macOS / Windows ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Env / Secrets ----------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ---------- Project 运行产物 ----------
+data/
+!data/README.md
+output/
+logs/
+runs/
+*.faiss
+*.pkl
+*.gpickle
+storage/
+
+# ---------- Frontend (web-ui) ----------
+web-ui/node_modules/
+web-ui/dist/
+web-ui/.vite/
+web-ui/*.local
+web-ui/npm-debug.log*
+web-ui/yarn-debug.log*
+web-ui/yarn-error.log*
+web-ui/pnpm-debug.log*
+
+# ---------- CodeBuddy ----------
+# 保留 .codebuddy（它存储项目相关数据，不是临时缓存）
+# .codebuddy/ 不忽略
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
