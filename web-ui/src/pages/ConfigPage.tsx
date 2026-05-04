@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/PageHeader";
 import { ChimeraAPI } from "@/lib/api";
+import { extractErrorMessage } from "@/lib/types";
 
 export function ConfigPage() {
   const [text, setText] = useState("");
@@ -21,15 +22,21 @@ export function ConfigPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    const r = await ChimeraAPI.getConfig();
-    const pretty = JSON.stringify(r.config, null, 2);
-    setText(pretty);
-    setOriginal(pretty);
-  };
-
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    ChimeraAPI.getConfig()
+      .then((r) => {
+        if (cancelled) return;
+        const pretty = JSON.stringify(r.config, null, 2);
+        setText(pretty);
+        setOriginal(pretty);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(extractErrorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const save = async () => {
@@ -45,12 +52,8 @@ export function ConfigPage() {
           .join(", ")}`,
       );
       setOriginal(text);
-    } catch (e: any) {
-      setError(
-        e?.response?.data?.detail
-          ? JSON.stringify(e.response.data.detail, null, 2)
-          : e.message,
-      );
+    } catch (e: unknown) {
+      setError(extractErrorMessage(e));
     } finally {
       setSaving(false);
     }

@@ -41,7 +41,13 @@ export function PluginsPage() {
   };
 
   useEffect(() => {
-    void refresh();
+    let cancelled = false;
+    ChimeraAPI.plugins().then((r) => {
+      if (!cancelled) setData(r);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const toggle = async (name: string, next: boolean) => {

@@ -14,7 +14,7 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { ChimeraAPI } from "@/lib/api";
-import type { IngestResponse } from "@/lib/types";
+import { extractErrorMessage, type IngestResponse } from "@/lib/types";
 
 export function IngestPage() {
   const [datasets, setDatasets] = useState<string[]>([]);
@@ -26,12 +26,19 @@ export function IngestPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     ChimeraAPI.getConfig()
       .then((c) => {
-        const ds = (c.config as any).datasets as Record<string, unknown> | undefined;
+        if (cancelled) return;
+        const ds = c.config.datasets as Record<string, unknown> | undefined;
         setDatasets(Object.keys(ds ?? {}));
       })
-      .catch(() => {});
+      .catch(() => {
+        /* 静默 */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const runDataset = async () => {
@@ -40,8 +47,8 @@ export function IngestPage() {
     try {
       const r = await ChimeraAPI.ingest({ dataset: selected });
       setResult(r);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+    } catch (e: unknown) {
+      setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -56,8 +63,8 @@ export function IngestPage() {
         documents: [{ doc_id: docId, content: rawDocs }],
       });
       setResult(r);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+    } catch (e: unknown) {
+      setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }

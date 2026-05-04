@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/PageHeader";
 import { IntentBadge } from "@/components/IntentBadge";
 import { ChimeraAPI } from "@/lib/api";
-import type { QueryResponse } from "@/lib/types";
+import { extractErrorMessage, type QueryResponse } from "@/lib/types";
 import { useAppStore } from "@/store";
 
 const PRESET_QUESTIONS = [
@@ -40,8 +40,8 @@ export function QueryPage() {
       const r = await ChimeraAPI.query({ text });
       setResult(r);
       addTrace(text, r);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+    } catch (e: unknown) {
+      setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }

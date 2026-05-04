@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { ChimeraAPI } from "@/lib/api";
-import type { EvaluateResponse } from "@/lib/types";
+import { extractErrorMessage, type EvaluateResponse } from "@/lib/types";
 
 const METRIC_LABEL: Record<string, string> = {
   em: "精确匹配 EM",
@@ -33,11 +33,20 @@ export function EvaluatePage() {
   const [result, setResult] = useState<EvaluateResponse | null>(null);
 
   useEffect(() => {
-    ChimeraAPI.getConfig().then((c) => {
-      const ds = Object.keys((c.config as any).datasets ?? {});
-      setDatasets(ds);
-      if (ds.length) setSelected(ds[0]);
-    });
+    let cancelled = false;
+    ChimeraAPI.getConfig()
+      .then((c) => {
+        if (cancelled) return;
+        const ds = Object.keys(c.config.datasets ?? {});
+        setDatasets(ds);
+        if (ds.length) setSelected(ds[0]);
+      })
+      .catch(() => {
+        /* 静默：评测页对 config 获取失败不阻断 */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const run = async () => {
@@ -50,8 +59,8 @@ export function EvaluatePage() {
         limit: limit ? Number(limit) : undefined,
       });
       setResult(r);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+    } catch (e: unknown) {
+      setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -173,7 +182,7 @@ export function EvaluatePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.per_example.map((row: any, i: number) => (
+                  {result.per_example.map((row, i) => (
                     <tr
                       key={i}
                       className="border-t border-[var(--color-border)]/60 hover:bg-[var(--color-surface-hi)]/60"

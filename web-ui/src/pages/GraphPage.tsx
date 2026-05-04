@@ -12,7 +12,7 @@ import type { GraphResponse } from "@/lib/types";
 export function GraphPage() {
   const [data, setData] = useState<GraphResponse | null>(null);
   const [entity, setEntity] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const cyRef = useRef<cytoscape.Core | null>(null);
 
   const refresh = async (e?: string) => {
@@ -26,7 +26,17 @@ export function GraphPage() {
   };
 
   useEffect(() => {
-    void refresh();
+    let cancelled = false;
+    ChimeraAPI.graph()
+      .then((r) => {
+        if (!cancelled) setData(r);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const elements = data
