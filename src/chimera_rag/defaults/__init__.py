@@ -15,5 +15,6 @@ from chimera_rag.defaults import (  # noqa: F401
     no_reflection,
     no_reranker,
     noop_pruner,
+    prompt_generator,
     rule_intent_classifier,
 )
