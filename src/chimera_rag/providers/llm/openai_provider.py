@@ -73,28 +73,51 @@ def _make_async_client(*, api_key: str, base_url: str | None, timeout: float):
 
 
 class OpenAILLMProvider(BaseLLMProvider):
-    """OpenAI / DeepSeek async chat-completion client."""
+    """OpenAI / DeepSeek async chat-completion client.
+
+    Connection detail resolution order (highest priority first):
+
+    1. Unified env vars — ``LLM_API_KEY`` / ``LLM_BASE_URL`` / ``LLM_MODEL``
+    2. Legacy per-provider env vars from ``cfg.api_key_env`` / ``cfg.base_url_env``
+    3. ``cfg.model`` (from yaml)
+    4. Provider defaults (e.g. ``https://api.deepseek.com`` for deepseek)
+    """
 
     def __init__(self, cfg: LLMConfig) -> None:
         self.cfg = cfg
-        self.model = cfg.model
         self.temperature = cfg.temperature
         self.max_tokens = cfg.max_tokens
 
         provider = cfg.provider  # "openai" | "deepseek"
-        api_key_env = cfg.api_key_env or _default_api_key_env(provider)
-        base_url_env = cfg.base_url_env or _default_base_url_env(provider)
 
-        api_key = os.getenv(api_key_env)
+        # ---- API key ------------------------------------------------
+        # 1) unified LLM_API_KEY wins
+        api_key = os.getenv("LLM_API_KEY")
         if not api_key:
-            raise ProviderError(
-                f"API key not found; expected env var {api_key_env!r} to be set "
-                f"(provider={provider!r})."
-            )
+            api_key_env = cfg.api_key_env or _default_api_key_env(provider)
+            api_key = os.getenv(api_key_env)
+            if not api_key:
+                raise ProviderError(
+                    f"API key not found; set LLM_API_KEY in .env "
+                    f"(or legacy {api_key_env!r})."
+                )
 
-        base_url = os.getenv(base_url_env) if base_url_env else None
-        if base_url is None:
+        # ---- Base URL -----------------------------------------------
+        base_url = os.getenv("LLM_BASE_URL")
+        if not base_url:
+            base_url_env = cfg.base_url_env or _default_base_url_env(provider)
+            base_url = os.getenv(base_url_env) if base_url_env else None
+        if not base_url:
             base_url = _default_base_url(provider)
+
+        # ---- Model --------------------------------------------------
+        model = os.getenv("LLM_MODEL") or cfg.model
+        if not model:
+            raise ProviderError(
+                "model not specified; set LLM_MODEL in .env "
+                "or declare llm.model in config.yaml."
+            )
+        self.model = model
 
         self._client = _make_async_client(
             api_key=api_key,

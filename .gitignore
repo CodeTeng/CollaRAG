@@ -61,6 +61,9 @@ Thumbs.db
 # 只忽略根目录下的 data/（大数据集），不忽略 examples/data/ 等子目录
 /data/
 !/data/README.md
+# mock_wiki 是项目自带的 100 条合成 QA，必须入库
+!/data/mock_wiki/
+!/data/mock_wiki/**
 output/
 logs/
 runs/
@@ -68,6 +71,9 @@ runs/
 *.pkl
 *.gpickle
 storage/
+
+# Model weights downloaded by scripts/download_embedding_model.py (~90MB each)
+/models/
 
 # ---------- Frontend (web-ui) ----------
 web-ui/node_modules/

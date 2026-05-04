@@ -45,7 +45,8 @@ class RetryConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     provider: Literal["mock", "openai", "deepseek", "ollama"]
-    model: str
+    # model can be empty if LLM_MODEL env var is supplied (see providers/llm/openai_provider.py).
+    model: str = ""
     api_key_env: str | None = None
     base_url_env: str | None = None
     temperature: float = 0.1

@@ -17,6 +17,14 @@ from chimera_rag.core.config import LLMConfig, RetryConfig
 from chimera_rag.core.exceptions import ProviderError
 
 
+@pytest.fixture(autouse=True)
+def _isolate_unified_llm_env(monkeypatch):
+    """These tests exercise the legacy per-provider env path; make sure the
+    newer unified ``LLM_*`` variables don't leak in and take precedence."""
+    for name in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
