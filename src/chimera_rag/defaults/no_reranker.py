@@ -11,7 +11,7 @@ from chimera_rag.interfaces.reranker import BaseReranker
 class NoOpReranker(BaseReranker):
     """Returns the retrieval result unchanged."""
 
-    async def rerank(self, query: Query, retrieval: RetrievalResult) -> RetrievalResult:  # noqa: ARG002
+    async def rerank(self, query: Query, retrieval: RetrievalResult) -> RetrievalResult:
         return retrieval
 
 

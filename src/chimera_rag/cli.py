@@ -20,8 +20,8 @@ import argparse
 import json
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from chimera_rag.core.exceptions import ChimeraError
 from chimera_rag.core.logging import setup_logging

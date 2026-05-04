@@ -22,7 +22,6 @@ def test_noop_pruner_returns_input_unchanged():
 
 def test_noop_pruner_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.noop_pruner import NoOpPruner
 
@@ -44,7 +43,6 @@ def test_rule_based_intent_classifier_always_returns_factual():
 
 def test_rule_intent_classifier_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.rule_intent_classifier import RuleBasedIntentClassifier
 
@@ -69,7 +67,6 @@ def test_no_memory_is_stateless():
 
 def test_no_memory_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.no_memory import NoMemory
 
@@ -89,7 +86,6 @@ async def test_noop_reflector_always_reports_perfect_quality():
 
 def test_noop_reflector_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.no_reflection import NoOpReflector
 
@@ -112,7 +108,6 @@ async def test_noop_reranker_preserves_order():
 
 def test_noop_reranker_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.no_reranker import NoOpReranker
 

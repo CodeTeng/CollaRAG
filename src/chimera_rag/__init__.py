@@ -25,13 +25,12 @@ __version__ = "0.1.0"
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Trigger default @register decorators.
+from chimera_rag import defaults as _defaults  # noqa: F401
 from chimera_rag.core.config import AppConfig, load_config
 from chimera_rag.core.pipeline import IngestionPipeline, PipelineState, QueryPipeline
 from chimera_rag.core.registry import get_registry
 from chimera_rag.core.types import Answer, Document, Query
-
-# Trigger default @register decorators.
-from chimera_rag import defaults as _defaults  # noqa: F401
 
 if TYPE_CHECKING:
     from chimera_rag.interfaces.chunker import BaseChunker
@@ -51,7 +50,7 @@ class ChimeraRAG:
 
     # ------------------------------------------------------------------
     @classmethod
-    def from_config(cls, path: str | Path) -> "ChimeraRAG":
+    def from_config(cls, path: str | Path) -> ChimeraRAG:
         return cls(load_config(path))
 
     # ------------------------------------------------------------------
@@ -260,20 +259,20 @@ class ChimeraRAG:
             return dict(params)  # ctor accepts **kwargs
         return {k: v for k, v in params.items() if k in allowed}
 
-    def _instantiate_chunker(self, cls: type, params: dict) -> "BaseChunker":
+    def _instantiate_chunker(self, cls: type, params: dict) -> BaseChunker:
         return cls(**self._filter_params(cls, params))
 
-    def _instantiate_extractor(self, cls: type, params: dict) -> "BaseTripleExtractor":
+    def _instantiate_extractor(self, cls: type, params: dict) -> BaseTripleExtractor:
         call_params = self._filter_params(cls, params)
         # Strip labels like "default" that refer to the built-in template.
         if call_params.get("prompt_template") == "default":
             call_params.pop("prompt_template", None)
         return cls(llm=self.llm, **call_params)
 
-    def _instantiate_pruner(self, cls: type, params: dict) -> "BasePruner":
+    def _instantiate_pruner(self, cls: type, params: dict) -> BasePruner:
         return cls(**self._filter_params(cls, params))
 
-    def _instantiate_intent(self, cls: type, params: dict) -> "BaseIntentClassifier":
+    def _instantiate_intent(self, cls: type, params: dict) -> BaseIntentClassifier:
         import inspect
 
         sig = inspect.signature(cls.__init__)
@@ -283,7 +282,7 @@ class ChimeraRAG:
             call_params["llm"] = self.llm
         return cls(**call_params)
 
-    def _instantiate_retriever(self, cls: type, params: dict) -> "BaseRetriever":
+    def _instantiate_retriever(self, cls: type, params: dict) -> BaseRetriever:
         import inspect
 
         sig = inspect.signature(cls.__init__)
@@ -328,7 +327,7 @@ class ChimeraRAG:
             **call_params,
         )
 
-    def _instantiate_generator(self, cls: type, params: dict) -> "BaseAnswerGenerator":
+    def _instantiate_generator(self, cls: type, params: dict) -> BaseAnswerGenerator:
         call_params = self._filter_params(cls, params)
         if call_params.get("prompt_template") == "default":
             call_params.pop("prompt_template", None)

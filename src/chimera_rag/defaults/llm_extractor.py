@@ -120,7 +120,7 @@ def _run_async(coro):
     the "asyncio.run() cannot be called from a running event loop" error.
     """
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
     except RuntimeError:
         return asyncio.run(coro)
 
@@ -134,4 +134,4 @@ def _run_async(coro):
         return pool.submit(_worker).result()
 
 
-__all__ = ["SimpleLLMExtractor", "DEFAULT_PROMPT"]
+__all__ = ["DEFAULT_PROMPT", "SimpleLLMExtractor"]

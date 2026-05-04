@@ -19,8 +19,6 @@ so a more complex / entity-dense document yields *smaller* chunks
 
 from __future__ import annotations
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # compute_adaptive_chunk_size: the core formula
@@ -118,7 +116,6 @@ def test_dynamic_chunker_empty_document_returns_empty_list():
 # ---------------------------------------------------------------------------
 def test_dynamic_chunker_registers_under_adagraph_slot():
     import chimera_rag.plugins.adagraph  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.adagraph.dynamic_chunker import DynamicChunker
 

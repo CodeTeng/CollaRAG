@@ -10,9 +10,8 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 
+import faiss
 import numpy as np
-
-import faiss  # noqa: E402  (extras.vec)
 
 from chimera_rag.interfaces.vector_store import BaseVectorStore
 
@@ -31,7 +30,7 @@ class FAISSVectorStore(BaseVectorStore):
         self._ids: list[str] = []
 
     # ------------------------------------------------------------------
-    def _new_index(self) -> "faiss.Index":
+    def _new_index(self) -> faiss.Index:
         return (
             faiss.IndexFlatIP(self._dim)
             if self._index_type == "flat_ip"

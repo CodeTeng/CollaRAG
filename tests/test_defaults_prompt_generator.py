@@ -38,7 +38,6 @@ def test_prompt_generator_handles_empty_retrieval_gracefully():
 
 def test_prompt_generator_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.prompt_generator import PromptBasedGenerator
 

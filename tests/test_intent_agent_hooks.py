@@ -13,8 +13,6 @@ changing the hook interfaces.
 
 from __future__ import annotations
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # ReflectionHook

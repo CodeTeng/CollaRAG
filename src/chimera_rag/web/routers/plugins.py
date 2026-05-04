@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from chimera_rag import ChimeraRAG
 from chimera_rag.web.deps import get_chimera
 from chimera_rag.web.schemas import (
+    PluginsResponse,
     PluginStatus,
     PluginToggleRequest,
-    PluginsResponse,
 )
 
 router = APIRouter(tags=["plugins"])

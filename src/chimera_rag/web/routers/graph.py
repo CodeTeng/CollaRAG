@@ -20,10 +20,7 @@ def graph(
 ) -> GraphResponse:
     gs = chimera.graph_store
 
-    if entity:
-        triples = gs.get_neighbors(entity, hops=hops)
-    else:
-        triples = gs.all_triples()
+    triples = gs.get_neighbors(entity, hops=hops) if entity else gs.all_triples()
 
     if len(triples) > limit_edges:
         triples = triples[:limit_edges]

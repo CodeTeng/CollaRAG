@@ -27,7 +27,6 @@ def test_chimera_error_is_the_base_class():
 )
 def test_subclass_inherits_from_chimera_error(subclass_name: str):
     import chimera_rag.core.exceptions as exc_mod
-
     from chimera_rag.core.exceptions import ChimeraError
 
     cls = getattr(exc_mod, subclass_name)

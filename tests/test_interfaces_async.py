@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = pytest.mark.asyncio
 
 
 async def test_base_retrieval_strategy_is_abstract_and_subclass_works():
-    from chimera_rag.core.types import Query, ReasoningPlan, RetrievalResult, Intent
+    from chimera_rag.core.types import Intent, Query, ReasoningPlan, RetrievalResult
     from chimera_rag.interfaces.strategy import BaseRetrievalStrategy
 
     with pytest.raises(TypeError):
@@ -25,7 +24,7 @@ async def test_base_retrieval_strategy_is_abstract_and_subclass_works():
 
 
 async def test_base_reflector_is_abstract_and_subclass_works():
-    from chimera_rag.core.types import Answer, Query, QualityFeedback
+    from chimera_rag.core.types import Answer, QualityFeedback, Query
     from chimera_rag.interfaces.reflector import BaseReflector
 
     with pytest.raises(TypeError):

@@ -10,13 +10,13 @@ from chimera_rag.interfaces.memory import BaseMemory
 class NoMemory(BaseMemory):
     """Discards everything; get_history always returns []."""
 
-    def append(self, session_id: str, turn: str) -> None:  # noqa: ARG002
+    def append(self, session_id: str, turn: str) -> None:
         return None
 
-    def get_history(self, session_id: str) -> list[str]:  # noqa: ARG002
+    def get_history(self, session_id: str) -> list[str]:
         return []
 
-    def clear(self, session_id: str) -> None:  # noqa: ARG002
+    def clear(self, session_id: str) -> None:
         return None
 
 

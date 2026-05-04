@@ -79,7 +79,6 @@ def test_simple_llm_extractor_respects_max_triples_per_chunk():
 
 def test_simple_llm_extractor_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401 - trigger registration
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
 

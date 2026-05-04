@@ -4,7 +4,6 @@ from __future__ import annotations
 
 
 def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
-    import numpy as np
 
     from chimera_rag.core.types import Chunk, Query
     from chimera_rag.defaults.direct_retriever import DirectRetriever
@@ -42,7 +41,6 @@ def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
 
 
 def test_direct_retriever_pulls_graph_neighbors_when_hops_positive():
-    import numpy as np
 
     from chimera_rag.core.types import Chunk, Query, Triple
     from chimera_rag.defaults.direct_retriever import DirectRetriever
@@ -91,7 +89,6 @@ def test_direct_retriever_pulls_graph_neighbors_when_hops_positive():
 
 def test_direct_retriever_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.direct_retriever import DirectRetriever
 

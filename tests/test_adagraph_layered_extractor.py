@@ -66,7 +66,6 @@ def test_layered_extractor_default_layers_enabled_is_l1_only():
 
 def test_layered_extractor_registers_under_slot():
     import chimera_rag.plugins.adagraph  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.adagraph.layered_extractor import LayeredTripleExtractor
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Type
-
 from chimera_rag.core.exceptions import DatasetError
 from chimera_rag.datasets.base import BaseDatasetLoader
 from chimera_rag.datasets.generic_jsonl import GenericJsonlLoader
@@ -12,7 +10,7 @@ from chimera_rag.datasets.musique import MusiqueLoader
 from chimera_rag.datasets.plain_text import PlainTextLoader
 from chimera_rag.datasets.two_wiki import TwoWikiLoader
 
-_LOADERS: dict[str, Type[BaseDatasetLoader]] = {
+_LOADERS: dict[str, type[BaseDatasetLoader]] = {
     "plain_text": PlainTextLoader,
     "generic_jsonl": GenericJsonlLoader,
     "hotpotqa": HotpotQALoader,
@@ -21,7 +19,7 @@ _LOADERS: dict[str, Type[BaseDatasetLoader]] = {
 }
 
 
-def get_dataset_loader(name: str) -> Type[BaseDatasetLoader]:
+def get_dataset_loader(name: str) -> type[BaseDatasetLoader]:
     try:
         return _LOADERS[name]
     except KeyError as e:
@@ -31,7 +29,7 @@ def get_dataset_loader(name: str) -> Type[BaseDatasetLoader]:
         ) from e
 
 
-def register_dataset_loader(name: str, cls: Type[BaseDatasetLoader]) -> None:
+def register_dataset_loader(name: str, cls: type[BaseDatasetLoader]) -> None:
     """Allow plugins / tests to add custom loaders."""
     _LOADERS[name] = cls
 

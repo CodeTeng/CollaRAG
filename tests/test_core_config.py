@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-
 MINIMAL_YAML = """\
 app:
   name: chimera-rag
@@ -99,16 +98,16 @@ def test_load_config_returns_app_config_with_populated_sections(tmp_config):
 
 
 def test_load_config_raises_config_error_for_missing_file(tmp_path: Path):
-    from chimera_rag.core.exceptions import ConfigError
     from chimera_rag.core.config import load_config
+    from chimera_rag.core.exceptions import ConfigError
 
     with pytest.raises(ConfigError, match="not found|does not exist"):
         load_config(tmp_path / "nope.yaml")
 
 
 def test_load_config_raises_config_error_on_invalid_yaml(tmp_path: Path):
-    from chimera_rag.core.exceptions import ConfigError
     from chimera_rag.core.config import load_config
+    from chimera_rag.core.exceptions import ConfigError
 
     bad = tmp_path / "bad.yaml"
     bad.write_text("app: [this is: not valid")
@@ -118,8 +117,8 @@ def test_load_config_raises_config_error_on_invalid_yaml(tmp_path: Path):
 
 
 def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Path):
-    from chimera_rag.core.exceptions import ConfigError
     from chimera_rag.core.config import load_config
+    from chimera_rag.core.exceptions import ConfigError
 
     bad = tmp_path / "partial.yaml"
     # Remove the whole llm section on purpose.

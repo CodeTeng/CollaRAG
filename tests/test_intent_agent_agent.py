@@ -94,7 +94,6 @@ def test_intent_agent_retriever_applies_reranker_when_provided():
 
 def test_intent_agent_retriever_registers_under_slot():
     import chimera_rag.plugins.intent_agent  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.intent_agent.agent import IntentAgentRetriever
 

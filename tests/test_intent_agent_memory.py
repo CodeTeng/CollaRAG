@@ -55,7 +55,6 @@ def test_session_memory_respects_max_history():
 
 def test_session_memory_registers_under_intent_agent_slot():
     import chimera_rag.plugins.intent_agent  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.intent_agent.memory import SessionMemory
 

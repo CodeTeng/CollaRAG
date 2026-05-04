@@ -15,7 +15,6 @@ from chimera_rag.core.types import Chunk, Query, ReasoningPlan, RetrievalResult
 from chimera_rag.interfaces.retriever import BaseRetriever
 from chimera_rag.interfaces.strategy import BaseRetrievalStrategy
 
-
 _SPLIT_RE = re.compile(r"\s+(?:and|vs\.?|versus|compared to)\s+", re.I)
 
 

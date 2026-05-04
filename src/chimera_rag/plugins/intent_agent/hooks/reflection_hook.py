@@ -19,7 +19,6 @@ from chimera_rag.core.registry import register
 from chimera_rag.core.types import Answer, QualityFeedback, Query
 from chimera_rag.interfaces.reflector import BaseReflector
 
-
 _REFUSAL_RE = re.compile(
     r"\b(i (?:do not|don'?t) know|not enough (?:context|information)|unknown)\b", re.I
 )

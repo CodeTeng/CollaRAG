@@ -11,15 +11,12 @@ MVP implementation status:
 
 from __future__ import annotations
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helper builders
 # ---------------------------------------------------------------------------
 def _build_env():
     """Return (retriever, plan factory) for strategy tests."""
-    import numpy as np
 
     from chimera_rag.core.types import Chunk, Intent, ReasoningPlan, Triple
     from chimera_rag.defaults.direct_retriever import DirectRetriever
@@ -148,7 +145,6 @@ async def test_context_aware_strategy_uses_history_from_plan_params():
 # ---------------------------------------------------------------------------
 def test_all_six_strategies_registered_under_slot():
     import chimera_rag.plugins.intent_agent  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
 
     names = set(get_registry().list_slot("strategy"))

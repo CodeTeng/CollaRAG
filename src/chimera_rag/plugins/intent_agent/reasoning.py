@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from chimera_rag.core.types import Intent, Query, ReasoningPlan
 
-
 # Intent label -> (strategy name, human-readable steps)
 _INTENT_TO_STRATEGY: dict[str, tuple[str, list[str]]] = {
     "factual": (

@@ -49,7 +49,7 @@ def compute_adaptive_chunk_size(
         return min_size
     if raw > max_size:
         return max_size
-    return int(round(raw))
+    return round(raw)
 
 
 # ---------------------------------------------------------------------------

@@ -71,7 +71,7 @@ def put_config(
 
     # Swap the config and rebuild pipelines while preserving state.
     chimera.config = new_cfg
-    chimera._rebuild_pipelines_preserving_state()  # noqa: SLF001
+    chimera._rebuild_pipelines_preserving_state()
     return {"ok": True, "active_implementations": chimera.active_implementations()}
 
 

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from chimera_rag.core.config import EmbeddingConfig, LLMConfig
 
 
-def build_llm_provider(cfg: "LLMConfig | Any") -> BaseLLMProvider:
+def build_llm_provider(cfg: LLMConfig | Any) -> BaseLLMProvider:
     """Instantiate a concrete LLM provider from the typed config."""
     name = getattr(cfg, "provider", None)
 
@@ -48,7 +48,7 @@ def build_llm_provider(cfg: "LLMConfig | Any") -> BaseLLMProvider:
     raise ProviderError(f"unknown / unsupported LLM provider: {name!r}")
 
 
-def build_embedding_provider(cfg: "EmbeddingConfig | Any") -> BaseEmbeddingProvider:
+def build_embedding_provider(cfg: EmbeddingConfig | Any) -> BaseEmbeddingProvider:
     """Instantiate a concrete Embedding provider from the typed config."""
     name = getattr(cfg, "provider", None)
     dim = getattr(cfg, "dim", 64)

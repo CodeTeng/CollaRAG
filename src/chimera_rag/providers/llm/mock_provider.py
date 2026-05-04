@@ -16,7 +16,6 @@ from typing import Any
 
 from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 
-
 DEFAULT_RESPONSE = '{"result": "mock"}'
 
 
@@ -41,4 +40,4 @@ class MockLLMProvider(BaseLLMProvider):
         return self.default_response
 
 
-__all__ = ["MockLLMProvider", "DEFAULT_RESPONSE"]
+__all__ = ["DEFAULT_RESPONSE", "MockLLMProvider"]

@@ -11,7 +11,7 @@ from chimera_rag.interfaces.reflector import BaseReflector
 class NoOpReflector(BaseReflector):
     """Always reports quality=1.0 so the executor never re-loops."""
 
-    async def evaluate(self, query: Query, answer: Answer) -> QualityFeedback:  # noqa: ARG002
+    async def evaluate(self, query: Query, answer: Answer) -> QualityFeedback:
         return QualityFeedback(quality=1.0, relevance=1.0, completeness=1.0)
 
 

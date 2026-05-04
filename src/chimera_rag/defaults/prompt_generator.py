@@ -71,4 +71,4 @@ class PromptBasedGenerator(BaseAnswerGenerator):
         return "\n".join(parts) if parts else "(no context)"
 
 
-__all__ = ["PromptBasedGenerator", "DEFAULT_PROMPT"]
+__all__ = ["DEFAULT_PROMPT", "PromptBasedGenerator"]

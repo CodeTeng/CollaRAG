@@ -25,7 +25,7 @@ def query(
     answer = chimera.query(q)
 
     # Also expose the raw retrieval for trace visualisation in the UI.
-    retrieval = chimera._query.retriever.retrieve(q, top_k=top_k)  # noqa: SLF001
+    retrieval = chimera._query.retriever.retrieve(q, top_k=top_k)
 
     chunks = [
         ChunkPayload(

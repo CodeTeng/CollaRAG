@@ -86,7 +86,6 @@ def test_dual_pruner_transitive_flag_on_does_not_crash():
 
 def test_dual_pruner_registers_under_slot():
     import chimera_rag.plugins.adagraph  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.adagraph.dual_pruner import DualRedundancyPruner
 

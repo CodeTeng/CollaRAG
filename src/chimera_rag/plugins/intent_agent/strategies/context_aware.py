@@ -26,7 +26,7 @@ class ContextAwareStrategy(BaseRetrievalStrategy):
         effective_text = query.text
         if history:
             tail = history[-self.history_max :]
-            effective_text = " ".join(tail + [query.text])
+            effective_text = " ".join([*tail, query.text])
 
         # Delegate, but preserve the original session_id on the Query.
         res = self.retriever.retrieve(

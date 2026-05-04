@@ -13,7 +13,6 @@ import re
 import string
 from collections import Counter
 
-
 _ARTICLES = {"a", "an", "the"}
 _PUNCT_TABLE = str.maketrans("", "", string.punctuation)
 

@@ -65,7 +65,6 @@ def test_fixed_chunker_overlap_must_be_less_than_chunk_size():
 
 def test_fixed_chunker_registers_under_defaults_fixed_slot():
     import chimera_rag.defaults  # noqa: F401 - trigger registration
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.defaults.fixed_chunker import FixedSizeChunker
 

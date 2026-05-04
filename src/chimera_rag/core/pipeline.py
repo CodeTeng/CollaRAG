@@ -139,4 +139,4 @@ class QueryPipeline:
         return answer
 
 
-__all__ = ["IngestionPipeline", "QueryPipeline", "PipelineState"]
+__all__ = ["IngestionPipeline", "PipelineState", "QueryPipeline"]

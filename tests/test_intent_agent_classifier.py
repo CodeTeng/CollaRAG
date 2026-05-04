@@ -96,7 +96,6 @@ def test_rule_based_fallback_hits_expected_categories():
 
 def test_intent_classifier_registers_under_slot():
     import chimera_rag.plugins.intent_agent  # noqa: F401
-
     from chimera_rag.core.registry import get_registry
     from chimera_rag.plugins.intent_agent.intent_classifier import LLMIntentClassifier
 

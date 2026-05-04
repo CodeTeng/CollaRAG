@@ -14,7 +14,6 @@ from chimera_rag.core.registry import register
 from chimera_rag.core.types import Query, RetrievalResult
 from chimera_rag.interfaces.reranker import BaseReranker
 
-
 _WORD_RE = re.compile(r"\w+")
 
 
