@@ -14,4 +14,5 @@ side effects, mirroring the ``defaults/`` and ``plugins/adagraph/`` layout.
 from chimera_rag.plugins.intent_agent import (  # noqa: F401
     intent_classifier,
     memory,
+    reasoning,
 )
