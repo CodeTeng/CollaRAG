@@ -248,6 +248,12 @@ class ChimeraRAG:
         """
         import inspect
 
+        # If the class does not define its own __init__ (uses object's
+        # default), reject all params — object.__init__ actually takes none.
+        own_init = cls.__init__ is not object.__init__
+        if not own_init:
+            return {}
+
         sig = inspect.signature(cls.__init__)
         allowed = {p for p in sig.parameters if p != "self"}
         if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
