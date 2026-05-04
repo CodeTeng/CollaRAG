@@ -1,11 +1,17 @@
 # ============================================================================
-# IntentAgent Only：启用创新点二（意图感知智能体），知识构建侧用 defaults
+# mock_intent_only.yaml
+#
+# 用途：仅启用创新点二（IntentAgent：6 意图分类 → 6 策略选择 → 反思 hook）。
+# LLM / Embedding：Mock。知识构建侧走 defaults（裸分块 + 单 prompt 抽取）。
+# 典型场景：
+#   - 单元测试 IntentAgent 策略选择与反馈链路
+#   - 对比"裸 KG-RAG" vs "仅创新点二"的意图识别与答案质量差异
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/intent_agent_only
+  workspace_dir: ./storage/mock_intent_only
 
 logging: { level: INFO, format: rich, file: null }
 
@@ -23,16 +29,20 @@ embedding:
   dim: 64
   batch_size: 32
   normalize: true
+  device: cpu
 
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/intent_agent_only/graph.gpickle
+    persist_path: ./storage/mock_intent_only/graph.gpickle
   vector:
     backend: faiss
-    index_type: flat_ip
-    persist_path: ./storage/intent_agent_only/vectors
+    index_type: hnsw
+    metric: ip
+    persist_path: ./storage/mock_intent_only/vectors
     top_k: 5
+    hnsw: { M: 16, ef_construction: 100, ef_search: 32 }
+    ivf:  { nlist: 50, nprobe: 4 }
 
 datasets:
   sample:

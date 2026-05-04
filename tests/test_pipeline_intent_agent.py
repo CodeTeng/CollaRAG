@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 @pytest.fixture()
 def intent_agent_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "intent_agent_only.yaml").read_text()
+    raw = (REPO / "configs" / "mock_intent_only.yaml").read_text()
     raw = raw.replace(
         "./storage/intent_agent_only",
         str(tmp_path / "storage").replace("\\", "/"),

@@ -25,7 +25,7 @@ def main() -> int:
     workspace.mkdir(parents=True, exist_ok=True)
 
     # Patch the vanilla config's workspace_dir on the fly.
-    raw = (REPO / "configs" / "vanilla.yaml").read_text()
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace("./storage/vanilla", str(workspace / "storage"))
     cfg_path = workspace / "config.yaml"
     cfg_path.write_text(raw)

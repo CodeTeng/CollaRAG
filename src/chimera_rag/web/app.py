@@ -5,7 +5,7 @@ Usage::
     from chimera_rag import ChimeraRAG
     from chimera_rag.web.app import create_app
 
-    crag = ChimeraRAG.from_config("configs/full.yaml")
+    crag = ChimeraRAG.from_config("configs/mock_full.yaml")
     app = create_app(crag)
     # uvicorn.run(app, host=..., port=...)
 

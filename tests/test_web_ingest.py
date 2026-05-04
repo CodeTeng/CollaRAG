@@ -16,7 +16,7 @@ def client(tmp_path: Path):
     from chimera_rag import ChimeraRAG
     from chimera_rag.web.app import create_app
 
-    raw = (REPO / "configs" / "vanilla.yaml").read_text()
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),

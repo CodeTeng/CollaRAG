@@ -24,7 +24,7 @@ def main() -> int:
     workspace = Path(os.environ.get("CHIMERA_WORKSPACE") or tempfile.mkdtemp(prefix="chimera-"))
     workspace.mkdir(parents=True, exist_ok=True)
 
-    raw = (REPO / "configs" / "intent_agent_only.yaml").read_text()
+    raw = (REPO / "configs" / "mock_intent_only.yaml").read_text()
     raw = raw.replace("./storage/intent_agent_only", str(workspace / "storage"))
     cfg_path = workspace / "config.yaml"
     cfg_path.write_text(raw)

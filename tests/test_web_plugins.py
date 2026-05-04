@@ -16,7 +16,7 @@ def client(tmp_path: Path):
     from chimera_rag import ChimeraRAG
     from chimera_rag.web.app import create_app
 
-    raw = (REPO / "configs" / "vanilla.yaml").read_text()
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
@@ -33,7 +33,7 @@ def test_plugins_list_returns_status_for_both_innovations(client):
     data = r.json()
     names = {p["name"] for p in data["plugins"]}
     assert names == {"adagraph", "intent_agent"}
-    # Initially both disabled under vanilla.yaml.
+    # Initially both disabled under mock_vanilla.yaml.
     for p in data["plugins"]:
         assert p["enabled"] is False
     assert "active_implementations" in data

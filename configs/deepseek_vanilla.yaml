@@ -1,6 +1,12 @@
 # ============================================================================
-# DeepSeek + sentence-transformers, AdaGraph + IntentAgent 关闭（baseline）
-# 用于与 deepseek_full.yaml 对比消融实验。
+# deepseek_vanilla.yaml
+#
+# 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
+#       AdaGraph + IntentAgent 全部关闭（走 defaults.* 裸实现）。
+# 典型场景：
+#   - 真实端到端 baseline：衡量"裸 KG-RAG"在 DeepSeek 下的 EM/F1
+#   - 作为 deepseek_intent_only / deepseek_full 的消融对照组
+# 依赖：.env 中需有 LLM_API_KEY（或兼容的 DEEPSEEK_API_KEY）
 # ============================================================================
 
 app:

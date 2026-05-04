@@ -24,7 +24,7 @@ def client_with_eval_ds(tmp_path: Path):
         for i in range(3)
     ))
 
-    raw = (REPO / "configs" / "vanilla.yaml").read_text()
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
@@ -45,7 +45,7 @@ datasets:
     path: {ds_path}
 """
     # Simpler: inject by replacing datasets section.
-    raw = (REPO / "configs" / "vanilla.yaml").read_text().replace(
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text().replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
     )

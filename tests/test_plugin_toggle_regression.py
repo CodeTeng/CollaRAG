@@ -22,7 +22,7 @@ def test_plugin_toggle_from_full_to_vanilla_does_not_crash(tmp_path: Path):
     """
     from chimera_rag import ChimeraRAG
 
-    raw = (REPO / "configs" / "full.yaml").read_text()
+    raw = (REPO / "configs" / "mock_full.yaml").read_text()
     raw = raw.replace(
         "./storage/full",
         str(tmp_path / "storage").replace("\\", "/"),

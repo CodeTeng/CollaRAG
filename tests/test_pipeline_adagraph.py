@@ -19,7 +19,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 @pytest.fixture()
 def adagraph_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "adagraph_only.yaml").read_text()
+    raw = (REPO / "configs" / "mock_adagraph_only.yaml").read_text()
     raw = raw.replace(
         "./storage/adagraph_only",
         str(tmp_path / "storage").replace("\\", "/"),

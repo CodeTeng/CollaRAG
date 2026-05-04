@@ -16,10 +16,10 @@ REPO = Path(__file__).resolve().parent.parent
 
 @pytest.fixture()
 def test_chimera(tmp_path: Path):
-    """Build a ChimeraRAG with vanilla.yaml rerouted under tmp_path."""
+    """Build a ChimeraRAG with mock_vanilla.yaml rerouted under tmp_path."""
     from chimera_rag import ChimeraRAG
 
-    raw = (REPO / "configs" / "vanilla.yaml").read_text()
+    raw = (REPO / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),

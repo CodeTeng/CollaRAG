@@ -1,11 +1,17 @@
 # ============================================================================
-# AdaGraph Only：启用创新点一（知识构建双重增强），查询侧用 defaults
+# mock_adagraph_only.yaml
+#
+# 用途：仅启用创新点一（AdaGraph：动态分块 + 分层抽取 + 双重剪枝）。
+# LLM / Embedding：Mock。查询侧走 defaults（DirectRetriever + 规则意图）。
+# 典型场景：
+#   - 单元测试 AdaGraph 三大子组件是否注册并被 Pipeline 拾取
+#   - 对比"裸 KG-RAG" vs "仅创新点一"的知识图谱质量差异
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/adagraph_only
+  workspace_dir: ./storage/mock_adagraph_only
 
 logging: { level: INFO, format: rich, file: null }
 
@@ -23,16 +29,20 @@ embedding:
   dim: 64
   batch_size: 32
   normalize: true
+  device: cpu
 
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/adagraph_only/graph.gpickle
+    persist_path: ./storage/mock_adagraph_only/graph.gpickle
   vector:
     backend: faiss
-    index_type: flat_ip
-    persist_path: ./storage/adagraph_only/vectors
+    index_type: hnsw
+    metric: ip
+    persist_path: ./storage/mock_adagraph_only/vectors
     top_k: 5
+    hnsw: { M: 16, ef_construction: 100, ef_search: 32 }
+    ivf:  { nlist: 50, nprobe: 4 }
 
 datasets:
   sample:
@@ -43,11 +53,11 @@ ingestion:
   chunker:
     active: adagraph.dynamic
     params:
-      chunk_size: 300   # 作为 base_chunk_size 的 fallback
+      chunk_size: 300              # base_chunk_size 的 fallback
   extractor:
     active: adagraph.layered
     params:
-      layers_enabled: [L1]  # MVP 只开 L1
+      layers_enabled: [L1]         # MVP 只开 L1；L2/L3/L4 保留
   pruner:
     active: adagraph.dual_redundancy
     params:

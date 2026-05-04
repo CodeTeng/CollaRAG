@@ -1,11 +1,18 @@
 # ============================================================================
-# Vanilla KG-RAG：AdaGraph 与 IntentAgent 全部关闭，走 defaults.* 实现
+# mock_vanilla.yaml
+#
+# 用途：Vanilla 基线（AdaGraph + IntentAgent 全部关闭），走 defaults.* 裸实现。
+# LLM / Embedding：Mock（确定性假数据，零网络调用）。
+# 典型场景：
+#   - 单元测试、CI 烟雾测试
+#   - 验证裸 KG-RAG 管线本身是否正常
+#   - 本配置不依赖任何 API key，纯离线可跑
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/vanilla
+  workspace_dir: ./storage/mock_vanilla
 
 logging:
   level: INFO
@@ -26,16 +33,20 @@ embedding:
   dim: 64
   batch_size: 32
   normalize: true
+  device: cpu
 
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/vanilla/graph.gpickle
+    persist_path: ./storage/mock_vanilla/graph.gpickle
   vector:
     backend: faiss
-    index_type: flat_ip
-    persist_path: ./storage/vanilla/vectors
+    index_type: hnsw
+    metric: ip
+    persist_path: ./storage/mock_vanilla/vectors
     top_k: 5
+    hnsw: { M: 16, ef_construction: 100, ef_search: 32 }
+    ivf:  { nlist: 50, nprobe: 4 }
 
 datasets:
   sample:

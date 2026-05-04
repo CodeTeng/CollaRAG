@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 @pytest.fixture()
 def full_config(tmp_path: Path) -> Path:
-    raw = (REPO / "configs" / "full.yaml").read_text()
+    raw = (REPO / "configs" / "mock_full.yaml").read_text()
     raw = raw.replace(
         "./storage/full",
         str(tmp_path / "storage").replace("\\", "/"),

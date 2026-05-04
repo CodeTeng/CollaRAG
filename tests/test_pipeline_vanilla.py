@@ -25,7 +25,7 @@ def vanilla_config(tmp_path: Path) -> Path:
     from chimera_rag.core.config import load_config  # noqa: F401
 
     repo = Path(__file__).resolve().parent.parent
-    raw = (repo / "configs" / "vanilla.yaml").read_text()
+    raw = (repo / "configs" / "mock_vanilla.yaml").read_text()
     raw = raw.replace(
         "./storage/vanilla",
         str(tmp_path / "storage").replace("\\", "/"),
@@ -77,7 +77,7 @@ def test_chimera_rag_state_persisted_between_ingest_and_query(vanilla_config: Pa
 
 
 def test_plugin_disabled_means_defaults_are_used(vanilla_config: Path):
-    """With vanilla.yaml, plugins.adagraph.enabled and plugins.intent_agent.enabled
+    """With mock_vanilla.yaml, plugins.adagraph.enabled and plugins.intent_agent.enabled
     are both False; the active implementations must come from defaults.*."""
     from chimera_rag import ChimeraRAG
 

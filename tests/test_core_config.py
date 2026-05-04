@@ -136,7 +136,7 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "filename",
-    ["vanilla.yaml", "adagraph_only.yaml", "intent_agent_only.yaml", "full.yaml", "default.yaml"],
+    ["mock_vanilla.yaml", "mock_adagraph_only.yaml", "mock_intent_only.yaml", "mock_full.yaml", "default.yaml"],
 )
 def test_shipped_configs_are_valid(filename: str):
     """Every yaml we ship must pass full Pydantic validation."""
@@ -153,10 +153,10 @@ def test_plugin_enabled_flag_reflected_per_config():
 
     repo_root = Path(__file__).resolve().parent.parent
 
-    vanilla = load_config(repo_root / "configs" / "vanilla.yaml")
+    vanilla = load_config(repo_root / "configs" / "mock_vanilla.yaml")
     assert vanilla.plugins.adagraph.enabled is False
     assert vanilla.plugins.intent_agent.enabled is False
 
-    full = load_config(repo_root / "configs" / "full.yaml")
+    full = load_config(repo_root / "configs" / "mock_full.yaml")
     assert full.plugins.adagraph.enabled is True
     assert full.plugins.intent_agent.enabled is True

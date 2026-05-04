@@ -24,7 +24,7 @@ def main() -> int:
     workspace = Path(os.environ.get("CHIMERA_WORKSPACE") or tempfile.mkdtemp(prefix="chimera-"))
     workspace.mkdir(parents=True, exist_ok=True)
 
-    raw = (REPO / "configs" / "full.yaml").read_text()
+    raw = (REPO / "configs" / "mock_full.yaml").read_text()
     raw = raw.replace("./storage/full", str(workspace / "storage"))
     cfg_path = workspace / "config.yaml"
     cfg_path.write_text(raw)

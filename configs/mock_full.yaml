@@ -1,11 +1,17 @@
 # ============================================================================
-# Full：两个创新点全部启用，所有 Hook 打开
+# mock_full.yaml
+#
+# 用途：两个创新点（AdaGraph + IntentAgent）全部启用，所有 Hook 打开。
+# LLM / Embedding：Mock（不调用外网）。
+# 典型场景：
+#   - 集成测试 两创新点互相兼容、同时注入 Pipeline 正常工作
+#   - 单元/集成测试 CI 全绿的最终守门配置
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/full
+  workspace_dir: ./storage/mock_full
 
 logging: { level: INFO, format: rich, file: null }
 
@@ -23,24 +29,25 @@ embedding:
   dim: 64
   batch_size: 32
   normalize: true
+  device: cpu
 
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/full/graph.gpickle
+    persist_path: ./storage/mock_full/graph.gpickle
   vector:
     backend: faiss
-    index_type: flat_ip
-    persist_path: ./storage/full/vectors
+    index_type: hnsw
+    metric: ip
+    persist_path: ./storage/mock_full/vectors
     top_k: 5
+    hnsw: { M: 16, ef_construction: 100, ef_search: 32 }
+    ivf:  { nlist: 50, nprobe: 4 }
 
 datasets:
   sample:
     loader: plain_text
     path: ./examples/data/sample.txt
-  hotpotqa:
-    loader: hotpotqa
-    path: ./data/hotpotqa/hotpot_dev_distractor_v1.json
 
 ingestion:
   chunker:

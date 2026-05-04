@@ -1,6 +1,13 @@
 # ============================================================================
-# DeepSeek + sentence-transformers, AdaGraph + IntentAgent 全部启用
-# 用于展示两个创新点叠加后的端到端表现。
+# deepseek_full.yaml
+#
+# 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
+#       两个创新点（AdaGraph + IntentAgent）全部启用。
+#       parallel_pool hook 开启；reflection / reranking hook 默认关（避免额外延迟）。
+# 典型场景：
+#   - 最终演示配置：展示两创新点叠加后的 EM / F1 / ROUGE-L 最高分
+#   - 与 deepseek_vanilla 对比展示完整增益
+# 依赖：.env 中需有 LLM_API_KEY
 # ============================================================================
 
 app:
