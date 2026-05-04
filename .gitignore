@@ -58,8 +58,9 @@ Thumbs.db
 *.key
 
 # ---------- Project 运行产物 ----------
-data/
-!data/README.md
+# 只忽略根目录下的 data/（大数据集），不忽略 examples/data/ 等子目录
+/data/
+!/data/README.md
 output/
 logs/
 runs/
