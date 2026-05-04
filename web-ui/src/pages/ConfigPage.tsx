@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
+import {
+  FileCog,
+  Save,
+  RotateCcw,
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/PageHeader";
 import { ChimeraAPI } from "@/lib/api";
 
 export function ConfigPage() {
@@ -30,10 +39,18 @@ export function ConfigPage() {
     try {
       const parsed = JSON.parse(text);
       const r = await ChimeraAPI.putConfig(parsed);
-      setMessage(`Saved. Active: ${JSON.stringify(r.active_implementations)}`);
+      setMessage(
+        `保存成功。当前激活的实现：${Object.entries(r.active_implementations)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(", ")}`,
+      );
       setOriginal(text);
     } catch (e: any) {
-      setError(e?.response?.data?.detail ? JSON.stringify(e.response.data.detail, null, 2) : e.message);
+      setError(
+        e?.response?.data?.detail
+          ? JSON.stringify(e.response.data.detail, null, 2)
+          : e.message,
+      );
     } finally {
       setSaving(false);
     }
@@ -42,25 +59,40 @@ export function ConfigPage() {
   const dirty = text !== original;
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Config</h1>
-        {dirty && <Badge tone="warning">unsaved</Badge>}
-      </div>
+    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4">
+      <PageHeader
+        icon={<FileCog className="h-5 w-5" />}
+        title="在线配置"
+        subtitle="直接修改运行时配置的 JSON 视图；保存后会热重建 Pipeline"
+        actions={dirty && <Badge tone="warning">未保存改动</Badge>}
+      />
 
       <Card
         className="flex-1"
+        title="配置编辑器"
+        titleIcon={<FileCog className="h-4 w-4" />}
         actions={
           <>
-            <Button variant="secondary" onClick={() => setText(original)} disabled={!dirty}>
-              Reset
+            <Button
+              variant="secondary"
+              onClick={() => setText(original)}
+              disabled={!dirty}
+            >
+              <RotateCcw className="h-4 w-4" /> 重置
             </Button>
             <Button onClick={save} disabled={!dirty || saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> 保存中
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" /> 保存
+                </>
+              )}
             </Button>
           </>
         }
-        title="Edit config (JSON representation of config.yaml)"
       >
         <div className="h-[60vh]">
           <Editor
@@ -73,6 +105,7 @@ export function ConfigPage() {
               minimap: { enabled: false },
               fontSize: 12,
               tabSize: 2,
+              fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, monospace",
               scrollBeyondLastLine: false,
             }}
           />
@@ -80,13 +113,21 @@ export function ConfigPage() {
       </Card>
 
       {error && (
-        <Card>
-          <pre className="whitespace-pre-wrap text-xs text-red-400">{error}</pre>
+        <Card accent="intent">
+          <div className="flex items-start gap-2 text-sm">
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-[var(--color-danger)]" />
+            <pre className="whitespace-pre-wrap font-mono text-xs text-[var(--color-danger)]">
+              {error}
+            </pre>
+          </div>
         </Card>
       )}
       {message && (
-        <Card>
-          <pre className="whitespace-pre-wrap text-xs text-emerald-300">{message}</pre>
+        <Card accent="accent">
+          <div className="flex items-start gap-2 text-sm text-[var(--color-success)]">
+            <CheckCircle2 className="mt-0.5 h-4 w-4" />
+            <div>{message}</div>
+          </div>
         </Card>
       )}
     </div>

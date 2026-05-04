@@ -1,13 +1,40 @@
 import { useEffect, useState } from "react";
+import {
+  ToggleRight,
+  ToggleLeft,
+  Sparkles,
+  Power,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/PageHeader";
 import { ChimeraAPI } from "@/lib/api";
 import type { PluginsResponse } from "@/lib/types";
 
+const PLUGIN_META: Record<
+  string,
+  { cn: string; tagline: string; accent: "adagraph" | "intent" }
+> = {
+  adagraph: {
+    cn: "AdaGraph · 自适应图谱构建",
+    tagline:
+      "创新点一 — 动态粒度分块 + 分层三元组抽取 + 双重冗余剪枝，让图谱构建按语义密度自适应伸缩。",
+    accent: "adagraph",
+  },
+  intent_agent: {
+    cn: "IntentAgent · 意图感知智能体",
+    tagline:
+      "创新点二 — 6 类意图分类 + 6 种检索策略 + 反思/重排/并行三个可选 Hook，查询像人一样先判断再行动。",
+    accent: "intent",
+  },
+};
+
 export function PluginsPage() {
   const [data, setData] = useState<PluginsResponse | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const refresh = async () => {
     setData(await ChimeraAPI.plugins());
@@ -18,70 +45,105 @@ export function PluginsPage() {
   }, []);
 
   const toggle = async (name: string, next: boolean) => {
-    setBusy(true);
+    setBusy(name);
     try {
       await ChimeraAPI.togglePlugin(name, next);
       await refresh();
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
-      <h1 className="text-xl font-semibold">Plugins</h1>
-      <p className="text-sm text-[var(--color-text-muted)]">
-        Hot-toggle the two research innovations. Graph &amp; vector state
-        are preserved across toggles.
-      </p>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={<ToggleRight className="h-5 w-5" />}
+        title="插件开关"
+        subtitle="热切换两大研究创新点 · 切换后会重建 Pipeline，但保留已构建的图谱与向量索引"
+      />
 
       {data && (
         <div className="grid gap-4 md:grid-cols-2">
-          {data.plugins.map((p) => (
-            <Card
-              key={p.name}
-              title={
-                <div className="flex items-center gap-2">
-                  <span className="uppercase tracking-wide">{p.name}</span>
-                  {p.enabled ? (
-                    <Badge tone="success">enabled</Badge>
-                  ) : (
-                    <Badge tone="neutral">disabled</Badge>
-                  )}
-                </div>
-              }
-              actions={
-                <Button
-                  variant={p.enabled ? "secondary" : "primary"}
-                  disabled={busy}
-                  onClick={() => toggle(p.name, !p.enabled)}
-                >
-                  {p.enabled ? "Disable" : "Enable"}
-                </Button>
-              }
-            >
-              <div className="text-xs text-[var(--color-text-muted)] mb-2">
-                Active slots:
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(p.active_slots).map(([slot, impl]) => (
-                  <span
-                    key={slot}
-                    className="rounded border border-[var(--color-border)] bg-[var(--color-surface-hi)] px-2 py-0.5 text-xs"
+          {data.plugins.map((p) => {
+            const meta = PLUGIN_META[p.name] ?? {
+              cn: p.name,
+              tagline: "",
+              accent: "accent" as const,
+            };
+            return (
+              <Card
+                key={p.name}
+                accent={meta.accent}
+                title={
+                  <div className="flex items-center gap-2">
+                    <Sparkles
+                      className={
+                        meta.accent === "adagraph"
+                          ? "h-4 w-4 text-[var(--color-adagraph)]"
+                          : "h-4 w-4 text-[var(--color-intent)]"
+                      }
+                    />
+                    <span>{meta.cn}</span>
+                    {p.enabled ? (
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs text-[var(--color-success)]">
+                        <CheckCircle2 className="h-3 w-3" /> 已启用
+                      </span>
+                    ) : (
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs text-[var(--color-text-subtle)]">
+                        <XCircle className="h-3 w-3" /> 已关闭
+                      </span>
+                    )}
+                  </div>
+                }
+                actions={
+                  <Button
+                    variant={p.enabled ? "secondary" : "primary"}
+                    disabled={busy === p.name}
+                    onClick={() => toggle(p.name, !p.enabled)}
                   >
-                    <span className="text-[var(--color-text-muted)]">{slot}:</span>{" "}
-                    <span className="text-[var(--color-accent)]">{impl}</span>
-                  </span>
-                ))}
-              </div>
-            </Card>
-          ))}
+                    {busy === p.name ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> 切换中
+                      </>
+                    ) : p.enabled ? (
+                      <>
+                        <ToggleLeft className="h-4 w-4" /> 关闭
+                      </>
+                    ) : (
+                      <>
+                        <ToggleRight className="h-4 w-4" /> 启用
+                      </>
+                    )}
+                  </Button>
+                }
+              >
+                <p className="mb-4 text-sm leading-relaxed text-[var(--color-text-muted)]">
+                  {meta.tagline}
+                </p>
+                <div className="mb-2 text-xs uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+                  当前激活的插槽实现
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(p.active_slots).map(([slot, impl]) => (
+                    <span
+                      key={slot}
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-hi)] px-2.5 py-1 text-xs"
+                    >
+                      <span className="text-[var(--color-text-subtle)]">{slot}</span>
+                      <span className="mx-1 text-[var(--color-text-subtle)]">:</span>
+                      <span className="font-mono text-[var(--color-accent)]">{impl}</span>
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {data && (
-        <Card title="Active implementations (global view)">
-          <pre className="text-xs text-[var(--color-text-muted)]">
+        <Card title="全局激活实现（调试视图）" titleIcon={<Power className="h-4 w-4" />}>
+          <pre className="max-h-56 overflow-auto font-mono text-[0.7rem] leading-relaxed text-[var(--color-text-muted)]">
             {JSON.stringify(data.active_implementations, null, 2)}
           </pre>
         </Card>

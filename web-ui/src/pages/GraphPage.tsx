@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from "cytoscape";
+import { Share2, Search, RotateCcw, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/PageHeader";
 import { ChimeraAPI } from "@/lib/api";
 import type { GraphResponse } from "@/lib/types";
 
@@ -30,41 +31,46 @@ export function GraphPage() {
 
   const elements = data
     ? [
-        ...data.nodes.map((n) => ({
-          data: { id: n.id, label: n.label },
-        })),
+        ...data.nodes.map((n) => ({ data: { id: n.id, label: n.label } })),
         ...data.edges.map((e, i) => ({
-          data: {
-            id: `e${i}`,
-            source: e.source,
-            target: e.target,
-            label: e.label,
-          },
+          data: { id: `e${i}`, source: e.source, target: e.target, label: e.label },
         })),
       ]
     : [];
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Graph</h1>
-        {data && (
-          <>
-            <Badge tone="accent">{data.nodes.length} nodes</Badge>
-            <Badge tone="neutral">{data.edges.length} edges</Badge>
-          </>
-        )}
-      </div>
+    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4">
+      <PageHeader
+        icon={<Share2 className="h-5 w-5" />}
+        title="图谱可视化"
+        subtitle={
+          data
+            ? `共 ${data.nodes.length} 个节点 / ${data.edges.length} 条边`
+            : "加载中…"
+        }
+      />
 
       <Card>
-        <div className="flex gap-2">
-          <Input
-            value={entity}
-            onChange={(e) => setEntity(e.target.value)}
-            placeholder="Filter by entity (leave empty for full graph)..."
-          />
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+            <Input
+              value={entity}
+              onChange={(e) => setEntity(e.target.value)}
+              placeholder="按实体名过滤子图（留空加载全图）"
+              className="pl-8"
+            />
+          </div>
           <Button onClick={() => refresh(entity || undefined)} disabled={loading}>
-            {loading ? "Loading..." : "Apply"}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> 加载中
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4" /> 应用筛选
+              </>
+            )}
           </Button>
           <Button
             variant="secondary"
@@ -73,7 +79,7 @@ export function GraphPage() {
               void refresh();
             }}
           >
-            Reset
+            <RotateCcw className="h-4 w-4" /> 重置
           </Button>
         </div>
       </Card>
@@ -90,26 +96,29 @@ export function GraphPage() {
                 selector: "node",
                 style: {
                   label: "data(label)",
-                  "background-color": "#22d3ee",
-                  color: "#eef2ff",
+                  "background-color": "#d4af37",
+                  color: "#f3e9cb",
                   "font-size": 10,
+                  "font-family": "Noto Sans SC, sans-serif",
                   "text-valign": "center",
                   "text-halign": "center",
-                  "text-outline-color": "#0f172a",
+                  "text-outline-color": "#14181f",
                   "text-outline-width": 2,
+                  "border-width": 1,
+                  "border-color": "#c89a3a",
                 },
               },
               {
                 selector: "edge",
                 style: {
                   label: "data(label)",
-                  width: 1.5,
-                  "line-color": "#475569",
-                  "target-arrow-color": "#475569",
+                  width: 1.2,
+                  "line-color": "#4a4f5f",
+                  "target-arrow-color": "#4a4f5f",
                   "target-arrow-shape": "triangle",
                   "curve-style": "bezier",
                   "font-size": 8,
-                  color: "#94a3b8",
+                  color: "#8a8f9d",
                 },
               },
             ]}
