@@ -1,0 +1,111 @@
+# ============================================================================
+# DeepSeek + sentence-transformers, AdaGraph + IntentAgent 全部启用
+# 用于展示两个创新点叠加后的端到端表现。
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/deepseek_full
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  provider: deepseek
+  model: deepseek-chat
+  api_key_env: DEEPSEEK_API_KEY
+  base_url_env: DEEPSEEK_BASE_URL
+  temperature: 0.1
+  max_tokens: 512
+  timeout: 60
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
+
+embedding:
+  provider: sentence_transformer
+  model: sentence-transformers/all-MiniLM-L6-v2
+  dim: 384
+  batch_size: 32
+  normalize: true
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/deepseek_full/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: flat_ip
+    persist_path: ./storage/deepseek_full/vectors
+    top_k: 5
+
+datasets:
+  mock_wiki:
+    loader: mock_wiki
+    path: ./data/mock_wiki
+
+ingestion:
+  chunker:
+    active: adagraph.dynamic
+    params:
+      min_chunk_size: 120
+      max_chunk_size: 500
+      base_chunk_size: 300
+  extractor:
+    active: adagraph.layered
+    params:
+      layers_enabled: [L1]
+  pruner:
+    active: adagraph.dual_redundancy
+    params:
+      similarity_threshold: 0.85
+      enable_transitive: false
+
+query:
+  intent_classifier:
+    active: intent_agent.llm
+    params:
+      confidence_threshold: 0.55
+  retriever:
+    active: intent_agent.strategy_selector
+    params: { top_k: 5, neighbor_hops: 1 }
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: true
+    dynamic_chunker:
+      min_chunk_size: 120
+      max_chunk_size: 500
+      base_chunk_size: 300
+    layered_extractor:
+      layers_enabled: [L1]
+    dual_pruner:
+      similarity_threshold: 0.85
+      enable_transitive: false
+  intent_agent:
+    enabled: true
+    memory:
+      max_history: 10
+    intent_classifier:
+      confidence_threshold: 0.55
+    strategies:
+      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
+    hooks:
+      reflection: { enabled: false }
+      reranking: { enabled: false }
+      parallel_pool: { enabled: true, max_workers: 4 }
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 100
+  parallel: 1

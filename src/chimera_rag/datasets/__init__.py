@@ -6,6 +6,7 @@ from chimera_rag.core.exceptions import DatasetError
 from chimera_rag.datasets.base import BaseDatasetLoader
 from chimera_rag.datasets.generic_jsonl import GenericJsonlLoader
 from chimera_rag.datasets.hotpotqa import HotpotQALoader
+from chimera_rag.datasets.mock_wiki import MockWikiLoader
 from chimera_rag.datasets.musique import MusiqueLoader
 from chimera_rag.datasets.plain_text import PlainTextLoader
 from chimera_rag.datasets.two_wiki import TwoWikiLoader
@@ -16,6 +17,7 @@ _LOADERS: dict[str, type[BaseDatasetLoader]] = {
     "hotpotqa": HotpotQALoader,
     "two_wiki": TwoWikiLoader,
     "musique": MusiqueLoader,
+    "mock_wiki": MockWikiLoader,
 }
 
 
@@ -38,6 +40,7 @@ __all__ = [
     "BaseDatasetLoader",
     "GenericJsonlLoader",
     "HotpotQALoader",
+    "MockWikiLoader",
     "MusiqueLoader",
     "PlainTextLoader",
     "TwoWikiLoader",

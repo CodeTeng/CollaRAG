@@ -51,6 +51,11 @@ class ChimeraRAG:
     # ------------------------------------------------------------------
     @classmethod
     def from_config(cls, path: str | Path) -> ChimeraRAG:
+        # Load a local .env before building so providers can resolve
+        # api_key_env / base_url_env from DEEPSEEK_API_KEY etc.
+        from chimera_rag.core.env_loader import load_env_file
+
+        load_env_file()
         return cls(load_config(path))
 
     # ------------------------------------------------------------------

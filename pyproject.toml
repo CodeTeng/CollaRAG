@@ -21,6 +21,7 @@ dependencies = [
     "numpy>=1.26",
     "tenacity>=8.2",
     "rich>=13.7",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -46,8 +47,10 @@ eval = [
     "bert-score>=0.3.13",
 ]
 # 本地 sentence-transformers embedding
+# torch pinned to <2.3 to stay compatible with macOS x86_64 (Intel Mac) wheels.
 st = [
-    "sentence-transformers>=2.5",
+    "sentence-transformers>=2.5,<3.0",
+    "torch>=2.0,<2.3",
 ]
 # Neo4j 图后端
 neo4j = [
