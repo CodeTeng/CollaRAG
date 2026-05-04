@@ -8,3 +8,4 @@ pipeline is built.
 
 # Eagerly import submodules to fire the @register decorators.
 from chimera_rag.defaults import fixed_chunker  # noqa: F401
+from chimera_rag.defaults import llm_extractor  # noqa: F401
