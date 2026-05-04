@@ -1,30 +1,49 @@
 # Chimera-RAG 文档目录
 
-本目录存放项目设计文档与开发计划，作为仓库版本化的"事实来源"。
+本目录存放项目的设计与实现文档，是仓库版本化的"事实来源"（single source of truth）。所有文档基于 `docs/plan.md` 与 `src/chimera_rag/` 实际实装整理，全部使用简体中文。
 
 ## 文档清单
 
 | 文件 | 用途 |
 |------|------|
-| `plan.md` | 项目实施计划（从 Plan 模式同步，包含架构、目录结构、实施策略、页面规划等全部决策） |
+| `plan.md` | 项目最初的实施计划（从 Plan 模式同步；**本目录下其他文档的上游事实来源**） |
+| `architecture_overview.md` | **架构总览**：分层、14 个 ABC 插槽、注册表机制、`ChimeraRAG` 门面装配流程、四种部署组合、Web 系统单端口部署 |
+| `innovation_1_adagraph.md` | **创新点一：AdaGraph（原 DEKER）**。作用于知识构建阶段。DynamicChunker（自适应公式已实装）/ LayeredTripleExtractor（L1 实装，L2-L4 TODO）/ DualRedundancyPruner（相似性实装，传递性 TODO） |
+| `innovation_2_intent_agent.md` | **创新点二：IntentAgent（原 MRDE）**。作用于查询阶段。Memory / Reasoning / Decision / Execution 四阶段 + 6 种检索策略 + 3 个可插拔 Hook |
+| `README.md`（本文件） | 文档索引 |
 
-## 名称映射
+## 阅读顺序
 
-项目中出现的命名与早期设计材料（`my/` 目录）的对应关系：
+1. **`architecture_overview.md`** — 先建立"注册表 + 插槽 + yaml 开关"这套骨架的心智模型；
+2. **`innovation_1_adagraph.md`** — 深入第一个创新点的三个子模块；
+3. **`innovation_2_intent_agent.md`** — 深入第二个创新点的四阶段 + 六策略 + 三 Hook；
+4. **`plan.md`** — 如需追溯最初的设计决策再读。
 
-| 当前命名 | 原设计命名 | 含义 |
-|---------|-----------|------|
-| **Chimera-RAG** | KG-RAG / Agent-Graph-RAG | 主框架名，希腊神话融合体象征双创新点 |
-| **AdaGraph** | DEKER | 创新点一：Adaptive Graph Construction，知识构建双重增强 |
-| **IntentAgent** | MRDE | 创新点二：意图感知智能体（Memory-Reasoning-Decision-Execution） |
+## 名称映射（出自 plan.md §产品概述）
+
+| 当前代码命名 | plan.md 中标注的原设计命名 |
+|---|---|
+| **Chimera-RAG** | KG-RAG / Agent-Graph-RAG |
+| **AdaGraph** | DEKER（知识构建双重增强） |
+| **IntentAgent** | MRDE（Memory-Reasoning-Decision-Execution） |
+
+## 注册表插槽速查
+
+AdaGraph 占 3 个构建插槽，IntentAgent 占 6 个查询插槽，两者天然不重叠：
+
+| 插槽（slot） | 默认实现 | AdaGraph | IntentAgent |
+|---|---|---|---|
+| `chunker` | `defaults.fixed` | `adagraph.dynamic` | — |
+| `extractor` | `defaults.simple_llm` | `adagraph.layered` | — |
+| `pruner` | `defaults.noop` | `adagraph.dual_redundancy` | — |
+| `intent_classifier` | `defaults.rule` | — | `intent_agent.llm` |
+| `retriever` | `defaults.direct` | — | `intent_agent.strategy_selector` |
+| `strategy` | — | — | `intent_agent.{direct / multi_hop / parallel / iterative / expansion / context_aware}` |
+| `memory` | `defaults.none` | — | `intent_agent.session` |
+| `reflector` | `defaults.noop` | — | `intent_agent.heuristic` |
+| `reranker` | `defaults.noop` | — | `intent_agent.token_overlap` |
+| `generator` | `defaults.prompt` | — | — |
 
 ## 开发方式
 
-项目采用 **TDD（测试驱动开发）** 方式推进：
-
-1. **RED**：先写失败的测试
-2. **GREEN**：写最小代码让测试通过
-3. **REFACTOR**：在保持绿灯的前提下重构
-4. **COMMIT**：每个 TDD 循环结束做一次 git 提交
-
-参见 `plan.md` 中的实施策略与 todolist。
+项目采用 **TDD（测试驱动开发）**：**RED → GREEN → REFACTOR → COMMIT**。所有测试默认使用 `MockLLMProvider` + `MockEmbeddingProvider`，`uv run pytest -q` 无需任何真实 API key 即可跑完。详见 `plan.md` §实施策略。
