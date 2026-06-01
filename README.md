@@ -318,7 +318,7 @@ chimera-rag/
 │
 ├── configs/                      # 5 份 yaml 预设
 ├── data/mock_wiki/               # 配套小语料（25 chunk + 10 QA）
-├── docs/                         # 架构 + 双创新点设计文档
+├── docs/                         # 架构 + 双创新点设计文档 + experiments/ 实验设计
 ├── web-ui/                       # React + Vite + Tailwind
 │
 ├── src/chimera_rag/
@@ -387,6 +387,7 @@ uv run ruff format .             # format
 | [`docs/architecture_overview.md`](docs/architecture_overview.md) | 🏗️ 骨架：注册表、插槽、依赖注入、管线数据流 |
 | [`docs/innovation_1_adagraph.md`](docs/innovation_1_adagraph.md) | 🧱 AdaGraph 3 个子模块实装细节 |
 | [`docs/innovation_2_intent_agent.md`](docs/innovation_2_intent_agent.md) | 🧠 IntentAgent M/R/D/E + 6 策略 + 3 hook |
+| [`docs/experiments/`](docs/experiments/) | 🧪 实验设计文档目录（含创新点 2 实验：消融对比 / 按意图分组 / SOTA 横向对比） |
 | [`docs/README.md`](docs/README.md) | 📑 文档目录 |
 | [`configs/README.md`](configs/README.md) | ⚙️ 5 份 yaml 的用途与切换方式 |
 
