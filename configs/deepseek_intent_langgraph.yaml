@@ -1,0 +1,127 @@
+# ============================================================================
+# deepseek_intent_langgraph.yaml
+#
+# 用途：DeepSeek（OpenAI 兼容端点）真实调用 + 本地 sentence-transformers
+#       embedding，启用创新点 2b（LangGraph Agentic 检索）。
+#       这是创新点二的「进阶演化」：把静态的 intent→单策略查表，换成
+#       LLM 在 LangGraph 状态图里自主选择 / 组合检索工具 + 反思回路。
+# 与 deepseek_intent_only.yaml 的唯一差异：
+#   query.retriever.active: intent_agent.strategy_selector  →  intent_agent.langgraph
+#   query.retriever.params 增加 langgraph 专属参数
+#   plugins.intent_agent.hooks.reflection.enabled: true（驱动反思回路）
+# 依赖：
+#   - .env 中需有 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL（OpenAI 兼容）
+#   - 需安装可选 extra：`uv sync --extra agent`（langgraph>=1.0, langchain-core>=1.0）
+# 典型场景：
+#   - 消融实验：对照 deepseek_intent_only，单独衡量「动态编排 vs 静态路由」的增益
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/deepseek_intent_langgraph
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  provider: openai
+  # model / api_key / base_url 来自 .env（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）
+  temperature: 0.1
+  max_tokens: 1024
+  timeout: 60
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
+
+embedding:
+  provider: sentence_transformer
+  model: ./models/sentence-transformers_all-MiniLM-L6-v2
+  dim: 384
+  batch_size: 32
+  normalize: true
+  device: cpu
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/deepseek_intent_langgraph/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: flat_ip
+    metric: ip
+    persist_path: ./storage/deepseek_intent_langgraph/vectors
+    top_k: 5
+    hnsw:
+      M: 32
+      ef_construction: 200
+      ef_search: 64
+    ivf:
+      nlist: 100
+      nprobe: 8
+
+datasets:
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
+
+# AdaGraph OFF — ingestion 走 defaults（和 vanilla / intent_only 相同）
+ingestion:
+  chunker:
+    active: defaults.fixed
+    params: { chunk_size: 300, overlap: 30 }
+  extractor:
+    active: defaults.simple_llm
+    params: {}
+  pruner:
+    active: defaults.noop
+    params: {}
+
+# IntentAgent ON + LangGraph Agentic 检索（创新点 2b）
+query:
+  intent_classifier:
+    active: intent_agent.llm
+    params:
+      confidence_threshold: 0.55
+  retriever:
+    active: intent_agent.langgraph
+    params:
+      top_k: 5
+      neighbor_hops: 1
+      llm_protocol: react              # react | function_calling（当前实装 react）
+      max_iterations: 2                # 反思回路上限（与 hooks.reflection.max_iterations 同义）
+      quality_threshold: 0.6           # 反思退出阈值（与 hooks.reflection.quality_threshold 同义）
+      multi_hop_hops: 2
+      tools: [vector_search, graph_neighbors, multi_hop_retrieve, parallel_retrieve, assess_evidence]
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: false
+  intent_agent:
+    enabled: true
+    memory:
+      max_history: 10
+    intent_classifier:
+      confidence_threshold: 0.55
+    strategies:
+      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
+    hooks:
+      reflection: { enabled: true, quality_threshold: 0.6, max_iterations: 2 }
+      reranking: { enabled: false }
+      parallel_pool: { enabled: true, max_workers: 4 }
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 100
+  parallel: 1

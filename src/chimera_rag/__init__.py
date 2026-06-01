@@ -328,6 +328,12 @@ class ChimeraRAG:
                 )
 
                 wiring["classifier"] = LLMIntentClassifier(llm=self.llm)
+            # Agentic retrievers (intent_agent.langgraph) additionally need the
+            # shared LLM provider and the graph store to drive tool selection.
+            if "llm" in param_names:
+                wiring["llm"] = self.llm
+            if "graph_store" in param_names:
+                wiring["graph_store"] = self.graph_store
             return cls(**{**wiring, **call_params})
 
         # Classic DirectRetriever signature.

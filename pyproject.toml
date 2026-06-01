@@ -61,6 +61,13 @@ neo4j = [
 spacy = [
     "spacy>=3.7",
 ]
+# 创新点 2b：LangGraph Agentic 检索（动态工具编排）
+# 使用 LangGraph / LangChain 1.x GA（LTS）稳定版：核心 StateGraph API 稳定，
+# 不依赖已废弃的 langgraph.prebuilt.create_react_agent（我们用底层 StateGraph 自编排）。
+agent = [
+    "langgraph>=1.0,<2",
+    "langchain-core>=1.0,<2",
+]
 
 [project.scripts]
 chimera = "chimera_rag.cli:main"

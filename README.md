@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-blue.svg">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-315%20passing-brightgreen.svg">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-348%20passing-brightgreen.svg">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg">
   <img alt="uv" src="https://img.shields.io/badge/pkg-uv-orange.svg">
 </p>
@@ -60,11 +60,16 @@
 uv sync --all-extras --dev
 ```
 
+> 💡 创新点 2b（LangGraph Agentic 检索）依赖可选 extra `agent`
+> （`langgraph>=1.0` + `langchain-core>=1.0`，1.x LTS）。`--all-extras` 已包含它；
+> 若只想单独装：`uv sync --extra agent`。未安装时其余功能与测试完全不受影响。
+
 ### 2️⃣ 跑测试（零 API Key 依赖，纯 Mock Provider）
 
 ```bash
 uv run pytest -q
-# 315 passed ✅
+# 348 passed ✅（装了 --all-extras 时含 33 个 langgraph 测试；
+#                未装 agent extra 时为 315，langgraph 测试自动跳过）
 ```
 
 ### 3️⃣ 配 LLM（仅真实推理时需要）
@@ -148,6 +153,24 @@ adaptive_size = base − (score − 0.5) × (max_size − min_size)
 
 📎 详见 [`docs/innovation_2_intent_agent.md`](docs/innovation_2_intent_agent.md)
 
+### 创新点 2️⃣b · LangGraph Agentic 检索 — 让 Decision「自主编排」 <sub>创新点二的进阶演化</sub>
+
+通过 `query.retriever.active: intent_agent.langgraph` 启用（需可选 extra：`uv sync --extra agent`，引入 **LangGraph / LangChain 1.x LTS**）。
+
+它把创新点二里写死的「意图 → 单策略」**静态查表**，升级为由 **LangGraph 状态图**驱动、**LLM Agent 自主选择并组合多个检索工具**的动态编排，并真正落地了创新点二只做观测的**反思回路**：
+
+| 维度 | `intent_agent.strategy_selector`（静态） | `intent_agent.langgraph`（动态） |
+|---|---|---|
+| Decision 机制 | 意图 → 单策略查表 | LLM 在状态图里自主选 / 组合工具 |
+| 多工具组合 | ❌ 一次一策略 | ✅ 可链式调用多个工具 |
+| 反思回路 | 仅写 metadata | ✅ 质量不足触发补检（`max_iterations` 上限） |
+
+5 个封装为 **LangChain Tool** 的检索原子能力（全部复用现有代码，零重写）：`vector_search` / `graph_neighbors` / `multi_hop_retrieve` / `parallel_retrieve` / `assess_evidence`。
+
+状态图拓扑：`START → Memory → Reasoning → Decision ⇄ Tools → Reflect →（质量达标或触顶）END`。LLM 适配走 **ReAct 文本协议**（复用现有 `BaseLLMProvider`，MockProvider 即可离线测试，无需引第二套 LLM client）。
+
+📎 详见 [`docs/innovation_2b_langgraph_agent.md`](docs/innovation_2b_langgraph_agent.md)
+
 ---
 
 ## 🏗️ 架构一览
@@ -183,17 +206,18 @@ adaptive_size = base − (score − 0.5) × (max_size − min_size)
 
 ## ⚙️ 配置文件
 
-`configs/` 提供 **5 份 yaml 预设**：
+`configs/` 提供 **6 份 yaml 预设**：
 
-| 文件 | AdaGraph | IntentAgent | 用途 |
-|---|:---:|:---:|---|
-| `default.yaml` | — | — | 🗒️ 全字段注释模板，不直接运行 |
-| `deepseek_vanilla.yaml` | ❌ | ❌ | 📉 裸 KG-RAG 基线 |
-| `deepseek_adagraph_only.yaml` | ✅ | ❌ | 🔬 仅测创新点 1 |
-| `deepseek_intent_only.yaml` | ❌ | ✅ | 🔬 仅测创新点 2 |
-| `deepseek_full.yaml` | ✅ | ✅ | 🚀 全启用 |
+| 文件 | AdaGraph | IntentAgent | 检索器 | 用途 |
+|---|:---:|:---:|---|---|
+| `default.yaml` | — | — | — | 🗒️ 全字段注释模板，不直接运行 |
+| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 📉 裸 KG-RAG 基线 |
+| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 🔬 仅测创新点 1 |
+| `deepseek_intent_only.yaml` | ❌ | ✅ | `strategy_selector`（静态） | 🔬 仅测创新点 2 |
+| `deepseek_intent_langgraph.yaml` | ❌ | ✅ | `langgraph`（动态） | 🤖 创新点 2b：动态编排 vs 静态路由（需 `--extra agent`） |
+| `deepseek_full.yaml` | ✅ | ✅ | `strategy_selector` | 🚀 全启用 |
 
-四组消融配置共享同一份管线代码，差异**只由插槽 active 字段驱动**。
+各消融配置共享同一份管线代码，差异**只由插槽 active 字段驱动**。
 
 ---
 
@@ -316,7 +340,7 @@ chimera-rag/
 ├── pyproject.toml                # uv + 全部 extras
 ├── uv.lock                       # 锁定依赖
 │
-├── configs/                      # 5 份 yaml 预设
+├── configs/                      # 6 份 yaml 预设（含 deepseek_intent_langgraph）
 ├── data/mock_wiki/               # 配套小语料（25 chunk + 10 QA）
 ├── docs/                         # 架构 + 双创新点设计文档 + experiments/ 实验设计
 ├── web-ui/                       # React + Vite + Tailwind
@@ -332,11 +356,12 @@ chimera-rag/
 │   ├── plugins/
 │   │   ├── adagraph/             # 🧱 创新点 1
 │   │   └── intent_agent/         # 🧠 创新点 2 (6 strategies + 3 hooks)
+│   │       └── langgraph/        # 🤖 创新点 2b (tools/llm_adapter/graph/retriever, 需 --extra agent)
 │   ├── datasets/                 # plain_text/jsonl/hotpotqa/2wiki/musique/mock_wiki
 │   ├── evaluation/               # InferenceRunner + Scorer + EvalReporter + CompareReporter
 │   └── web/                      # FastAPI app + 7 routers + static/
 │
-└── tests/                        # 315 个测试（TDD 驱动）
+└── tests/                        # 348 个测试（TDD 驱动，含 33 个 langgraph 测试）
 ```
 
 ---
@@ -352,8 +377,9 @@ uv run pytest tests/test_providers_*.py     -q   # 🔌 LLM / Embedding
 uv run pytest tests/test_stores_*.py        -q   # 💾 NetworkX / FAISS
 uv run pytest tests/test_defaults_*.py      -q   # 📦 vanilla 实现
 uv run pytest tests/test_adagraph_*.py      -q   # 🧱 创新点 1
-uv run pytest tests/test_intent_agent_*.py  -q   # 🧠 创新点 2
-uv run pytest tests/test_pipeline_*.py      -q   # 🔁 4 种部署组合端到端
+uv run pytest tests/test_intent_agent_*.py  -q   # 🧠 创新点 2（静态意图路由）
+uv run pytest tests/test_langgraph_*.py     -q   # 🤖 创新点 2b（LangGraph 动态编排，需 --extra agent）
+uv run pytest tests/test_pipeline_*.py      -q   # 🔁 端到端部署组合（含 langgraph）
 uv run pytest tests/test_web_*.py           -q   # 🌐 FastAPI 路由
 uv run pytest tests/test_datasets*.py       -q   # 📚 数据集加载
 uv run pytest tests/test_evaluation_*.py    -q   # 📊 评测与报告

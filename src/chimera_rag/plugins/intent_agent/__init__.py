@@ -19,3 +19,9 @@ from chimera_rag.plugins.intent_agent import (  # noqa: F401
     reasoning,
     strategies,
 )
+
+# Innovation #2b (LangGraph agentic retrieval) is gated behind the optional
+# ``agent`` extra. Importing the sub-package is self-guarding: if langgraph /
+# langchain-core are missing it logs a hint and skips registration rather than
+# breaking the whole intent_agent plugin import.
+from chimera_rag.plugins.intent_agent import langgraph  # noqa: F401

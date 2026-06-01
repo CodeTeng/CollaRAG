@@ -1,19 +1,20 @@
 # Chimera-RAG 配置文件索引
 
-本目录保留 **4 份 DeepSeek 真实运行配置**，覆盖两个创新点的四种组合。所有
-Mock-based 测试配置已内联到 `tests/conftest.py`（作为 pytest fixtures），
-不再作为文件存在，以保持 `configs/` 目录聚焦于真实基准。
+本目录保留 **5 份 DeepSeek 真实运行配置**，覆盖两个创新点的组合及创新点 2b 的
+LangGraph 动态编排变体。所有 Mock-based 测试配置已内联到 `tests/conftest.py`
+（作为 pytest fixtures），不再作为文件存在，以保持 `configs/` 目录聚焦于真实基准。
 
 运行任意子命令都需要用 `--config configs/<name>.yaml` 指定其一。
 
 ## 速查表
 
-| 文件 | AdaGraph | IntentAgent | 主要用途 |
-|---|:---:|:---:|---|
-| `deepseek_vanilla.yaml` | ❌ | ❌ | 真实 API 基线（消融对照组） |
-| `deepseek_adagraph_only.yaml` | ✅ | ❌ | 真实 API 下单独衡量创新点一的增益 |
-| `deepseek_intent_only.yaml` | ❌ | ✅ | 真实 API 下单独衡量创新点二的增益 |
-| `deepseek_full.yaml` | ✅ | ✅ | 真实 API 下两创新点叠加的最终表现 |
+| 文件 | AdaGraph | IntentAgent | 检索器 | 主要用途 |
+|---|:---:|:---:|---|---|
+| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 真实 API 基线（消融对照组） |
+| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 真实 API 下单独衡量创新点一的增益 |
+| `deepseek_intent_only.yaml` | ❌ | ✅ | `intent_agent.strategy_selector`（静态路由） | 真实 API 下单独衡量创新点二的增益 |
+| `deepseek_intent_langgraph.yaml` | ❌ | ✅ | `intent_agent.langgraph`（动态编排） | 创新点 2b：对照 `intent_only` 衡量「动态工具编排 vs 静态路由」的增益（需 `uv sync --extra agent`） |
+| `deepseek_full.yaml` | ✅ | ✅ | `intent_agent.strategy_selector` | 真实 API 下两创新点叠加的最终表现 |
 
 **公共部分（四份相同）**：
 - LLM：`deepseek`（model 从 `.env` 的 `LLM_MODEL` 读，默认 `deepseek-chat`）
@@ -27,11 +28,17 @@ Mock-based 测试配置已内联到 `tests/conftest.py`（作为 pytest fixtures
 ```
 deepseek_<plugin_combo>.yaml
              │
-             ├── vanilla        两创新点全关（defaults 裸基线）
-             ├── adagraph_only  仅创新点一
-             ├── intent_only    仅创新点二
-             └── full           两创新点全开
+             ├── vanilla           两创新点全关（defaults 裸基线）
+             ├── adagraph_only     仅创新点一
+             ├── intent_only       仅创新点二（静态意图→策略路由）
+             ├── intent_langgraph  创新点 2b（LangGraph 动态工具编排，需 --extra agent）
+             └── full              两创新点全开
 ```
+
+> **创新点 2b 专属前置**：`deepseek_intent_langgraph.yaml` 依赖可选 extra
+> `agent`（`langgraph>=1.0` + `langchain-core>=1.0`）。先执行
+> `uv sync --extra agent`（或 `uv sync --all-extras --dev`）再运行；未安装时
+> 该检索器不会注册，配置切到它会报清晰错误。
 
 ## 典型运行
 

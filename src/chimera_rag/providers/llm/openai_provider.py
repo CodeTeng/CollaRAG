@@ -73,7 +73,16 @@ def _make_async_client(*, api_key: str, base_url: str | None, timeout: float):
             f"openai SDK not installed; run `uv sync --extra llm` ({e})"
         ) from e
 
-    kwargs: dict[str, Any] = {"api_key": api_key, "timeout": timeout}
+    # Disable the OpenAI SDK's built-in retry layer (default: 2). Retries are
+    # handled exclusively by this provider's tenacity loop in .complete(), so
+    # leaving the SDK layer on would stack two independent backoff mechanisms
+    # (SDK 2x * tenacity Nx), amplifying request volume against rate-limited
+    # endpoints and producing the confusing "Retrying request" INFO logs.
+    kwargs: dict[str, Any] = {
+        "api_key": api_key,
+        "timeout": timeout,
+        "max_retries": 0,
+    }
     if base_url:
         kwargs["base_url"] = base_url
     return AsyncOpenAI(**kwargs)
