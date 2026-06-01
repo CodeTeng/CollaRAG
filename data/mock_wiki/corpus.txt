@@ -1,0 +1,73 @@
+Ada Verdant is a researcher based in London. Ada Verdant works at Lumentech Corp, where they lead research on machine learning. Ada Verdant earned a PhD before joining Lumentech Corp.
+
+Lumentech Corp is a technology company headquartered in London. Lumentech Corp was founded in 1995. In 2021, Lumentech Corp was acquired by Helios Systems.
+
+Bruno Falk is a researcher based in Berlin. Bruno Falk works at Helios Systems, where they lead research on quantum computing. Bruno Falk earned a PhD before joining Helios Systems.
+
+Helios Systems is an independent technology company headquartered in Berlin. Helios Systems was founded in 1997 and remains independently owned.
+
+Cara Solis is a researcher based in Barcelona. Cara Solis works at Nimbus Labs, where they lead research on cryptography. Cara Solis earned a PhD before joining Nimbus Labs.
+
+Nimbus Labs is a technology company headquartered in Barcelona. Nimbus Labs was founded in 1999. In 2021, Nimbus Labs was acquired by Obsidian AI.
+
+Dmitri Varga is a researcher based in Prague. Dmitri Varga works at Obsidian AI, where they lead research on robotics. Dmitri Varga earned a PhD before joining Obsidian AI.
+
+Obsidian AI is an independent technology company headquartered in Prague. Obsidian AI was founded in 2001 and remains independently owned.
+
+Elena Moss is a researcher based in Stockholm. Elena Moss works at Polaris Networks, where they lead research on distributed systems. Elena Moss earned a PhD before joining Polaris Networks.
+
+Polaris Networks is a technology company headquartered in Stockholm. Polaris Networks was founded in 2003. In 2021, Polaris Networks was acquired by Obsidian AI.
+
+Farid Azar is a researcher based in Cairo. Farid Azar works at Quillfire Corp, where they lead research on natural language processing. Farid Azar earned a PhD before joining Quillfire Corp.
+
+Quillfire Corp is a technology company headquartered in Cairo. Quillfire Corp was founded in 2005. In 2021, Quillfire Corp was acquired by Riverbend Studios.
+
+Greta Halden is a researcher based in Oslo. Greta Halden works at Riverbend Studios, where they lead research on computer graphics. Greta Halden earned a PhD before joining Riverbend Studios.
+
+Riverbend Studios is an independent technology company headquartered in Oslo. Riverbend Studios was founded in 2007 and remains independently owned.
+
+Hiro Tanaka is a researcher based in Osaka. Hiro Tanaka works at Sendai Robotics, where they lead research on reinforcement learning. Hiro Tanaka earned a PhD before joining Sendai Robotics.
+
+Sendai Robotics is a technology company headquartered in Osaka. Sendai Robotics was founded in 2009. In 2021, Sendai Robotics was acquired by Tundra Dynamics.
+
+Iris Orlova is a researcher based in Moscow. Iris Orlova works at Tundra Dynamics, where they lead research on optimization. Iris Orlova earned a PhD before joining Tundra Dynamics.
+
+Tundra Dynamics is an independent technology company headquartered in Moscow. Tundra Dynamics was founded in 2011 and remains independently owned.
+
+Jonah Reed is a researcher based in Dublin. Jonah Reed works at Vanta Analytics, where they lead research on time-series forecasting. Jonah Reed earned a PhD before joining Vanta Analytics.
+
+Vanta Analytics is a technology company headquartered in Dublin. Vanta Analytics was founded in 2013. In 2021, Vanta Analytics was acquired by Winterfell Labs.
+
+Kira Lang is a researcher based in Reykjavik. Kira Lang works at Winterfell Labs, where they lead research on graph neural networks. Kira Lang earned a PhD before joining Winterfell Labs.
+
+Winterfell Labs is an independent technology company headquartered in Reykjavik. Winterfell Labs was founded in 2015 and remains independently owned.
+
+Lionel Costa is a researcher based in Lisbon. Lionel Costa works at Xanadu Media, where they lead research on recommendation systems. Lionel Costa earned a PhD before joining Xanadu Media.
+
+Xanadu Media is a technology company headquartered in Lisbon. Xanadu Media was founded in 2017. In 2021, Xanadu Media was acquired by Yggdrasil AI.
+
+Mira Shahin is a researcher based in Istanbul. Mira Shahin works at Yggdrasil AI, where they lead research on speech synthesis. Mira Shahin earned a PhD before joining Yggdrasil AI.
+
+Yggdrasil AI is an independent technology company headquartered in Istanbul. Yggdrasil AI was founded in 2019 and remains independently owned.
+
+Noa Kessler is a researcher based in Tel Aviv. Noa Kessler works at Zenith Robotics, where they lead research on computer vision. Noa Kessler earned a PhD before joining Zenith Robotics.
+
+Zenith Robotics is a technology company headquartered in Tel Aviv. Zenith Robotics was founded in 2021. In 2021, Zenith Robotics was acquired by Aether Graph.
+
+Omar Diallo is a researcher based in Dakar. Omar Diallo works at Aether Graph, where they lead research on knowledge graphs. Omar Diallo earned a PhD before joining Aether Graph.
+
+Aether Graph is an independent technology company headquartered in Dakar. Aether Graph was founded in 2023 and remains independently owned.
+
+Aether Graph is a global technology group with headquarters in Dakar. Aether Graph operates multiple subsidiaries across Europe and Asia.
+
+Helios Systems is a global technology group with headquarters in Berlin. Helios Systems operates multiple subsidiaries across Europe and Asia.
+
+Obsidian AI is a global technology group with headquarters in Prague. Obsidian AI operates multiple subsidiaries across Europe and Asia.
+
+Riverbend Studios is a global technology group with headquarters in Oslo. Riverbend Studios operates multiple subsidiaries across Europe and Asia.
+
+Tundra Dynamics is a global technology group with headquarters in Moscow. Tundra Dynamics operates multiple subsidiaries across Europe and Asia.
+
+Winterfell Labs is a global technology group with headquarters in Reykjavik. Winterfell Labs operates multiple subsidiaries across Europe and Asia.
+
+Yggdrasil AI is a global technology group with headquarters in Istanbul. Yggdrasil AI operates multiple subsidiaries across Europe and Asia.

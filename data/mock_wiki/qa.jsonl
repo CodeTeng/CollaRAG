@@ -1,0 +1,100 @@
+{"question": "In what year was Yggdrasil AI founded?", "answer": "2019", "qid": "mock-000"}
+{"question": "In what year was Xanadu Media founded?", "answer": "2017", "qid": "mock-001"}
+{"question": "Tell me about Iris Orlova's role at Tundra Dynamics.", "answer": "Iris Orlova leads research on optimization at Tundra Dynamics", "qid": "mock-002"}
+{"question": "Where is Dmitri Varga based?", "answer": "Prague", "qid": "mock-003"}
+{"question": "Compare the research fields of Cara Solis and Jonah Reed. What does Cara Solis research?", "answer": "cryptography", "qid": "mock-004"}
+{"question": "Which company acquired the employer of Jonah Reed?", "answer": "Winterfell Labs", "qid": "mock-005"}
+{"question": "Which company does Ada Verdant work at?", "answer": "Lumentech Corp", "qid": "mock-006"}
+{"question": "Compare the research fields of Hiro Tanaka and Omar Diallo. What does Hiro Tanaka research?", "answer": "reinforcement learning", "qid": "mock-007"}
+{"question": "Where is Farid Azar based?", "answer": "Cairo", "qid": "mock-008"}
+{"question": "Why is Farid Azar associated with natural language processing?", "answer": "because Farid Azar leads research on natural language processing at Quillfire Corp", "qid": "mock-009"}
+{"question": "Why is Ada Verdant associated with machine learning?", "answer": "because Ada Verdant leads research on machine learning at Lumentech Corp", "qid": "mock-010"}
+{"question": "Which company does Dmitri Varga work at?", "answer": "Obsidian AI", "qid": "mock-011"}
+{"question": "In which city is the company that Cara Solis works at headquartered?", "answer": "Barcelona", "qid": "mock-012"}
+{"question": "In which city is the company that Dmitri Varga works at headquartered?", "answer": "Prague", "qid": "mock-013"}
+{"question": "Compare the research fields of Jonah Reed and Bruno Falk. What does Jonah Reed research?", "answer": "time-series forecasting", "qid": "mock-014"}
+{"question": "Which company acquired the employer of Ada Verdant?", "answer": "Helios Systems", "qid": "mock-015"}
+{"question": "Which company acquired the employer of Farid Azar?", "answer": "Riverbend Studios", "qid": "mock-016"}
+{"question": "Tell me about Jonah Reed's role at Vanta Analytics.", "answer": "Jonah Reed leads research on time-series forecasting at Vanta Analytics", "qid": "mock-017"}
+{"question": "Why is Dmitri Varga associated with robotics?", "answer": "because Dmitri Varga leads research on robotics at Obsidian AI", "qid": "mock-018"}
+{"question": "In what year was Sendai Robotics founded?", "answer": "2009", "qid": "mock-019"}
+{"question": "In what year was Lumentech Corp founded?", "answer": "1995", "qid": "mock-020"}
+{"question": "Where is Hiro Tanaka based?", "answer": "Osaka", "qid": "mock-021"}
+{"question": "In what year was Nimbus Labs founded?", "answer": "1999", "qid": "mock-022"}
+{"question": "What is the headquarters city of Obsidian AI?", "answer": "Prague", "qid": "mock-023"}
+{"question": "Why is Hiro Tanaka associated with reinforcement learning?", "answer": "because Hiro Tanaka leads research on reinforcement learning at Sendai Robotics", "qid": "mock-024"}
+{"question": "Which company acquired the employer of Hiro Tanaka?", "answer": "Tundra Dynamics", "qid": "mock-025"}
+{"question": "Tell me about Ada Verdant's role at Lumentech Corp.", "answer": "Ada Verdant leads research on machine learning at Lumentech Corp", "qid": "mock-026"}
+{"question": "What field does Iris Orlova research?", "answer": "optimization", "qid": "mock-027"}
+{"question": "Tell me about Elena Moss's role at Polaris Networks.", "answer": "Elena Moss leads research on distributed systems at Polaris Networks", "qid": "mock-028"}
+{"question": "In what year was Obsidian AI founded?", "answer": "2001", "qid": "mock-029"}
+{"question": "What field does Cara Solis research?", "answer": "cryptography", "qid": "mock-030"}
+{"question": "Which company acquired the employer of Elena Moss?", "answer": "Obsidian AI", "qid": "mock-031"}
+{"question": "In which city is the company that Greta Halden works at headquartered?", "answer": "Oslo", "qid": "mock-032"}
+{"question": "Compare the research fields of Ada Verdant and Hiro Tanaka. What does Ada Verdant research?", "answer": "machine learning", "qid": "mock-033"}
+{"question": "Why is Bruno Falk associated with quantum computing?", "answer": "because Bruno Falk leads research on quantum computing at Helios Systems", "qid": "mock-034"}
+{"question": "In what year was Aether Graph founded?", "answer": "2023", "qid": "mock-035"}
+{"question": "What is the headquarters city of Quillfire Corp?", "answer": "Cairo", "qid": "mock-036"}
+{"question": "Which company acquired the employer of Noa Kessler?", "answer": "Aether Graph", "qid": "mock-037"}
+{"question": "Tell me about Cara Solis's role at Nimbus Labs.", "answer": "Cara Solis leads research on cryptography at Nimbus Labs", "qid": "mock-038"}
+{"question": "Where is Elena Moss based?", "answer": "Stockholm", "qid": "mock-039"}
+{"question": "In what year was Riverbend Studios founded?", "answer": "2007", "qid": "mock-040"}
+{"question": "What field does Hiro Tanaka research?", "answer": "reinforcement learning", "qid": "mock-041"}
+{"question": "In what year was Vanta Analytics founded?", "answer": "2013", "qid": "mock-042"}
+{"question": "In what year was Winterfell Labs founded?", "answer": "2015", "qid": "mock-043"}
+{"question": "Where is Greta Halden based?", "answer": "Oslo", "qid": "mock-044"}
+{"question": "Compare the research fields of Dmitri Varga and Kira Lang. What does Dmitri Varga research?", "answer": "robotics", "qid": "mock-045"}
+{"question": "In which city is the company that Iris Orlova works at headquartered?", "answer": "Moscow", "qid": "mock-046"}
+{"question": "In which city is the company that Hiro Tanaka works at headquartered?", "answer": "Osaka", "qid": "mock-047"}
+{"question": "Which company does Cara Solis work at?", "answer": "Nimbus Labs", "qid": "mock-048"}
+{"question": "In what year was Polaris Networks founded?", "answer": "2003", "qid": "mock-049"}
+{"question": "What is the headquarters city of Riverbend Studios?", "answer": "Oslo", "qid": "mock-050"}
+{"question": "Which company acquired the employer of Cara Solis?", "answer": "Obsidian AI", "qid": "mock-051"}
+{"question": "What field does Ada Verdant research?", "answer": "machine learning", "qid": "mock-052"}
+{"question": "Which company acquired the employer of Lionel Costa?", "answer": "Yggdrasil AI", "qid": "mock-053"}
+{"question": "Which company does Farid Azar work at?", "answer": "Quillfire Corp", "qid": "mock-054"}
+{"question": "In what year was Tundra Dynamics founded?", "answer": "2011", "qid": "mock-055"}
+{"question": "In which city is the company that Farid Azar works at headquartered?", "answer": "Cairo", "qid": "mock-056"}
+{"question": "Compare the research fields of Farid Azar and Mira Shahin. What does Farid Azar research?", "answer": "natural language processing", "qid": "mock-057"}
+{"question": "Which company does Hiro Tanaka work at?", "answer": "Sendai Robotics", "qid": "mock-058"}
+{"question": "In which city is the company that Jonah Reed works at headquartered?", "answer": "Dublin", "qid": "mock-059"}
+{"question": "Where is Iris Orlova based?", "answer": "Moscow", "qid": "mock-060"}
+{"question": "What field does Bruno Falk research?", "answer": "quantum computing", "qid": "mock-061"}
+{"question": "Where is Cara Solis based?", "answer": "Barcelona", "qid": "mock-062"}
+{"question": "Compare the research fields of Elena Moss and Lionel Costa. What does Elena Moss research?", "answer": "distributed systems", "qid": "mock-063"}
+{"question": "Why is Jonah Reed associated with time-series forecasting?", "answer": "because Jonah Reed leads research on time-series forecasting at Vanta Analytics", "qid": "mock-064"}
+{"question": "Which company does Greta Halden work at?", "answer": "Riverbend Studios", "qid": "mock-065"}
+{"question": "Why is Greta Halden associated with computer graphics?", "answer": "because Greta Halden leads research on computer graphics at Riverbend Studios", "qid": "mock-066"}
+{"question": "In what year was Zenith Robotics founded?", "answer": "2021", "qid": "mock-067"}
+{"question": "Tell me about Hiro Tanaka's role at Sendai Robotics.", "answer": "Hiro Tanaka leads research on reinforcement learning at Sendai Robotics", "qid": "mock-068"}
+{"question": "What field does Greta Halden research?", "answer": "computer graphics", "qid": "mock-069"}
+{"question": "Where is Ada Verdant based?", "answer": "London", "qid": "mock-070"}
+{"question": "What is the headquarters city of Nimbus Labs?", "answer": "Barcelona", "qid": "mock-071"}
+{"question": "In which city is the company that Elena Moss works at headquartered?", "answer": "Stockholm", "qid": "mock-072"}
+{"question": "What is the headquarters city of Lumentech Corp?", "answer": "London", "qid": "mock-073"}
+{"question": "In which city is the company that Ada Verdant works at headquartered?", "answer": "London", "qid": "mock-074"}
+{"question": "Tell me about Greta Halden's role at Riverbend Studios.", "answer": "Greta Halden leads research on computer graphics at Riverbend Studios", "qid": "mock-075"}
+{"question": "Which company does Iris Orlova work at?", "answer": "Tundra Dynamics", "qid": "mock-076"}
+{"question": "Compare the research fields of Iris Orlova and Ada Verdant. What does Iris Orlova research?", "answer": "optimization", "qid": "mock-077"}
+{"question": "Tell me about Bruno Falk's role at Helios Systems.", "answer": "Bruno Falk leads research on quantum computing at Helios Systems", "qid": "mock-078"}
+{"question": "Why is Elena Moss associated with distributed systems?", "answer": "because Elena Moss leads research on distributed systems at Polaris Networks", "qid": "mock-079"}
+{"question": "Compare the research fields of Bruno Falk and Iris Orlova. What does Bruno Falk research?", "answer": "quantum computing", "qid": "mock-080"}
+{"question": "What field does Jonah Reed research?", "answer": "time-series forecasting", "qid": "mock-081"}
+{"question": "Where is Jonah Reed based?", "answer": "Dublin", "qid": "mock-082"}
+{"question": "Tell me about Farid Azar's role at Quillfire Corp.", "answer": "Farid Azar leads research on natural language processing at Quillfire Corp", "qid": "mock-083"}
+{"question": "What is the headquarters city of Polaris Networks?", "answer": "Stockholm", "qid": "mock-084"}
+{"question": "Which company does Bruno Falk work at?", "answer": "Helios Systems", "qid": "mock-085"}
+{"question": "In which city is the company that Bruno Falk works at headquartered?", "answer": "Berlin", "qid": "mock-086"}
+{"question": "Why is Cara Solis associated with cryptography?", "answer": "because Cara Solis leads research on cryptography at Nimbus Labs", "qid": "mock-087"}
+{"question": "What field does Dmitri Varga research?", "answer": "robotics", "qid": "mock-088"}
+{"question": "Compare the research fields of Greta Halden and Noa Kessler. What does Greta Halden research?", "answer": "computer graphics", "qid": "mock-089"}
+{"question": "Tell me about Dmitri Varga's role at Obsidian AI.", "answer": "Dmitri Varga leads research on robotics at Obsidian AI", "qid": "mock-090"}
+{"question": "Which company does Elena Moss work at?", "answer": "Polaris Networks", "qid": "mock-091"}
+{"question": "What field does Farid Azar research?", "answer": "natural language processing", "qid": "mock-092"}
+{"question": "Which company does Jonah Reed work at?", "answer": "Vanta Analytics", "qid": "mock-093"}
+{"question": "In what year was Helios Systems founded?", "answer": "1997", "qid": "mock-094"}
+{"question": "In what year was Quillfire Corp founded?", "answer": "2005", "qid": "mock-095"}
+{"question": "What is the headquarters city of Helios Systems?", "answer": "Berlin", "qid": "mock-096"}
+{"question": "Where is Bruno Falk based?", "answer": "Berlin", "qid": "mock-097"}
+{"question": "What field does Elena Moss research?", "answer": "distributed systems", "qid": "mock-098"}
+{"question": "Why is Iris Orlova associated with optimization?", "answer": "because Iris Orlova leads research on optimization at Tundra Dynamics", "qid": "mock-099"}

@@ -59,12 +59,12 @@ Thumbs.db
 
 # ---------- Project 运行产物 ----------
 # 只忽略根目录下的 data/（大数据集），不忽略 examples/data/ 等子目录
-/data/
-!/data/README.md
-# mock_wiki 是项目自带的 100 条合成 QA，必须入库
-!/data/mock_wiki/
-!/data/mock_wiki/**
-output/
+# /data/
+# !/data/README.md
+# # mock_wiki 是项目自带的 100 条合成 QA，必须入库
+# !/data/mock_wiki/
+# !/data/mock_wiki/**
+# output/
 logs/
 runs/
 *.faiss
