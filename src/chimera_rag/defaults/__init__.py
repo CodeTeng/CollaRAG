@@ -10,6 +10,7 @@ pipeline is built.
 from chimera_rag.defaults import (  # noqa: F401
     direct_retriever,
     fixed_chunker,
+    langchain_chunker,
     llm_extractor,
     no_memory,
     no_reflection,

@@ -53,6 +53,11 @@ class LLMConfig(BaseModel):
     max_tokens: int = 1024
     timeout: float = 30.0
     retry: RetryConfig = Field(default_factory=RetryConfig)
+    # Disable "thinking" / chain-of-thought output for reasoning models that
+    # emit it by default (e.g. Qwen3 via ollama). When True the provider
+    # prepends a `/no_think` system instruction. Default False -> no effect on
+    # OpenAI / DeepSeek and other non-thinking models.
+    disable_thinking: bool = False
 
 
 class EmbeddingConfig(BaseModel):

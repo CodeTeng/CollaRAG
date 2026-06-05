@@ -69,6 +69,9 @@ def test_main_infer_writes_predictions_and_meta(
         assert "prediction" in row
         assert "reference" in row
         assert "latency_s" in row
+        # evidence chunk 原文随推理一并落盘，供 RAGAS 等 context 类指标使用。
+        assert "evidence_texts" in row
+        assert isinstance(row["evidence_texts"], list)
         # Scorer 还没跑，所以不应该有 em/f1
         assert "em" not in row
         assert "f1" not in row

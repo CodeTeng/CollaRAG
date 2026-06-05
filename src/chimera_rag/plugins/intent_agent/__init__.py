@@ -11,17 +11,17 @@ The package top-level imports all sub-modules to fire ``@register``
 side effects, mirroring the ``defaults/`` and ``plugins/adagraph/`` layout.
 """
 
-from chimera_rag.plugins.intent_agent import (  # noqa: F401
-    agent,
-    hooks,
-    intent_classifier,
-    memory,
-    reasoning,
-    strategies,
-)
-
 # Innovation #2b (LangGraph agentic retrieval) is gated behind the optional
 # ``agent`` extra. Importing the sub-package is self-guarding: if langgraph /
 # langchain-core are missing it logs a hint and skips registration rather than
 # breaking the whole intent_agent plugin import.
-from chimera_rag.plugins.intent_agent import langgraph  # noqa: F401
+from chimera_rag.plugins.intent_agent import (  # noqa: F401
+    agent,
+    experiential_memory,
+    hooks,
+    intent_classifier,
+    langgraph,
+    memory,
+    reasoning,
+    strategies,
+)

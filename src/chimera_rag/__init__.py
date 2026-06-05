@@ -106,12 +106,19 @@ class ChimeraRAG:
         retriever = self._instantiate_retriever(retriever_cls, cfg.query.retriever.params)
         generator = self._instantiate_generator(generator_cls, cfg.query.generator.params)
 
+        # Parallelism for the per-chunk LLM extraction step. Read from the
+        # extractor params (ingestion.extractor.params.extract_workers); falls
+        # back to 1 (legacy serial) when unset. This is the main lever to cut
+        # ingest wall-clock against slow local LLMs (e.g. ollama 8B).
+        extract_workers = int(cfg.ingestion.extractor.params.get("extract_workers", 1))
+
         self._ingest = IngestionPipeline(
             chunker=chunker,
             extractor=extractor,
             pruner=pruner,
             embedder=self.embedder,
             state=self.state,
+            extract_workers=extract_workers,
         )
         self._query = QueryPipeline(
             intent_classifier=intent_classifier,
@@ -136,6 +143,144 @@ class ChimeraRAG:
 
     def active_implementations(self) -> dict[str, str]:
         return dict(self._active_implementations)
+
+    # ------------------------------------------------------------------
+    # Graph persistence — save/restore the built KG so repeated runs can
+    # skip the (slow) ingest. Artefacts are stored under a per-dataset
+    # subdirectory so that different datasets do NOT overwrite each other:
+    #
+    #   storage/<config_stem>/<dataset>/graph.gpickle
+    #   storage/<config_stem>/<dataset>/vectors.faiss + .ids.pkl
+    #   storage/<config_stem>/<dataset>/graph.gpickle.chunks.pkl
+    #   storage/<config_stem>/<dataset>/graph.gpickle.meta.json
+    #
+    # When dataset is None or empty, the paths fall back to the configured
+    # persist_path directly (backward compatible).
+    # ------------------------------------------------------------------
+
+    def _resolve_graph_path(self, dataset: str | None) -> str:
+        """Return graph persist path, optionally scoped by dataset."""
+        base = self.config.storage.graph.persist_path
+        if not dataset:
+            return base
+        from pathlib import Path as _P
+        parent = _P(base).parent / dataset
+        parent.mkdir(parents=True, exist_ok=True)
+        return str(parent / _P(base).name)
+
+    def _resolve_vector_path(self, dataset: str | None) -> str:
+        """Return vector persist path, optionally scoped by dataset."""
+        base = self.config.storage.vector.persist_path
+        if not dataset:
+            return base
+        from pathlib import Path as _P
+        parent = _P(base).parent / dataset
+        parent.mkdir(parents=True, exist_ok=True)
+        return str(parent / _P(base).name)
+
+    def _persist_fingerprint(self, dataset: str | None) -> str:
+        """Hash the ingest-relevant config + dataset so a changed pipeline
+        (chunker / extractor / pruner / embedding / dataset) invalidates a
+        previously persisted graph instead of silently reusing a stale one.
+        """
+        import hashlib
+        import json as _json
+
+        cfg = self.config
+        material = {
+            "dataset": dataset or "",
+            "chunker": {"active": cfg.ingestion.chunker.active, "params": cfg.ingestion.chunker.params},
+            "extractor": {"active": cfg.ingestion.extractor.active, "params": cfg.ingestion.extractor.params},
+            "pruner": {"active": cfg.ingestion.pruner.active, "params": cfg.ingestion.pruner.params},
+            "embedding": {"provider": cfg.embedding.provider, "model": cfg.embedding.model, "dim": cfg.embedding.dim},
+        }
+        blob = _json.dumps(material, sort_keys=True, default=str)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    def _chunks_path(self, dataset: str | None = None) -> str:
+        return self._resolve_graph_path(dataset) + ".chunks.pkl"
+
+    def _meta_path(self, dataset: str | None = None) -> str:
+        return self._resolve_graph_path(dataset) + ".meta.json"
+
+    def persist_graph(self, dataset: str | None = None) -> dict[str, str]:
+        """Write graph + vector index + chunk_lookup + fingerprint to disk."""
+        import json as _json
+        import pickle
+        from pathlib import Path as _Path
+
+        graph_path = self._resolve_graph_path(dataset)
+        vector_path = self._resolve_vector_path(dataset)
+
+        _Path(graph_path).parent.mkdir(parents=True, exist_ok=True)
+        _Path(vector_path).parent.mkdir(parents=True, exist_ok=True)
+
+        self.graph_store.persist(graph_path)
+        self.vector_store.persist(vector_path)
+
+        chunks_path = self._chunks_path(dataset)
+        _Path(chunks_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(chunks_path, "wb") as f:
+            pickle.dump(self.state.chunk_lookup, f)
+
+        meta = {
+            "fingerprint": self._persist_fingerprint(dataset),
+            "dataset": dataset or "",
+            "chunks": len(self.state.chunk_lookup),
+            "triples": len(self.graph_store.all_triples()),
+        }
+        with open(self._meta_path(dataset), "w", encoding="utf-8") as f:
+            _json.dump(meta, f, ensure_ascii=False, indent=2)
+
+        return {"graph": graph_path, "vector": vector_path, "chunks": chunks_path, "meta": self._meta_path(dataset)}
+
+    def try_load_graph(self, dataset: str | None = None) -> bool:
+        """Load a persisted graph if present and fingerprint-compatible.
+
+        Returns True on a successful load (pipelines now have a usable KG),
+        False if nothing was loaded (caller should ingest). A fingerprint
+        mismatch or any corrupted/partial artefact is treated as a miss.
+        """
+        import json as _json
+        import pickle
+        from pathlib import Path as _Path
+
+        graph_path = self._resolve_graph_path(dataset)
+        vector_path = self._resolve_vector_path(dataset)
+        chunks_path = self._chunks_path(dataset)
+        meta_path = self._meta_path(dataset)
+
+        required = [_Path(graph_path), _Path(vector_path + ".faiss"), _Path(chunks_path), _Path(meta_path)]
+        if not all(p.exists() for p in required):
+            return False
+
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = _json.load(f)
+            if meta.get("fingerprint") != self._persist_fingerprint(dataset):
+                logger_ = __import__("logging").getLogger(__name__)
+                logger_.info("persisted graph fingerprint mismatch — will rebuild")
+                return False
+
+            self.graph_store.load(graph_path)
+            self.vector_store.load(vector_path)
+            with open(chunks_path, "rb") as f:
+                self.state.chunk_lookup = pickle.load(f)
+        except Exception as e:  # corrupted / incompatible artefact -> rebuild
+            logger_ = __import__("logging").getLogger(__name__)
+            logger_.warning("failed to load persisted graph (%s) — will rebuild", e)
+            return False
+
+        # Re-attach the freshly loaded chunk_lookup to the query retriever so
+        # retrieval can resolve chunk ids back to text (mirrors the wiring in
+        # _rebuild_pipelines_preserving_state).
+        retr = self._query.retriever
+        if hasattr(retr, "chunk_lookup"):
+            retr.chunk_lookup = self.state.chunk_lookup
+        base = getattr(retr, "base", None)
+        if base is not None and hasattr(base, "chunk_lookup"):
+            base.chunk_lookup = self.state.chunk_lookup
+        return True
 
     # ------------------------------------------------------------------
     # Live reconfiguration (Web hot-toggle)
@@ -334,6 +479,11 @@ class ChimeraRAG:
                 wiring["llm"] = self.llm
             if "graph_store" in param_names:
                 wiring["graph_store"] = self.graph_store
+            # Innovation #2c — experiential memory. The yaml carries a config
+            # dict (enabled/path/recall_top_n/max_per_bucket); turn it into a
+            # concrete BaseExperientialMemory instance when enabled.
+            if "experiential_memory" in param_names:
+                self._wire_experiential_memory(call_params, wiring)
             return cls(**{**wiring, **call_params})
 
         # Classic DirectRetriever signature.
@@ -344,6 +494,31 @@ class ChimeraRAG:
             chunk_lookup=self.state.chunk_lookup,
             **call_params,
         )
+
+    @staticmethod
+    def _wire_experiential_memory(call_params: dict, wiring: dict) -> None:
+        """Translate the yaml experiential_memory config into an instance.
+
+        Mutates ``call_params`` (pops the raw config) and ``wiring`` (adds the
+        constructed memory + recall_top_n). A missing / disabled config leaves
+        the retriever's ``experiential_memory=None`` default — i.e. pure 2b.
+        """
+        raw = call_params.pop("experiential_memory", None)
+        if not isinstance(raw, dict) or not raw.get("enabled", False):
+            return
+
+        from chimera_rag.plugins.intent_agent.experiential_memory import (
+            FileExperientialMemory,
+        )
+
+        mem_kwargs: dict = {}
+        if "path" in raw:
+            mem_kwargs["path"] = raw["path"]
+        if "max_per_bucket" in raw:
+            mem_kwargs["max_per_bucket"] = int(raw["max_per_bucket"])
+        wiring["experiential_memory"] = FileExperientialMemory(**mem_kwargs)
+        if "recall_top_n" in raw:
+            wiring["experiential_recall_top_n"] = int(raw["recall_top_n"])
 
     def _instantiate_generator(self, cls: type, params: dict) -> BaseAnswerGenerator:
         call_params = self._filter_params(cls, params)

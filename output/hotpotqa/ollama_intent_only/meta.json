@@ -1,0 +1,16 @@
+{
+  "config_name": "ollama_intent_only",
+  "n_examples": 3,
+  "started_at": "2026-06-05T05:32:27+00:00",
+  "finished_at": "2026-06-05T05:32:35+00:00",
+  "elapsed_s": 7.438,
+  "usage_total": {
+    "prompt_tokens": 4084,
+    "total_tokens": 4222,
+    "calls": 9,
+    "completion_tokens": 138
+  },
+  "config_path": "/Users/teng/Projects/my/Chimera-RAG/configs/ollama_intent_only.yaml",
+  "dataset": "hotpotqa",
+  "limit": 3
+}

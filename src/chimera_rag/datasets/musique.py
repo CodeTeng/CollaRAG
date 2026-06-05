@@ -55,9 +55,13 @@ class MusiqueLoader(BaseDatasetLoader):
         return out
 
     # ------------------------------------------------------------------
-    def load_documents(self) -> list[Document]:
+    def load_documents(self, limit: int | None = None) -> list[Document]:
         docs: list[Document] = []
+        n_rows = 0
         for row in self._iter_rows():
+            if limit is not None and n_rows >= limit:
+                break
+            n_rows += 1
             rid = str(row.get("id", f"musique-{len(docs)}"))
             for i, para in enumerate(row.get("paragraphs", [])):
                 title = str(para.get("title", ""))

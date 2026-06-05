@@ -22,6 +22,12 @@ def graph(
 
     triples = gs.get_neighbors(entity, hops=hops) if entity else gs.all_triples()
 
+    # Drop triples whose subject or object is blank: the LLM extractor
+    # occasionally emits incomplete relations (e.g. a predicate with no
+    # object), and a graph node/edge with an empty id breaks downstream
+    # renderers like cytoscape ("invalid string ID").
+    triples = [t for t in triples if t.subject.strip() and t.object.strip()]
+
     if len(triples) > limit_edges:
         triples = triples[:limit_edges]
 

@@ -1,0 +1,11 @@
+qid,intent_label,strategy_name,question,reference,prediction,em,f1,rouge_l,confidence,latency_s,prompt_tokens,completion_tokens,total_tokens,llm_calls
+mock-000,factual,direct,In what year was Yggdrasil AI founded?,2019,2019,1.0,1.0,1.0,1.0,1.4675,674,39,713,3
+mock-001,factual,direct,In what year was Xanadu Media founded?,2017,2017,1.0,1.0,1.0,1.0,1.3573,726,39,765,3
+mock-002,factual,direct,Tell me about Iris Orlova's role at Tundra Dynamics.,Iris Orlova leads research on optimization at Tundra Dynamics,leads research on optimization,0.0,0.6153846153846153,0.6153846153846153,1.0,1.5176,700,47,747,3
+mock-003,factual,direct,Where is Dmitri Varga based?,Prague,Prague,1.0,1.0,1.0,1.0,1.4844,756,37,793,3
+mock-004,comparative,parallel,Compare the research fields of Cara Solis and Jonah Reed. What does Cara Solis research?,cryptography,cryptography,1.0,1.0,1.0,1.0,1.7688,898,47,945,3
+mock-005,multi_hop,multi_hop,Which company acquired the employer of Jonah Reed?,Winterfell Labs,Winterfell Labs,1.0,1.0,1.0,1.0,2.0448,1351,46,1397,3
+mock-006,factual,direct,Which company does Ada Verdant work at?,Lumentech Corp,Lumentech Corp,1.0,1.0,1.0,1.0,1.3833,707,39,746,3
+mock-007,comparative,parallel,Compare the research fields of Hiro Tanaka and Omar Diallo. What does Hiro Tanaka research?,reinforcement learning,reinforcement learning,1.0,1.0,1.0,1.0,1.6754,863,49,912,3
+mock-008,factual,direct,Where is Farid Azar based?,Cairo,Cairo,1.0,1.0,1.0,1.0,1.3402,656,37,693,3
+mock-009,factual,direct,Why is Farid Azar associated with natural language processing?,because Farid Azar leads research on natural language processing at Quillfire Corp,natural language processing,0.0,0.4,0.4,1.0,1.5198,744,46,790,3

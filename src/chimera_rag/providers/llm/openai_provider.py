@@ -103,6 +103,16 @@ class OpenAILLMProvider(BaseLLMProvider):
         self.cfg = cfg
         self.temperature = cfg.temperature
         self.max_tokens = cfg.max_tokens
+        # Qwen3 (and similar) emit a long thinking block by default, which eats
+        # the output budget, inflates latency, and can corrupt structured
+        # outputs (intent JSON). The OpenAI-compatible `/v1` endpoint that
+        # ollama exposes does NOT honour `/no_think` system prompts nor a
+        # `think` param — the model keeps reasoning into a separate field and
+        # leaves `content` empty/truncated. The only reliable switch is
+        # ollama's NATIVE `/api/chat` endpoint with `think: false`. So when
+        # disable_thinking is on AND we're talking to ollama, we bypass the
+        # OpenAI SDK and call the native endpoint directly (see _complete_ollama_no_think).
+        self.disable_thinking = bool(getattr(cfg, "disable_thinking", False))
 
         provider = cfg.provider  # "openai" | "deepseek"
 
@@ -125,6 +135,18 @@ class OpenAILLMProvider(BaseLLMProvider):
             base_url = os.getenv(base_url_env) if base_url_env else None
         if not base_url:
             base_url = _default_base_url(provider)
+        self.base_url = base_url
+
+        # Detect an ollama endpoint so disable_thinking can route through the
+        # native /api/chat (which is the only place `think: false` works).
+        # ollama's OpenAI-compat URL looks like http://host:11434/v1; the
+        # native chat URL is http://host:11434/api/chat.
+        self._ollama_native_url: str | None = None
+        if base_url and ("11434" in base_url or base_url.rstrip("/").endswith("/v1")):
+            root = base_url.rstrip("/")
+            if root.endswith("/v1"):
+                root = root[: -len("/v1")]
+            self._ollama_native_url = root + "/api/chat"
 
         # ---- Model --------------------------------------------------
         model = os.getenv("LLM_MODEL") or cfg.model or _default_model(provider)
@@ -157,9 +179,49 @@ class OpenAILLMProvider(BaseLLMProvider):
             self.usage[k] = 0
 
     # ------------------------------------------------------------------
+    async def _complete_ollama_no_think(self, prompt: str, **kwargs: Any) -> str:
+        """Call ollama's native /api/chat with think:false.
+
+        This is the only reliable way to suppress qwen3-style reasoning when
+        served via ollama; the OpenAI-compat /v1 layer ignores both
+        `/no_think` prompts and a `think` param. We map our config to ollama's
+        ``options`` (num_predict == max_tokens) and accumulate usage from the
+        native counters (prompt_eval_count / eval_count).
+        """
+        import httpx
+
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "think": False,
+            "options": {
+                "temperature": kwargs.get("temperature", self.temperature),
+                "num_predict": kwargs.get("max_tokens", self.max_tokens),
+            },
+        }
+        async with httpx.AsyncClient(timeout=self.cfg.timeout) as client:
+            r = await client.post(self._ollama_native_url, json=payload)
+            r.raise_for_status()
+            data = r.json()
+
+        prompt_tokens = int(data.get("prompt_eval_count", 0) or 0)
+        completion_tokens = int(data.get("eval_count", 0) or 0)
+        self.usage["prompt_tokens"] += prompt_tokens
+        self.usage["completion_tokens"] += completion_tokens
+        self.usage["total_tokens"] += prompt_tokens + completion_tokens
+        self.usage["calls"] += 1
+
+        return (data.get("message", {}) or {}).get("content", "") or ""
+
+    # ------------------------------------------------------------------
     async def complete(self, prompt: str, **kwargs: Any) -> str:
         retry_cfg = self.cfg.retry
         last_error: BaseException | None = None
+        # When thinking is disabled and we're on ollama, the native /api/chat
+        # endpoint with think:false is the only path that actually suppresses
+        # the reasoning block. Route there instead of the OpenAI SDK.
+        use_native = self.disable_thinking and self._ollama_native_url is not None
         try:
             async for attempt in AsyncRetrying(
                 stop=stop_after_attempt(retry_cfg.max_attempts),
@@ -170,6 +232,8 @@ class OpenAILLMProvider(BaseLLMProvider):
                 reraise=False,
             ):
                 with attempt:
+                    if use_native:
+                        return await self._complete_ollama_no_think(prompt, **kwargs)
                     resp = await self._client.chat.completions.create(
                         model=self.model,
                         messages=[{"role": "user", "content": prompt}],

@@ -149,7 +149,7 @@ query
 
 四种组合共用同一份 `QueryPipeline.run()` 代码路径，差异**只由 yaml 的 `active` 字段驱动**。这是消融实验可信度的工程基础：同数据集、同评测逻辑，只比较配置差异带来的 EM / F1 / ROUGE-L 变化。
 
-`main.py benchmark --configs a.yaml,b.yaml,c.yaml --dataset <name>` 子命令会顺序跑所有配置（源码：`cli.py::cmd_benchmark`），产出对比数据。
+要逐个跑这几份配置做横向对比，直接对每份 yaml 各执行一次 `main.py infer --config <name>.yaml --dataset <name>`，再用 `eval.py` 对产出的 `predictions.jsonl` 打分；推理与打分两阶段解耦，详见 §8.5 与 `README.md` 的「离线评测」一节。
 
 ---
 
@@ -180,13 +180,35 @@ QAExample / EvalResult                                    ← 评测
 |---|---|
 | `POST /api/ingest` | 触发 IngestionPipeline（AdaGraph 作用点） |
 | `POST /api/query` | 触发 QueryPipeline（IntentAgent 作用点） |
-| `GET /api/graph` + `/api/graph/stats` | 图谱可视化数据源 |
+| `GET /api/graph` + `/api/graph/stats` | 图谱可视化数据源（前端 `GraphPage` 渲染节点 / 边；见 §8.5） |
 | `GET/POST /api/plugins(/toggle)` | 列出 / 热切换两个插件 |
 | `GET/PUT /api/config` | 在线读/写 yaml，api_key 字段脱敏 |
 | `POST /api/evaluate` | 触发 Evaluator |
 | `GET /api/health` | 健康检查 + 激活插件状态 |
 
 前端（`web-ui/`）共 7 个页面与上述路由一一对应：`IngestPage / QueryPage / GraphPage / EvaluatePage / PluginsPage / ConfigPage / TracePage`。构建产物 `pnpm build` 后拷贝到 `src/chimera_rag/web/static/`，FastAPI 通过 `StaticFiles(html=True)` 挂载到 `/`，dev 模式下 Vite 起 5173 端口并 proxy `/api` 到 8000（plan.md §实施注意事项 第 3 条）。
+
+### 8.5 图谱持久化与可视化数据源
+
+知识图谱构建（ingest）依赖 LLM 逐 chunk 抽三元组，是整条链路里最慢、最贵的一步。为避免每次推理 / 起服务都重新构图，门面层提供了一套**落盘—指纹校验—复用**机制（源码：`src/chimera_rag/__init__.py`）：
+
+| 方法 | 作用 |
+|---|---|
+| `ChimeraRAG.persist_graph(dataset)` | 构图后把图、向量索引、`chunk_lookup` 与指纹一次性写盘 |
+| `ChimeraRAG.try_load_graph(dataset)` | 起步时尝试加载已持久化图谱；指纹匹配则复用并返回 `True`，否则返回 `False` 交由调用方重新 ingest |
+
+落盘产物全部位于配置的 `storage.graph.persist_path` / `storage.vector.persist_path` 同目录（默认 `storage/`）：
+
+| 文件 | 内容 |
+|---|---|
+| `<graph_path>` | `NetworkXGraphStore` 的 `MultiDiGraph`（pickle，含全部三元组） |
+| `<vector_path>.faiss` + `<vector_path>.ids.pkl` | FAISS 索引 + chunk_id 旁路表 |
+| `<graph_path>.chunks.pkl` | `chunk_lookup`（chunk_id → Chunk），缺它则检索拿不到原文 |
+| `<graph_path>.meta.json` | **指纹**：对 `ingestion`（chunker / extractor / pruner）+ `embedding` + `dataset` 求 SHA-256；任一项变更即判定旧图谱失效，自动重建，杜绝脏读 |
+
+**CLI 接入**（`src/chimera_rag/cli.py`）：`ingest` 与 `infer` 都会先 `try_load_graph`，命中则秒级复用、跳过构图；未命中（首次运行或配置变更）才构图并 `persist_graph`。两个子命令均新增 `--rebuild` 开关，强制忽略已持久化图谱、从头重建。
+
+**与可视化的关系**：`GET /api/graph` / `/api/graph/stats` 读取的是当前进程内 `chimera.graph_store` 的三元组。因此先用 `infer` / `ingest` 把图谱构好并落盘，再 `serve` 起服务（同一份 config 会自动 `try_load_graph` 复用持久化图谱），前端 `GraphPage` 即可渲染已构建好的图谱——构图与可视化两个阶段就此解耦。
 
 ---
 
@@ -225,5 +247,5 @@ QAExample / EvalResult                                    ← 评测
 
 - `docs/plan.md` — 最初的实施计划，本文档的上游"事实来源"；
 - `docs/innovation_1_adagraph.md` — 创新点一的 3 个子模块实装细节；
-- `docs/innovation_2_intent_agent.md` — 创新点二的 M/R/D/E 四阶段 + 6 策略 + 3 hook 实装细节；
+- `docs/innovation_intent_agent.md` — 创新点二合并文档：静态 M/R/D/E 四阶段 + 6 策略 + 3 hook、LangGraph 动态编排、经验记忆增强；
 - `README.md` — 仓库根目录的用户级入门文档，不在 `docs/` 下。

@@ -63,8 +63,10 @@ class HotpotQALoader(BaseDatasetLoader):
         return out
 
     # ------------------------------------------------------------------
-    def load_documents(self) -> list[Document]:
+    def load_documents(self, limit: int | None = None) -> list[Document]:
         raw = self._read()
+        if limit is not None:
+            raw = raw[:limit]
         by_title: dict[str, list[str]] = {}
         for item in raw:
             for ctx in item.get("context", []):

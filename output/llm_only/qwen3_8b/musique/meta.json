@@ -1,0 +1,22 @@
+{
+  "config_name": "llm_only.ollama.qwen3_8b",
+  "method": "llm_only",
+  "dataset": "musique",
+  "n_samples": 500,
+  "seed": 42,
+  "limit": 500,
+  "provider": "ollama",
+  "model": "qwen3:8b",
+  "temperature": 0.0,
+  "max_tokens": 2048,
+  "no_think": false,
+  "n_errors": 0,
+  "n_empty": 23,
+  "usage_total": {
+    "prompt_tokens": 41778,
+    "completion_tokens": 427800,
+    "total_tokens": 469578
+  },
+  "elapsed_s": 12963.51,
+  "prompt_template": "You are answering a multi-hop question using only your own knowledge. Output ONLY the final answer as short as possible (a name, a date, yes/no, or a short phrase). No explanation, no quotes, no punctuation around it.\n\nQuestion: {question}\nAnswer:"
+}

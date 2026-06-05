@@ -35,6 +35,13 @@ uv run python main.py export --config <cfg> --out ./output/
 uv run python main.py serve --config <cfg>
 ```
 
+### Datasets (download + convert)
+
+```bash
+.venv/bin/python scripts/download_datasets.py        # download HotpotQA/2Wiki/MuSiQue/NQ/PopQA into data/
+.venv/bin/python scripts/convert_to_mock_wiki.py     # convert each into corpus.txt + qa.jsonl (mock_wiki layout)
+```
+
 ### Evaluation (two-stage)
 
 ```bash
@@ -83,6 +90,8 @@ class DynamicChunker(BaseChunker): ...
 ### Configuration
 
 Single YAML config drives everything with 10 top-level domains: `app`, `logging`, `llm`, `embedding`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Five config variants in `configs/` let you run vanilla, AdaGraph-only, IntentAgent-only, or full. Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.
+
+`configs/default.yaml` registers the GraphRAG eval datasets in two formats: native (`hotpotqa`, `two_wiki`, `musique`, `nq`, `popqa`) and a unified `mock_wiki` layout (`*_mw`, i.e. `corpus.txt` + `qa.jsonl`). `nq`/`popqa` are open-domain, so their `*_mw` `corpus.txt` is an empty placeholder. Generate them with `scripts/download_datasets.py` then `scripts/convert_to_mock_wiki.py`.
 
 ### Data contracts (Pydantic v2)
 

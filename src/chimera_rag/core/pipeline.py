@@ -10,6 +10,7 @@ classes themselves. This keeps ``core`` decoupled from ``defaults`` and
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -59,17 +60,42 @@ class IngestionPipeline:
         pruner: BasePruner,
         embedder: BaseEmbeddingProvider,
         state: PipelineState,
+        extract_workers: int = 1,
+        show_progress: bool = True,
     ) -> None:
         self.chunker = chunker
         self.extractor = extractor
         self.pruner = pruner
         self.embedder = embedder
         self.state = state
+        # Concurrency for the per-chunk LLM extraction step. With slow local
+        # models (e.g. ollama 8B) the ingest bottleneck is many sequential
+        # LLM calls; running them in a thread pool cuts wall-clock roughly
+        # linearly until the LLM backend itself saturates. 1 == legacy serial.
+        self.extract_workers = max(1, int(extract_workers))
+        # Render a tqdm progress bar over the per-chunk LLM extraction loop —
+        # the slowest, most opaque part of ingestion. Disabled automatically
+        # when tqdm is unavailable so the core stays dependency-soft.
+        self.show_progress = show_progress
 
     # ------------------------------------------------------------------
+    def _progress(self, iterable: Any, *, total: int, desc: str) -> Any:
+        """Wrap *iterable* in a tqdm bar when progress is enabled.
+
+        Falls back to the bare iterable if progress is disabled or tqdm is not
+        installed, keeping ``core`` usable without the optional dependency.
+        """
+        if not self.show_progress:
+            return iterable
+        try:
+            from tqdm import tqdm
+        except ImportError:  # pragma: no cover - tqdm is a declared dependency
+            return iterable
+        return tqdm(iterable, total=total, desc=desc, unit="chunk", dynamic_ncols=True)
+
     def run(self, documents: list[Document]) -> dict[str, Any]:
         all_chunks: list[Chunk] = []
-        for doc in documents:
+        for doc in self._progress(documents, total=len(documents), desc="切分文档"):
             chunks = self.chunker.chunk(doc)
             all_chunks.extend(chunks)
             for ch in chunks:
@@ -82,10 +108,25 @@ class IngestionPipeline:
             vecs = self.embedder.encode([c.text for c in all_chunks])
             self.state.vector_store.add([c.chunk_id for c in all_chunks], vecs)
 
-        # Extract + prune triples.
+        # Extract + prune triples. Each chunk triggers one (slow) LLM call,
+        # so we fan out across a thread pool when extract_workers > 1.
+        # ThreadPoolExecutor.map preserves input order, so the resulting
+        # triple order is identical to the legacy serial path.
         raw_triples: list[Triple] = []
-        for ch in all_chunks:
-            raw_triples.extend(self.extractor.extract(ch))
+        if all_chunks:
+            workers = min(self.extract_workers, len(all_chunks))
+            if workers <= 1:
+                for ch in self._progress(
+                    all_chunks, total=len(all_chunks), desc="抽取三元组"
+                ):
+                    raw_triples.extend(self.extractor.extract(ch))
+            else:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    mapped = pool.map(self.extractor.extract, all_chunks)
+                    for triples in self._progress(
+                        mapped, total=len(all_chunks), desc="抽取三元组"
+                    ):
+                        raw_triples.extend(triples)
 
         pruned_triples = self.pruner.prune(raw_triples)
         for t in pruned_triples:

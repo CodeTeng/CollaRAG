@@ -80,32 +80,86 @@ LangGraph 方案恰好对症下药：
 | `IntentAgentRetriever` | `intent_agent.strategy_selector` | **静态查表** | 🧠 创新点 2（已有） |
 | `LangGraphAgentRetriever` | `intent_agent.langgraph` | **LLM 动态编排** | 🚀 创新点 2b（本文，新增） |
 
-新增检索器的内部装配（M-R-D-E 四阶段保留，仅 D 阶段被替换）：
+### 3.1 内部分层架构图
 
+`LangGraphAgentRetriever` 内部分为六层，核心思想是**职责彻底解耦**：**LangGraph 管「怎么决策」（②③），GraphRAG 管「怎么检索」（④⑥），`ToolContext`（⑤）把两者粘起来**。M-R-D-E 四阶段保留，仅 Decision 阶段从「静态查表」替换为「LLM 动态编排」。
+
+```mermaid
+flowchart TB
+    subgraph PL["① 管线层 · QueryPipeline（对检索器完全透明）"]
+        Q["用户 Query<br/>(text + session_id)"] --> RET
+        RET["LangGraphAgentRetriever<br/>实现 BaseRetriever.retrieve()"]
+    end
+
+    RET -->|"graph.invoke(初始 AgentState)"| GRAPH
+
+    subgraph GRAPH["② 编排层 · LangGraph StateGraph（只管决策，不做检索）"]
+        direction TB
+        M["memory_node<br/>读 session 历史"] --> R2["reasoning_node<br/>意图分类（仅作提示）"]
+        R2 --> D["decision_node<br/>LLM 自主选工具"]
+        D -->|"有 tool_call"| T["tools (ToolNode)<br/>执行选中工具"]
+        D -->|"直接 Final Answer"| RF["reflect_node<br/>给累积证据打分"]
+        T --> RF
+        RF -->|"quality≥τ 或 iters≥MAX"| OUT(["END"])
+        RF -.->|"质量不足且未触顶<br/>↩ 补检：换工具/加跳数"| D
+    end
+
+    D <-->|"ReAct 文本协议<br/>complete(prompt)"| LLMAD
+
+    subgraph LLMAD["③ LLM 适配层 · ChimeraReActChatModel"]
+        ADAPT["渲染工具目录→prompt<br/>解析 Action/Final Answer"] --> PROV["BaseLLMProvider<br/>deepseek / mock"]
+    end
+
+    T -->|"调用"| TOOLS
+
+    subgraph TOOLS["④ 工具层 · 5 个 LangChain Tool（GraphRAG 能力薄封装）"]
+        direction LR
+        VS["vector_search"]
+        GN["graph_neighbors"]
+        MH["multi_hop_retrieve"]
+        PA["parallel_retrieve"]
+        AS["assess_evidence"]
+    end
+
+    TOOLS -->|"RetrievalResult"| CTX
+
+    CTX["⑤ ToolContext 共享累加器<br/>按分去重合并 chunk / triple"]
+
+    subgraph BASE["⑥ GraphRAG 底层能力（零重写，全复用）"]
+        direction LR
+        VStore["vector_store<br/>FAISS"]
+        GStore["graph_store<br/>NetworkX"]
+        STRAT["strategies/*<br/>MultiHop / Parallel"]
+        HOOK["HeuristicReflectionHook"]
+    end
+
+    VS --> VStore
+    GN --> GStore
+    MH --> STRAT
+    PA --> STRAT
+    AS --> HOOK
+    RF --> HOOK
+
+    OUT -->|"final_state"| MERGE
+    CTX -.->|"merged_result(top_k)<br/>还原 Chunk"| MERGE
+    MERGE["组装 RetrievalResult<br/>+ 写决策轨迹 metadata"] -->|"空结果兜底→base.retrieve()"| RET
+
+    style GRAPH fill:#ebf5ff,stroke:#4a90d9
+    style TOOLS fill:#fff5e6,stroke:#e0a458
+    style BASE fill:#f0f0f0,stroke:#999
+    style CTX fill:#e8f5e9,stroke:#5cb85c
 ```
-            ┌────────────────────────────────────────────────┐
-            │  LangGraphAgentRetriever (BaseRetriever)        │
-            │  同步外观 retrieve()  ←  _run_async(graph.ainvoke)│
-            └──────────────────────┬─────────────────────────┘
-                                   │
-   ┌───────────────────────────────▼───────────────────────────────┐
-   │                    LangGraph StateGraph                         │
-   │                                                                │
-   │  START → [Memory] → [Reasoning] → [Decision(LLM Agent)]        │
-   │                                        │  ▲                     │
-   │                                        ▼  │ (补检)              │
-   │                                  [Tool Node]                    │
-   │                                        │                        │
-   │                                        ▼                        │
-   │                                   [Reflect] ──质量够?──► END     │
-   │                                        └──不够&未超限──► Decision │
-   └────────────────────────────────────────────────────────────────┘
-                                   │
-                         复用底层能力（不重写）
-        ┌──────────────┬──────────────┬──────────────┬──────────────┐
-        │ vector_store │ graph_store  │ strategies/* │ hooks/*      │
-        └──────────────┴──────────────┴──────────────┴──────────────┘
-```
+
+**逐层职责**：
+
+- **① 管线层**：`LangGraphAgentRetriever` 对外只实现同步 `retrieve(query, top_k)`，`QueryPipeline` 感知不到内部跑的是 LangGraph，换检索器只需改一行 yaml。
+- **② 编排层（蓝色，核心）**：5 节点状态图，**只负责决策、自身不做检索**。`reflect → decision` 虚线回边即**反思补检回路**，是提升多跳精度的发动机。
+- **③ LLM 适配层**：现有 `BaseLLMProvider` 只有纯文本 `complete()`，用 **ReAct 文本协议**桥接出 tool-calling 能力，MockProvider 即可离线驱动。
+- **④ 工具层（橙色）**：5 个 GraphRAG 能力包成 LangChain Tool，**零新检索逻辑**，纯薄封装；调用顺序由 ② 的 LLM 自主决定。
+- **⑤ ToolContext 累加器（绿色）**：融合的胶水——多次工具调用结果在此**按分去重合并**，是「多工具组合」成立的前提。
+- **⑥ 底层能力（灰色）**：FAISS / NetworkX / 现有策略 / 反思 hook，全部原样复用。
+
+> 这套六层结构正是 §2 三大目标（**复用优先 / 可消融 / 可降级**）的结构性来源：层与层只通过 `interfaces/*` ABC 交互，所以能零重写复用、一行 yaml 切换、独立消融。
 
 ---
 
@@ -197,6 +251,92 @@ metadata = {
 ```
 
 这套 `metadata` 沿用现有透传链路（`QueryPipeline.run` → `Answer.trace.retrieval_metadata` → `/api/query` → 前端 trace 页），论文里的"决策轨迹图"可直接由此渲染。
+
+### 5.5 端到端数据流时序图
+
+下图把 §5.1–§5.4 的静态结构串成一条完整的运行时序：从 `QueryPipeline` 调用 `retrieve()` 起，经 Memory / Reasoning，进入 **Decision ⇄ Tools ⇄ Reflect 反思回路**（蓝色框，受 `max_iterations` 限流），最终还原 `Chunk` 并写回决策轨迹 `metadata`。其中 GraphRAG 的检索能力通过 `tools` 节点被调用、由 `ToolContext` 累加器去重合并——这正是 "LangGraph 编排 + GraphRAG 检索" 的融合点。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 用户
+    participant QP as QueryPipeline
+    participant R as LangGraphAgentRetriever
+    participant G as LangGraph StateGraph
+    participant Mem as memory_node<br/>(SessionMemory)
+    participant Rea as reasoning_node<br/>(LLMIntentClassifier)
+    participant Dec as decision_node<br/>(ChimeraReActChatModel)
+    participant LLM as BaseLLMProvider<br/>(deepseek/mock)
+    participant Tool as tools (ToolNode)
+    participant GR as GraphRAG 能力<br/>(vector/graph/multi_hop)
+    participant Ctx as ToolContext<br/>(共享累加器)
+    participant Ref as reflect_node<br/>(HeuristicReflectionHook)
+
+    User->>QP: query(text, session_id)
+    QP->>R: retrieve(query, top_k)
+    R->>R: build_tools(deps, context)<br/>实例化 5 个 LangChain Tool
+    R->>G: graph.invoke(初始 AgentState)
+
+    Note over G,Mem: ── Memory 阶段 ──
+    G->>Mem: memory_node(state)
+    Mem-->>G: messages=[历史, HumanMessage]<br/>iteration_count=0
+
+    Note over G,Rea: ── Reasoning 阶段（意图仅作提示）──
+    G->>Rea: reasoning_node(state)
+    Rea-->>G: intent=label + SystemMessage(hint)
+
+    rect rgb(235, 245, 255)
+    Note over G,Ref: ══ Decision ⇄ Tools ⇄ Reflect 反思回路（≤ max_iterations）══
+
+    loop 直到 quality≥τ 或 iters≥MAX
+        Note over G,LLM: ── Decision 阶段：LLM 自主选工具 ──
+        G->>Dec: decision_node(state)
+        Dec->>LLM: complete(ReAct prompt: 工具目录+对话)
+        LLM-->>Dec: 文本 "Action: xxx / Final Answer: xxx"
+        Dec-->>G: AIMessage(tool_calls 或 content)<br/>tool_call_log 累加
+
+        alt LLM 发起 tool_call
+            Note over G,Ctx: ── Execution 阶段：执行 GraphRAG 工具 ──
+            G->>Tool: route_after_decision → tools
+            Tool->>GR: 调用对应能力<br/>(vector_search / graph_neighbors /<br/>multi_hop_retrieve / parallel)
+            GR-->>Tool: RetrievalResult(chunks+triples)
+            Tool->>Ctx: add_result() 按分去重合并
+            Tool-->>G: 紧凑摘要(chunk_id+预览+score)
+        else LLM 直接给 Final Answer
+            G-->>G: route_after_decision → reflect
+        end
+
+        Note over G,Ref: ── Reflect 阶段：反思打分 ──
+        G->>Ref: reflect_node(state)
+        Ref->>Ctx: merged_result() 取累积证据
+        Ctx-->>Ref: 拼成 draft answer
+        Ref-->>G: quality 分数<br/>iteration_count += 1
+
+        alt quality≥τ 或 iters≥MAX
+            G-->>G: route_after_reflect → END
+        else 质量不足且未触顶
+            G-->>G: route_after_reflect → decision<br/>(补检：换工具/加跳数)
+        end
+    end
+    end
+
+    G-->>R: final_state(intent, tool_call_log,<br/>iteration_count, quality)
+    R->>Ctx: merged_result(top_k) 还原 Chunk
+
+    alt 证据为空（兜底）
+        R->>GR: base.retrieve() 直接召回兜底
+    end
+
+    R->>R: 写 metadata(retriever/intent/<br/>tool_calls/iterations/final_quality)
+    R-->>QP: RetrievalResult(top_k chunks)
+    QP-->>User: Answer + trace(决策轨迹)
+```
+
+**图中三条关键线索**：
+
+- **融合线**：LangGraph 只负责编排（`decision ⇄ tools ⇄ reflect`），GraphRAG 检索能力被 `tools` 节点调用，两者通过 `ToolContext` 累加器解耦连接。
+- **多跳精度线**（蓝色循环框）：`Decision ⇄ Tools ⇄ Reflect` 闭环是提升多跳精度的核心——LLM 可多轮换工具、补跳数，证据不足时触发补检。
+- **兜底线**（末尾 `alt`）：Agent 空手而归时自动 fallback 到 `base.retrieve()`，保证管线永不返回空结果。
 
 ---
 

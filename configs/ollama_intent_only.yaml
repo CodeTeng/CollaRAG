@@ -1,0 +1,142 @@
+# ============================================================================
+# ollama_intent_only.yaml
+#
+# 用途：本地 ollama（OpenAI 兼容接口）+ 本地 sentence-transformers embedding，
+#       仅启用创新点二（IntentAgent：6 意图分类 → 6 策略选择 → 反思）。
+#       全链路离线，不依赖任何云端 API。
+#
+# 接入机制：ollama 暴露 OpenAI 协议端点（/v1），因此 LLM 直接复用现有
+#           provider: openai 实现，连接信息全部走 .env：
+#             LLM_API_KEY  = ollama          （占位，ollama 不校验）
+#             LLM_BASE_URL = http://localhost:11434/v1
+#             LLM_MODEL    = qwen2.5          （改成你 ollama pull 的模型名）
+#
+# 前置：
+#   1) ollama serve 已在跑，且 `ollama pull qwen2.5`（或你选的模型）已完成
+#   2) uv sync --extra st   （本地 embedding 依赖；模型权重已在 ./models/ 下）
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/ollama_intent_only
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  provider: openai
+  # model / api_key / base_url 全部来自 .env（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）
+  temperature: 0.1
+  max_tokens: 2048              # qwen3 关思考后留足答案空间；若仍偶发截断可加到 4096
+  timeout: 120                  # 本地推理通常比云端慢，超时放宽
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 30.0 }
+  # qwen3 默认输出 <think> 思考链，会吞 token 并污染意图分类 JSON。
+  # 实验场景关掉它：provider 会注入 `/no_think` system 指令，让模型直接作答。
+  # 对云端 DeepSeek/OpenAI 无副作用（它们不识别该指令也不输出 thinking）。
+  disable_thinking: true
+
+embedding:
+  provider: sentence_transformer
+  model: ./models/sentence-transformers_all-MiniLM-L6-v2
+  dim: 384                      # 必须等于模型实际维度，否则构造时直接报错
+  batch_size: 32
+  normalize: true
+  device: cpu                   # cpu / cuda / mps / auto
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/ollama_intent_only/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: flat_ip         # flat_ip / flat_l2 / ivf_flat / hnsw
+    metric: ip                  # ip / l2
+    persist_path: ./storage/ollama_intent_only/vectors
+    top_k: 5
+    hnsw:
+      M: 32
+      ef_construction: 200
+      ef_search: 64
+    ivf:
+      nlist: 100
+      nprobe: 8
+
+datasets:
+  # ------------------- 多跳 QA benchmarks -------------------
+  hotpotqa:
+    loader: hotpotqa
+    path: ./data/hotpotqa/hotpotqa.json   # HotpotQA loader 只认 path 单字段
+    output_dir: ./output/hotpotqa
+  two_wiki:
+    loader: two_wiki
+    path: ./data/two_wiki/dev.json
+    output_dir: ./output/two_wiki
+  musique:
+    loader: musique
+    path: ./data/musique/musique_ans_v1.0_dev.jsonl
+    output_dir: ./output/musique
+  # ------------------- 兼容老的 mock_wiki -------------------
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
+
+# AdaGraph OFF — ingestion 走 defaults（和 vanilla 相同）
+ingestion:
+  chunker:
+    active: defaults.fixed
+    params: { chunk_size: 1500, overlap: 200 }
+  extractor:
+    active: defaults.simple_llm
+    # extract_workers：构图阶段并发 LLM 调用数。本地慢模型（ollama 8B）下
+    # 把 37 个 chunk 的串行抽取改成并发，墙钟时间约降到 1/N。
+    # 注意：需同时让 ollama 支持并发，启动 serve 时设 OLLAMA_NUM_PARALLEL>=4，
+    # 否则请求仍在 ollama 端排队，提速有限。
+    params: { extract_workers: 4 }
+  pruner:
+    active: defaults.noop
+    params: {}
+
+# IntentAgent ON — 只测创新点二
+query:
+  intent_classifier:
+    active: intent_agent.llm
+    params:
+      confidence_threshold: 0.55
+  retriever:
+    active: intent_agent.strategy_selector
+    params: { top_k: 5, neighbor_hops: 1 }
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: false
+  intent_agent:
+    enabled: true
+    memory:
+      max_history: 10
+    intent_classifier:
+      confidence_threshold: 0.55
+    strategies:
+      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
+    hooks:
+      reflection: { enabled: false }
+      reranking: { enabled: false }
+      parallel_pool: { enabled: true, max_workers: 4 }
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 500              # Relink 论文协议：500 题采样
+  parallel: 1

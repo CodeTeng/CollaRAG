@@ -91,10 +91,23 @@ storage:
 # --------------------------------------------------------------------------
 # 数据集（命名注册；由 main.py --dataset <name> 选用）
 # --------------------------------------------------------------------------
-# 三种路径声明方式（至少要有一种）：
-#   1) 单文件：path: ./data/xxx.json
-#   2) 分文件：corpus_path + qa_path（推荐，用于 HotpotQA 这种语料和 QA 分开的数据集）
-#   3) 目录：  path 指向目录，corpus_file/qa_file 作为默认文件名
+# 路径声明方式（按 loader 的需要二选一即可，不需要同时给）：
+#
+#   ① 自包含数据集（hotpotqa / two_wiki / musique 等多跳 QA benchmark）：
+#      只需要 path: 单字段 —— 因为 JSON/JSONL 内每行同时携带
+#      question / answer / paragraphs（语料段落），loader 会从同一文件
+#      分别抽出 QA 和语料。
+#        path: ./data/musique/musique_ans_v1.0_dev.jsonl
+#
+#   ② 分离数据集（mock_wiki / 自定义合成集等 QA 与语料分两个文件）：
+#      用 corpus_path + qa_path 两字段：
+#        corpus_path: ./data/mock_wiki/corpus.txt
+#        qa_path:     ./data/mock_wiki/qa.jsonl
+#
+#   ③ 目录式（少数 loader 支持）：path 指向目录，loader 用内部默认文件名。
+#
+# 即：只有 mock_wiki 这种"语料文件独立存在"的数据集才需要 corpus_path；
+# HotpotQA / 2Wiki / MuSiQue 都是 ① 类，**不需要** 单独的语料路径。
 # output_dir: 该数据集跑评测时，报告默认落到这个目录下。
 datasets:
   sample:
@@ -102,9 +115,10 @@ datasets:
     path: ./examples/data/sample.txt
   hotpotqa:
     loader: hotpotqa
-    corpus_path: ./data/hotpotqa/hotpotqa_corpus.json
-    qa_path:     ./data/hotpotqa/hotpotqa.json
-    output_dir:  ./output/hotpotqa
+    # 自包含格式：path 单字段已同时提供 QA 和支撑段落（paragraphs）。
+    # 早期注释里 corpus_path 的写法已废弃；HotpotQALoader 只接受 path=。
+    path: ./data/hotpotqa/hotpotqa.json
+    output_dir: ./output/hotpotqa
     split: dev
     eval_field_mapping:
       question: question
@@ -123,6 +137,49 @@ datasets:
     corpus_path: ./data/mock_wiki/corpus.txt
     qa_path:     ./data/mock_wiki/qa.jsonl
     output_dir:  ./output/mock_wiki
+  # ---- mock_wiki 格式版本（由 scripts/convert_to_mock_wiki.py 生成）----
+  # 统一的 corpus.txt + qa.jsonl 布局，走 mock_wiki loader；
+  # 与上方原始格式条目并存，按需选用。
+  # 注意：nq_mw / popqa_mw 为开放域，corpus.txt 为空占位（无自带语料）。
+  hotpotqa_mw:
+    loader: mock_wiki
+    corpus_path: ./data/hotpotqa/corpus.txt
+    qa_path:     ./data/hotpotqa/qa.jsonl
+    output_dir:  ./output/hotpotqa_mw
+  two_wiki_mw:
+    loader: mock_wiki
+    corpus_path: ./data/two_wiki/corpus.txt
+    qa_path:     ./data/two_wiki/qa.jsonl
+    output_dir:  ./output/two_wiki_mw
+  musique_mw:
+    loader: mock_wiki
+    corpus_path: ./data/musique/corpus.txt
+    qa_path:     ./data/musique/qa.jsonl
+    output_dir:  ./output/musique_mw
+  nq_mw:
+    loader: mock_wiki
+    corpus_path: ./data/nq/corpus.txt
+    qa_path:     ./data/nq/qa.jsonl
+    output_dir:  ./output/nq_mw
+  popqa_mw:
+    loader: mock_wiki
+    corpus_path: ./data/popqa/corpus.txt
+    qa_path:     ./data/popqa/qa.jsonl
+    output_dir:  ./output/popqa_mw
+  nq:
+    loader: generic_jsonl
+    path: ./data/nq/nq.jsonl
+    output_dir: ./output/nq
+    eval_field_mapping:
+      question: question
+      answer: answer
+  popqa:
+    loader: generic_jsonl
+    path: ./data/popqa/popqa.jsonl
+    output_dir: ./output/popqa
+    eval_field_mapping:
+      question: question
+      answer: answer
   custom_jsonl:
     loader: generic_jsonl
     path: ./data/custom.jsonl

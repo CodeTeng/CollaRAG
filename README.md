@@ -1,6 +1,6 @@
-# Chimera-RAG 🧩
+# Chimera-RAG
 
-> 🏛️ **基于知识图谱的可插拔 RAG 框架**，以希腊神话融合体 *Chimera* 为名，象征两大创新点的协同：**AdaGraph**（自适应图谱构建）+ **IntentAgent**（意图感知智能体）。通过 `config.yaml` 一键开关，可完全降级为 vanilla 基线，也可完全激活双创新点。
+> 基于知识图谱的可插拔 RAG 框架，以希腊神话融合体 *Chimera* 为名，象征两大创新点的协同：**AdaGraph**（自适应图谱构建）+ **IntentAgent**（意图感知智能体）。通过 `config.yaml` 一键开关，可完全降级为 vanilla 基线，也可完全激活双创新点。
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-blue.svg">
@@ -11,169 +11,124 @@
 
 ---
 
-## 📖 目录
-
-- [✨ 这个项目是什么](#-这个项目是什么)
-- [🚀 快速开始](#-快速开始)
-- [🧠 两大创新点](#-两大创新点)
-- [🏗️ 架构一览](#️-架构一览)
-- [⚙️ 配置文件](#️-配置文件)
-- [🧪 推理 & 评测（两阶段工作流）](#-推理--评测两阶段工作流)
-- [🌐 Web 系统](#-web-系统)
-- [📂 项目结构](#-项目结构)
-- [🧭 开发 & 测试](#-开发--测试)
-- [📄 文档索引](#-文档索引)
-
----
-
-## ✨ 这个项目是什么
-
-**一句话**：一个自研的、**双创新点可独立消融**的知识图谱 RAG 系统，覆盖从图谱构建、意图感知检索、到在线 Web 演示的完整链路。
-
-### 它能做什么
+## 它能做什么
 
 | 场景 | 能力 |
 |---|---|
-| 📚 **语料 → 图谱** | 文本文档自动 chunk、LLM 抽三元组、图谱 + 向量双路存储 |
-| 💬 **问题 → 答案** | 6 类意图识别 → 6 种检索策略路由 → 基于证据的生成 |
-| 🧭 **消融对比** | 同一数据集下 `vanilla / adagraph_only / intent_only / full` 四组对比 |
-| 📊 **离线评测** | EM / F1 / ROUGE-L + 耗时分布 + Token 分布 + 多配置对比报告（含图表） |
-| 🖥️ **单端口部署** | FastAPI + React 构建在一起，`serve` 起一条命令即可 |
-
-### 为什么要写这个
-
-实验室常见做法是"挑一个 RAG 框架，改改提示词就叫创新"。本项目反过来：
-1. **先定义清楚两个正交的创新点** 各改造哪一层；
-2. **再搭一个注册表驱动的骨架**，让两个创新点作为可插拔 plugin 单独上/下线；
-3. **最后用 TDD 把它实现出来**，确保每次改动不破坏"关闭插件即降级到可运行基线"这条硬契约。
-
-这样消融实验天然严谨：同数据集、同评测逻辑、同管线代码路径，**差异只由 yaml 的插槽 active 字段驱动**。
+| 语料 → 图谱 | 文本文档自动 chunk、LLM 抽三元组、图谱 + 向量双路存储 |
+| 问题 → 答案 | 6 类意图识别 → 6 种检索策略路由 → 基于证据的生成 |
+| 消融对比 | 同一数据集下 `vanilla / adagraph_only / intent_only / full` 四组对比 |
+| 离线评测 | EM / F1 / ROUGE-L + 耗时分布 + Token 分布 + 多配置对比报告 |
+| 单端口部署 | FastAPI + React，`serve` 一条命令 |
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
-### 1️⃣ 安装
+### 1. 安装
 
 ```bash
-# 需要 uv: https://github.com/astral-sh/uv
 uv sync --all-extras --dev
 ```
 
-> 💡 创新点 2b（LangGraph Agentic 检索）依赖可选 extra `agent`
-> （`langgraph>=1.0` + `langchain-core>=1.0`，1.x LTS）。`--all-extras` 已包含它；
-> 若只想单独装：`uv sync --extra agent`。未安装时其余功能与测试完全不受影响。
-
-### 2️⃣ 跑测试（零 API Key 依赖，纯 Mock Provider）
+### 2. 跑测试（零 API Key）
 
 ```bash
-uv run pytest -q
-# 348 passed ✅（装了 --all-extras 时含 33 个 langgraph 测试；
-#                未装 agent extra 时为 315，langgraph 测试自动跳过）
+uv run pytest -q    # 348 passed
 ```
 
-### 3️⃣ 配 LLM（仅真实推理时需要）
+### 3. 配 LLM
 
-在仓库根目录建 `.env`：
+在仓库根目录建 `.env`（三选一）：
 
 ```bash
-# DeepSeek（推荐，国内可直连，价格便宜）
-LLM_PROVIDER=deepseek
+# DeepSeek（云端）
 LLM_API_KEY=sk-xxxxxxxx
-LLM_MODEL=deepseek-chat
 LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+
+# Ollama（本地）
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen3:8b
+
+# OpenAI
+LLM_API_KEY=sk-xxxxxxxx
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
 ```
 
-或使用 OpenAI / Ollama —— 见 `configs/default.yaml` 里的 `llm:` 节注释。
-
-### 4️⃣ 端到端跑一条命令
+### 4. 端到端 demo（mock_wiki 小数据集）
 
 ```bash
-# 构图 + 推理（首次调用该 config 会自动构图一次）
+# 一条命令搞定（mock_wiki 只有 25 篇文档，自动建图秒级完成）
 uv run python main.py infer \
     --config configs/deepseek_intent_only.yaml \
-    --dataset mock_wiki \
-    --limit 10
+    --dataset mock_wiki --limit 10
 
-# 打分 + 报告
+# 打分
 uv run python eval.py \
     --predictions output/mock_wiki/deepseek_intent_only/ \
     --metrics em,f1,rouge_l
 ```
 
-打开 `output/mock_wiki/deepseek_intent_only/report.md` —— 里面包含：
-- 推理阶段 + 构图阶段 + 总计三栏的耗时与 Token 消耗
-- EM / F1 / ROUGE-L
-- 耗时分布（avg / min / max / P50 / P95）
-- Token 分布（prompt / completion / total 各自 sum / avg / P50 / P95）
-- 按意图分组、策略分布、Top-10 最差 / 最好样本
-- 全部样本折叠表
+### 5. 真实数据集实验（HotpotQA / 2Wiki / MuSiQue）
+
+真实数据集有几万篇语料，**必须先手动 ingest 再 infer**（demo 用的 mock_wiki 语料极小，infer 会自动建图，所以跳过了 ingest）。
+
+完整流程和原理说明见 **[docs/experiment_guide.md](docs/experiment_guide.md)**，核心三步：
+
+```bash
+# 1. 建图（--limit 500 = 只取前 500 条 QA 及其附带的全部 paragraph 作为语料）
+uv run python main.py ingest --config configs/ollama_intent_only.yaml --dataset musique --limit 500 --rebuild
+
+# 2. 推理（500 题问答）
+uv run python main.py infer  --config configs/ollama_intent_only.yaml --dataset musique --limit 500
+
+# 3. 评测
+uv run python eval.py --predictions output/musique/ollama_intent_only --metrics em,f1,rouge_l
+```
+
+> 为什么 mock_wiki 不用 ingest？为什么真实数据集需要 `--limit`？数据集格式是怎样的？—— 全部在 [实验指南](docs/experiment_guide.md) 里。
 
 ---
 
-## 🧠 两大创新点
+## 两大创新点
 
-### 创新点 1️⃣ · AdaGraph — 让图谱"长得更聪明" <sub>作用于构建阶段</sub>
+### 创新点 1 - AdaGraph（作用于构建阶段）
 
-通过 `plugins.adagraph.enabled: true` 启用。它取代 3 个默认插槽：
+通过 `plugins.adagraph.enabled: true` 启用，取代 3 个默认插槽：
 
-| 默认 (`defaults.*`) | AdaGraph (`adagraph.*`) | 解决的问题 |
+| 默认 | AdaGraph | 解决的问题 |
 |---|---|---|
-| `fixed` Chunker（定长 300） | 🔄 `dynamic` Chunker | 根据文本**复杂度 + 实体密度**自适应分块大小 |
-| `simple_llm` Extractor（L1 显式三元组） | 🧱 `layered` Extractor | 4 层抽取：L1 显式 / L2 隐式 / L3 模式 / L4 跨句 |
-| `noop` Pruner（不裁剪） | ✂️ `dual_redundancy` Pruner | 相似性 + 传递性双重冗余剪枝 |
+| 定长 Chunker | 自适应 Chunker | 根据文本复杂度 + 实体密度自适应分块大小 |
+| 单层 Extractor | 4 层 Extractor | L1 显式 / L2 隐式 / L3 模式 / L4 跨句 |
+| 无裁剪 Pruner | 双重冗余 Pruner | 相似性 + 传递性双重剪枝 |
 
-核心自适应公式：
+详见 [docs/innovation_1_adagraph.md](docs/innovation_1_adagraph.md)
 
-```
-adaptive_size = base − (score − 0.5) × (max_size − min_size)
-       score = w_c · complexity + w_d · density      (默认 w_c = w_d = 0.5)
-```
+### 创新点 2 - IntentAgent（作用于查询阶段）
 
-📎 详见 [`docs/innovation_1_adagraph.md`](docs/innovation_1_adagraph.md)
-
-### 创新点 2️⃣ · IntentAgent — 让检索"按意图分道" <sub>作用于查询阶段</sub>
-
-通过 `plugins.intent_agent.enabled: true` 启用。四阶段：**Memory → Reasoning → Decision → Execution**。
+通过 `plugins.intent_agent.enabled: true` 启用。四阶段：Memory → Reasoning → Decision → Execution。
 
 | 意图类别 (6 类) | 路由到的策略 | 典型问法 |
 |---|---|---|
-| 🎯 `factual` | `direct` | "X 是什么？" |
-| 🔬 `analytical` | `iterative` | "为什么 X 会导致 Y？" |
-| ⚖️ `comparative` | `parallel` | "比较 A 和 B" |
-| 🧩 `multi_hop` | `multi_hop` | "收购了 X 雇主的是哪家？" |
-| 🔭 `exploratory` | `expansion` | "关于 X 你能告诉我什么？" |
-| 🗣️ `follow_up` | `context_aware` | "那它和前面的 Y 有关系吗？" |
+| `factual` | `direct` | "X 是什么？" |
+| `analytical` | `iterative` | "为什么 X 会导致 Y？" |
+| `comparative` | `parallel` | "比较 A 和 B" |
+| `multi_hop` | `multi_hop` | "收购了 X 雇主的是哪家？" |
+| `exploratory` | `expansion` | "关于 X 你能告诉我什么？" |
+| `follow_up` | `context_aware` | "那它和前面的 Y 有关系吗？" |
 
-3 个可插拔 Hooks：
+进阶演化：
+- **2b - LangGraph 动态编排**：LLM Agent 自主选择并组合多个检索工具
+- **2c - 经验型记忆**：跨 session 持久化成功路径 + 反思教训
 
-- 🪞 **HeuristicReflectionHook** — 答案质量启发式评估（LLM-free）
-- 🔀 **TokenOverlapRerankerHook** — Jaccard 重排（cross-encoder 接口就绪）
-- 🧵 **ParallelRetrievalPool** — asyncio `Semaphore` 限流子检索池
-
-📎 详见 [`docs/innovation_2_intent_agent.md`](docs/innovation_2_intent_agent.md)
-
-### 创新点 2️⃣b · LangGraph Agentic 检索 — 让 Decision「自主编排」 <sub>创新点二的进阶演化</sub>
-
-通过 `query.retriever.active: intent_agent.langgraph` 启用（需可选 extra：`uv sync --extra agent`，引入 **LangGraph / LangChain 1.x LTS**）。
-
-它把创新点二里写死的「意图 → 单策略」**静态查表**，升级为由 **LangGraph 状态图**驱动、**LLM Agent 自主选择并组合多个检索工具**的动态编排，并真正落地了创新点二只做观测的**反思回路**：
-
-| 维度 | `intent_agent.strategy_selector`（静态） | `intent_agent.langgraph`（动态） |
-|---|---|---|
-| Decision 机制 | 意图 → 单策略查表 | LLM 在状态图里自主选 / 组合工具 |
-| 多工具组合 | ❌ 一次一策略 | ✅ 可链式调用多个工具 |
-| 反思回路 | 仅写 metadata | ✅ 质量不足触发补检（`max_iterations` 上限） |
-
-5 个封装为 **LangChain Tool** 的检索原子能力（全部复用现有代码，零重写）：`vector_search` / `graph_neighbors` / `multi_hop_retrieve` / `parallel_retrieve` / `assess_evidence`。
-
-状态图拓扑：`START → Memory → Reasoning → Decision ⇄ Tools → Reflect →（质量达标或触顶）END`。LLM 适配走 **ReAct 文本协议**（复用现有 `BaseLLMProvider`，MockProvider 即可离线测试，无需引第二套 LLM client）。
-
-📎 详见 [`docs/innovation_2b_langgraph_agent.md`](docs/innovation_2b_langgraph_agent.md)
+详见 [docs/innovation_intent_agent.md](docs/innovation_intent_agent.md)
 
 ---
 
-## 🏗️ 架构一览
+## 架构一览
 
 ```
                     ┌────────────────────────────────────────┐
@@ -184,247 +139,143 @@ adaptive_size = base − (score − 0.5) × (max_size − min_size)
       │                        │                           │
 ┌─────▼──────┐         ┌───────▼───────┐          ┌────────▼────────┐
 │IngestionPL │         │ QueryPipeline │          │  PipelineState  │
-│chunk→extr  │         │intent→retr→gen│          │ graph + vector  │
-│→ prune     │         │               │          │ + chunk_lookup  │
-└─────┬──────┘         └───────┬───────┘          └─────────────────┘
-      │                        │
- ┌────▼──────────────┐    ┌────▼────────────────┐
- │ defaults.*  (baseline) │ defaults.*    │
- │ adagraph.*  (plug-in1) │ intent_agent.*│
- └────────────────────────┴───────────────┘
+│chunk→embed │         │intent→retr→gen│          │ graph + vector  │
+│→extract    │         │               │          │ + chunk_lookup  │
+│→prune      │         │               │          │                 │
+└────────────┘         └───────────────┘          └─────────────────┘
+      ↑                        ↑
+  defaults.*              defaults.*
+  adagraph.*             intent_agent.*
 ```
 
-**依赖方向硬约束**（由 `tests/test_plugin_toggle_regression.py` 守护）：
+依赖方向硬约束（由测试守护）：
+1. `core/` 不允许 import `defaults/` 或 `plugins/`
+2. `plugins/adagraph/` 与 `plugins/intent_agent/` 互不依赖
+3. 所有跨边界调用只走 `interfaces/*` ABC + `registry`
 
-1. `core/` ❌ 不允许 import `defaults/` 或 `plugins/`
-2. `plugins/adagraph/` 与 `plugins/intent_agent/` ❌ 互不依赖
-3. 所有跨边界调用 ✅ 只走 `interfaces/*` ABC + `registry`
-
-📎 骨架细节（注册表、插槽、依赖注入）详见 [`docs/architecture_overview.md`](docs/architecture_overview.md)
+详见 [docs/architecture_overview.md](docs/architecture_overview.md)
 
 ---
 
-## ⚙️ 配置文件
+## 配置文件
 
-`configs/` 提供 **6 份 yaml 预设**：
+`configs/` 提供 6 份 yaml 预设：
 
-| 文件 | AdaGraph | IntentAgent | 检索器 | 用途 |
-|---|:---:|:---:|---|---|
-| `default.yaml` | — | — | — | 🗒️ 全字段注释模板，不直接运行 |
-| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 📉 裸 KG-RAG 基线 |
-| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 🔬 仅测创新点 1 |
-| `deepseek_intent_only.yaml` | ❌ | ✅ | `strategy_selector`（静态） | 🔬 仅测创新点 2 |
-| `deepseek_intent_langgraph.yaml` | ❌ | ✅ | `langgraph`（动态） | 🤖 创新点 2b：动态编排 vs 静态路由（需 `--extra agent`） |
-| `deepseek_full.yaml` | ✅ | ✅ | `strategy_selector` | 🚀 全启用 |
+| 文件 | AdaGraph | IntentAgent | 用途 |
+|---|:---:|:---:|---|
+| `default.yaml` | — | — | 全字段注释模板 |
+| `deepseek_vanilla.yaml` | - | - | 裸 KG-RAG 基线 |
+| `deepseek_adagraph_only.yaml` | + | - | 仅测创新点 1 |
+| `deepseek_intent_only.yaml` | - | + | 仅测创新点 2 |
+| `deepseek_intent_langgraph.yaml` | - | + | 创新点 2b 动态编排 |
+| `deepseek_full.yaml` | + | + | 全启用 |
+| `ollama_intent_only.yaml` | - | + | 本地 Qwen3-8B 实验 |
 
-各消融配置共享同一份管线代码，差异**只由插槽 active 字段驱动**。
-
----
-
-## 🧪 推理 & 评测（两阶段工作流）
-
-评测被拆成**完全解耦**的两步：
-
-```
-┌──────────────────────┐                ┌──────────────────────┐
-│   main.py infer      │ ──落盘──►      │      eval.py         │
-│   跑 pipeline        │ JSONL + meta   │   纯打分 + 报告       │
-│   消耗 LLM Token     │                │   0 LLM 调用          │
-└──────────────────────┘                └──────────────────────┘
-```
-
-### 好处
-
-- 💰 推理贵、打分便宜，**推理只需跑一次**，指标迭代 / 报告重生成零 Token 成本
-- 🔍 **meta.json 自描述**：config 路径、数据集、起止时间、构图消耗、推理消耗都分开记录
-- 📊 **报告清晰区分**「构图一次性消耗」vs「推理消耗」
-
-### 阶段 1️⃣ · 推理（`main.py infer`）
-
-```bash
-uv run python main.py infer \
-    --config configs/deepseek_intent_only.yaml \
-    --dataset mock_wiki \
-    --limit 50
-# → output/mock_wiki/deepseek_intent_only/
-#     ├── predictions.jsonl   每行一条 QA 预测
-#     └── meta.json            运行元信息 + 构图/推理双份 usage
-```
-
-**首次**使用某 config + dataset 组合时会自动构图一次（会在 stderr 打印提示）；再次 infer 会复用已持久化的图与向量，跳过构图。
-
-### 阶段 2️⃣ · 打分 + 报告（`eval.py`）
-
-**单目录模式**：
-
-```bash
-uv run python eval.py \
-    --predictions output/mock_wiki/deepseek_intent_only/ \
-    --metrics em,f1,rouge_l
-# → report.md / report.json / report.csv
-```
-
-指标来源优先级：`--metrics` > `--config.evaluation.metrics` > 默认 `em,f1,rouge_l`。
-
-**多目录对比模式**（自动触发）：
-
-```bash
-uv run python eval.py \
-    --predictions output/mock_wiki/deepseek_vanilla/ \
-                  output/mock_wiki/deepseek_intent_only/ \
-                  output/mock_wiki/deepseek_full/ \
-    --out output/mock_wiki/compare/ \
-    --metrics em,f1,rouge_l
-# → compare.md / compare.json / compare.csv
-#   + compare_bar.png       并排柱图
-#   + compare_radar.png     指标雷达图
-```
-
-### 报告里有什么 📝
-
-| 章节 | 内容 |
-|---|---|
-| 一、总览 | 推理耗时/Token/调用 + **构图耗时/Token/调用**（一次性） + 合计三栏对比 |
-| 二、耗时分布 | avg / min / max / **P50 / P95** |
-| 三、Token 分布 | prompt / completion / total 各自 sum / avg / P50 / P95 |
-| 四、按意图分组 | 每类意图下的 EM/F1/ROUGE-L + 平均延迟 + 平均 Token |
-| 五、策略分布 | IntentAgent 实际命中各策略的次数 |
-| 六/七、Top-10 最差/最好 | 按 F1 排序，快速定位 bad case |
-| 八、全部样本 | 折叠表格，含每条 QA 的预测、参考、指标、耗时、Token |
+详见 [configs/README.md](configs/README.md)
 
 ---
 
-## 🌐 Web 系统
+## 推理 & 评测
+
+```
+  main.py ingest    →    storage/ (图谱+向量)
+                              ↓ 复用
+  main.py infer     →    output/ (predictions.jsonl)
+                              ↓
+  eval.py           →    report.md (EM/F1/ROUGE-L)
+```
+
+- **ingest**：语料 → chunk → embedding + LLM 抽三元组 → 知识图谱（慢，只跑一次）
+- **infer**：逐题 意图分类 → 检索 → 生成答案（中速，复用图谱）
+- **eval**：对比 prediction vs reference（纯计算，秒级）
+
+详细说明、参数速查、产物路径约定见 **[docs/experiment_guide.md](docs/experiment_guide.md)**
+
+---
+
+## Web 系统
 
 ```bash
-uv run python main.py serve --config configs/deepseek_full.yaml
+uv run python main.py serve --config configs/deepseek_full.yaml --dataset mock_wiki
 # http://localhost:8000
 ```
 
 后端 FastAPI + 前端 React 打包到 `src/chimera_rag/web/static/`，单端口部署。
 
-### 7 个路由组
+| 路径 | 用途 |
+|---|---|
+| `/api/health` | 健康检查 + 插件状态 |
+| `/api/ingest` | 摄取数据集或内联文档 |
+| `/api/query` | 单次问答 |
+| `/api/graph` | 图谱可视化与统计 |
+| `/api/plugins` | 插件热切换 |
+| `/api/config` | 在线读/写配置 |
+| `/api/evaluate` | 批量评测入口 |
 
-| 方法 | 路径 | 用途 |
-|---|---|---|
-| `GET` | `/api/health` | 💓 健康检查 + 插件状态 |
-| `POST` | `/api/ingest` | 📥 摄取数据集或内联文档 |
-| `POST` | `/api/query` | 💬 单次问答（带 intent / strategy / evidence） |
-| `GET` | `/api/graph` + `/stats` | 🕸️ 图谱可视化与分层统计 |
-| `GET`/`POST` | `/api/plugins(/toggle)` | 🔌 插件热切换（无需重启） |
-| `GET`/`PUT` | `/api/config` | 📝 在线读/写配置（api_key 自动脱敏） |
-| `POST` | `/api/evaluate` | 📊 Web UI 的批量评测入口 |
-
-### 前端开发
-
-```bash
-cd web-ui
-pnpm install
-pnpm dev              # Vite 5173，/api 自动代理到 FastAPI 8000
-
-# 构建到 FastAPI 静态目录
-pnpm build
-rm -rf ../src/chimera_rag/web/static
-mkdir -p ../src/chimera_rag/web/static
-cp -r dist/* ../src/chimera_rag/web/static/
-```
+前端开发：`cd web-ui && pnpm install && pnpm dev`
 
 ---
 
-## 📂 项目结构
+## 项目结构
 
 ```
 chimera-rag/
 ├── main.py                       # CLI 入口 (ingest/query/infer/export/serve)
-├── eval.py                       # 离线打分脚本
-├── pyproject.toml                # uv + 全部 extras
-├── uv.lock                       # 锁定依赖
-│
-├── configs/                      # 6 份 yaml 预设（含 deepseek_intent_langgraph）
-├── data/mock_wiki/               # 配套小语料（25 chunk + 10 QA）
-├── docs/                         # 架构 + 双创新点设计文档 + experiments/ 实验设计
-├── web-ui/                       # React + Vite + Tailwind
+├── eval.py                       # 离线打分（EM/F1/ROUGE-L）
+├── configs/                      # 7 份 yaml 预设
+├── data/                         # 数据集（mock_wiki / hotpotqa / two_wiki / musique）
+├── scripts/                      # 实用脚本（LLM-only baseline / ollama 重启 / 数据下载）
+├── docs/                         # 设计文档 + 实验指南
+├── paper/                        # 论文结果梳理 + 对比估算
+├── storage/                      # 持久化图谱产物
 │
 ├── src/chimera_rag/
 │   ├── __init__.py               # ChimeraRAG 门面
 │   ├── cli.py                    # 5 个子命令
-│   ├── core/                     # types / config / registry / pipeline / ...
+│   ├── core/                     # types / config / registry / pipeline
 │   ├── interfaces/               # 14 个 ABC
 │   ├── defaults/                 # 9 个 vanilla 实现
 │   ├── providers/                # LLM/Embedding: openai/deepseek/ollama/st/mock
-│   ├── stores/                   # NetworkX + FAISS (+ Neo4j 占位)
+│   ├── stores/                   # NetworkX + FAISS
 │   ├── plugins/
-│   │   ├── adagraph/             # 🧱 创新点 1
-│   │   └── intent_agent/         # 🧠 创新点 2 (6 strategies + 3 hooks)
-│   │       └── langgraph/        # 🤖 创新点 2b (tools/llm_adapter/graph/retriever, 需 --extra agent)
-│   ├── datasets/                 # plain_text/jsonl/hotpotqa/2wiki/musique/mock_wiki
-│   ├── evaluation/               # InferenceRunner + Scorer + EvalReporter + CompareReporter
-│   └── web/                      # FastAPI app + 7 routers + static/
+│   │   ├── adagraph/             # 创新点 1
+│   │   └── intent_agent/         # 创新点 2 + 2b + 2c
+│   ├── datasets/                 # 数据集 loader
+│   ├── evaluation/               # 推理运行器 + 打分器 + 报告生成器
+│   └── web/                      # FastAPI + React 静态
 │
-└── tests/                        # 348 个测试（TDD 驱动，含 33 个 langgraph 测试）
+└── tests/                        # 348 个测试
 ```
 
 ---
 
-## 🧭 开发 & 测试
-
-### 测试矩阵
+## 开发 & 测试
 
 ```bash
-uv run pytest tests/test_core_*.py          -q   # 🧬 核心层
-uv run pytest tests/test_interfaces_*.py    -q   # 📐 抽象接口合约
-uv run pytest tests/test_providers_*.py     -q   # 🔌 LLM / Embedding
-uv run pytest tests/test_stores_*.py        -q   # 💾 NetworkX / FAISS
-uv run pytest tests/test_defaults_*.py      -q   # 📦 vanilla 实现
-uv run pytest tests/test_adagraph_*.py      -q   # 🧱 创新点 1
-uv run pytest tests/test_intent_agent_*.py  -q   # 🧠 创新点 2（静态意图路由）
-uv run pytest tests/test_langgraph_*.py     -q   # 🤖 创新点 2b（LangGraph 动态编排，需 --extra agent）
-uv run pytest tests/test_pipeline_*.py      -q   # 🔁 端到端部署组合（含 langgraph）
-uv run pytest tests/test_web_*.py           -q   # 🌐 FastAPI 路由
-uv run pytest tests/test_datasets*.py       -q   # 📚 数据集加载
-uv run pytest tests/test_evaluation_*.py    -q   # 📊 评测与报告
-uv run pytest tests/test_cli_*.py           -q   # 🖥️ CLI 子命令
-uv run pytest tests/test_eval_script.py     -q   # 🧪 eval.py
+uv run pytest -q                  # 全量测试
+uv run ruff check .               # lint
+uv run ruff format .              # format
 ```
 
-### 代码规范
-
-```bash
-uv run ruff check .              # lint
-uv run ruff format .             # format
-```
-
-### 开发约定
-
-- **TDD**：RED（失败测试） → GREEN（最小实现） → REFACTOR → COMMIT
-- **细粒度提交**：每个 TDD 循环一次 commit
-- **uv 依赖**：`uv add <pkg>` / `uv add --optional <extra> <pkg>` / `uv add --dev <pkg>`
-- **三条硬红线**（由 CI 守护）：
-  1. `core/` 不 import `defaults/` / `plugins/`
-  2. 两个 plugin 不互相 import
-  3. 关闭插件时系统仍能端到端跑通（`test_plugin_toggle_regression`）
+开发约定：TDD 驱动，细粒度提交，三条硬红线（core 不导 plugins、两 plugin 不互导、关闭插件仍可端到端跑通）。
 
 ---
 
-## 📄 文档索引
+## 文档索引
 
 | 文档 | 说明 |
 |---|---|
-| [`docs/architecture_overview.md`](docs/architecture_overview.md) | 🏗️ 骨架：注册表、插槽、依赖注入、管线数据流 |
-| [`docs/innovation_1_adagraph.md`](docs/innovation_1_adagraph.md) | 🧱 AdaGraph 3 个子模块实装细节 |
-| [`docs/innovation_2_intent_agent.md`](docs/innovation_2_intent_agent.md) | 🧠 IntentAgent M/R/D/E + 6 策略 + 3 hook |
-| [`docs/experiments/`](docs/experiments/) | 🧪 实验设计文档目录（含创新点 2 实验：消融对比 / 按意图分组 / SOTA 横向对比） |
-| [`docs/README.md`](docs/README.md) | 📑 文档目录 |
-| [`configs/README.md`](configs/README.md) | ⚙️ 5 份 yaml 的用途与切换方式 |
+| [docs/experiment_guide.md](docs/experiment_guide.md) | **实验指南**：三阶段工作流、数据集格式、操作手册 |
+| [docs/architecture_overview.md](docs/architecture_overview.md) | 架构：注册表、插槽、依赖注入、管线数据流 |
+| [docs/innovation_1_adagraph.md](docs/innovation_1_adagraph.md) | AdaGraph 3 个子模块实装细节 |
+| [docs/innovation_intent_agent.md](docs/innovation_intent_agent.md) | IntentAgent：静态路由 + LangGraph 动态编排 + 经验记忆 |
+| [docs/experiments/](docs/experiments/) | 实验设计文档目录 |
+| [configs/README.md](configs/README.md) | yaml 预设的用途与切换方式 |
+| [paper/relink_experiments_summary.md](paper/relink_experiments_summary.md) | Relink 论文实验结果梳理 |
+| [paper/relink_qwen3_8b_estimate.md](docs/result/qwen3_8b主实验.md) | Qwen3-8B 各方法 EM/F1 估算 + 实测 |
 
 ---
 
-## 📜 License
+## License
 
 [MIT](./LICENSE)
-
----
-
-<p align="center">
-  <sub>Built with 🦀 <a href="https://github.com/astral-sh/uv">uv</a> · 🧪 pytest · ⚡ FastAPI · ⚛️ React · 🎨 Tailwind</sub>
-</p>

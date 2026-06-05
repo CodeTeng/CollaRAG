@@ -19,7 +19,7 @@ class PlainTextLoader(BaseDatasetLoader):
     def __init__(self, path: str) -> None:
         self.path = Path(path)
 
-    def load_documents(self) -> list[Document]:
+    def load_documents(self, limit: int | None = None) -> list[Document]:
         if not self.path.is_file():
             raise DatasetError(f"file not found: {self.path}")
         text = self.path.read_text(encoding="utf-8")

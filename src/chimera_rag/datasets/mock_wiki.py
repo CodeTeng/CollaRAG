@@ -61,7 +61,7 @@ class MockWikiLoader(BaseDatasetLoader):
             self.qa_path = Path("__missing__")
 
     # ------------------------------------------------------------------
-    def load_documents(self) -> list[Document]:
+    def load_documents(self, limit: int | None = None) -> list[Document]:
         if not self.corpus_path.is_file():
             raise DatasetError(f"corpus not found: {self.corpus_path}")
         text = self.corpus_path.read_text(encoding="utf-8")

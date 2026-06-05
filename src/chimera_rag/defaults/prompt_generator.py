@@ -17,8 +17,22 @@ from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_PROMPT = """Use the CONTEXT to answer the QUESTION concisely.
-If the answer is not in the context, say "I do not know."
+DEFAULT_PROMPT = """Answer the QUESTION using ONLY the CONTEXT.
+
+Output rules (STRICT):
+- Give the SHORTEST possible answer span: a name, entity, number, year, or
+  phrase copied verbatim from the context.
+- Do NOT write a full sentence. Do NOT repeat the question.
+- Do NOT add explanations, prefixes, punctuation, or quotes.
+- If the answer is not in the context, output exactly: I do not know.
+
+Examples:
+QUESTION: In what year was Acme Corp founded?
+ANSWER: 1998
+QUESTION: Where is Jane Doe based?
+ANSWER: Berlin
+QUESTION: Which company does John work at?
+ANSWER: Lumen Labs
 
 CONTEXT:
 {context}

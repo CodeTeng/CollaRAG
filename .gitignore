@@ -95,3 +95,5 @@ src/chimera_rag/web/static/
 
 # ---------- Jupyter ----------
 .ipynb_checkpoints/
+.certs/
+data/musique/_musique_release.zip

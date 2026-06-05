@@ -57,6 +57,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_ing = sub.add_parser("ingest", help="build the knowledge graph from a dataset")
     _add_common(p_ing)
     p_ing.add_argument("--dataset", required=True, help="named dataset from config.datasets")
+    p_ing.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help=(
+            "cap the number of SOURCE ROWS scanned from the dataset before "
+            "ingestion (e.g. --limit 500 keeps the first 500 QA rows and only "
+            "their attached paragraphs become Documents). Use this to align "
+            "the ingestion corpus with a 500-sample evaluation protocol."
+        ),
+    )
+    p_ing.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="ignore any persisted graph and rebuild from scratch",
+    )
     p_ing.set_defaults(func=cmd_ingest)
 
     # query -------------------------------------------------------------
@@ -81,6 +97,11 @@ def build_parser() -> argparse.ArgumentParser:
             "defaults to <dataset.output_dir>/<config_stem>/"
         ),
     )
+    p_i.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="ignore any persisted graph and rebuild from scratch before inference",
+    )
     p_i.set_defaults(func=cmd_infer)
 
     # export ------------------------------------------------------------
@@ -94,6 +115,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common(p_s)
     p_s.add_argument("--host", default=None)
     p_s.add_argument("--port", type=int, default=None)
+    p_s.add_argument(
+        "--dataset",
+        default=None,
+        help=(
+            "named dataset whose persisted graph should be loaded on startup "
+            "so the GraphPage can render it without re-ingesting; must match "
+            "the dataset used when the graph was built"
+        ),
+    )
     p_s.set_defaults(func=cmd_serve)
 
     return parser
@@ -147,12 +177,30 @@ def _load_dataset_from_config(config, dataset_name: str):
 def cmd_ingest(args: argparse.Namespace) -> int:
     crag = _build_chimera(args.config)
     loader = _load_dataset_from_config(crag.config, args.dataset)
-    docs = loader.load_documents()
+
+    # Reuse a persisted graph unless --rebuild was passed.
+    if not args.rebuild and crag.try_load_graph(args.dataset):
+        print(
+            f">>> 复用已持久化图谱（{crag.stats()['chunks']} chunk、"
+            f"{crag.stats()['triples']} 三元组），跳过构图。"
+            "如需重建请加 --rebuild",
+            file=sys.stderr,
+        )
+        print(json.dumps({"ingest": "reused-persisted", "state": crag.stats()}, indent=2))
+        return 0
+
+    docs = loader.load_documents(limit=args.limit)
     if not docs:
         print(f"dataset {args.dataset!r} yielded no documents", file=sys.stderr)
         return 1
+    if args.limit is not None:
+        print(
+            f">>> ingest limited to first {args.limit} rows → {len(docs)} documents",
+            file=sys.stderr,
+        )
     stats = crag.ingest(docs)
-    print(json.dumps({"ingest": stats, "state": crag.stats()}, indent=2))
+    paths = crag.persist_graph(args.dataset)
+    print(json.dumps({"ingest": stats, "state": crag.stats(), "persisted": paths}, indent=2))
     return 0
 
 
@@ -202,8 +250,17 @@ def cmd_infer(args: argparse.Namespace) -> int:
         print(f"dataset {args.dataset!r} yielded no examples", file=sys.stderr)
         return 1
 
-    # 如果图谱尚未注入，先触发一次 ingest；把 token/耗时/图谱规模单独记录，
-    # 便于在报告里区分"构图消耗"与"推理消耗"。
+    # 优先复用已持久化的图谱（除非 --rebuild）；命中则直接跳过构图。
+    if not args.rebuild and crag.stats()["chunks"] == 0 and crag.try_load_graph(args.dataset):
+        print(
+            f">>> 复用已持久化图谱（{crag.stats()['chunks']} chunk、"
+            f"{crag.stats()['triples']} 三元组），跳过构图。"
+            "如需重建请加 --rebuild",
+            file=sys.stderr,
+        )
+
+    # 如果图谱尚未注入（无持久化或 --rebuild），触发一次 ingest 并落盘；
+    # 把 token/耗时/图谱规模单独记录，便于在报告里区分"构图消耗"与"推理消耗"。
     ingest_info: dict[str, Any] | None = None
     if crag.stats()["chunks"] == 0:
         try:
@@ -235,6 +292,13 @@ def cmd_infer(args: argparse.Namespace) -> int:
                 f"{ingest_info['triples_pruned']} 个三元组，耗时 "
                 f"{elapsed:.1f}s，LLM 调用 {int(usage_delta.get('calls', 0))} 次、"
                 f"token {int(usage_delta.get('total_tokens', 0))}",
+                file=sys.stderr,
+            )
+            # 落盘，供后续运行秒级复用（除非下次显式 --rebuild）。
+            persisted = crag.persist_graph(args.dataset)
+            print(
+                f">>> 图谱已持久化到 {persisted['graph']}（下次自动复用，"
+                "如需重建加 --rebuild）",
                 file=sys.stderr,
             )
 
@@ -314,6 +378,23 @@ def cmd_serve(args: argparse.Namespace) -> int:
         return 2
 
     crag = _build_chimera(args.config)
+
+    # 优先复用已持久化的图谱，让前端 GraphPage 起步即可渲染，无需重新构图。
+    dataset = getattr(args, "dataset", None)
+    if crag.try_load_graph(dataset):
+        print(
+            f">>> 已加载持久化图谱（{crag.stats()['chunks']} chunk、"
+            f"{crag.stats()['triples']} 三元组），可视化数据就绪。",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            ">>> 未找到匹配的持久化图谱，图谱页面将为空。"
+            "可先用 `infer`/`ingest` 构图落盘（必要时带 --dataset 与本次一致），"
+            "或在 Web UI 的 Ingest 页面构图。",
+            file=sys.stderr,
+        )
+
     app = create_app(crag)
     host = args.host or crag.config.web.host
     port = args.port or crag.config.web.port

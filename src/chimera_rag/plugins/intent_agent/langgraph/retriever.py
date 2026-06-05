@@ -22,15 +22,23 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Query, RetrievalResult
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.interfaces.experiential_memory import BaseExperientialMemory
 from chimera_rag.interfaces.intent_classifier import BaseIntentClassifier
 from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 from chimera_rag.interfaces.memory import BaseMemory
 from chimera_rag.interfaces.reflector import BaseReflector
 from chimera_rag.interfaces.retriever import BaseRetriever
+from chimera_rag.plugins.intent_agent.langgraph.experience import (
+    build_experience_entry,
+    render_experience_hint,
+)
 from chimera_rag.plugins.intent_agent.langgraph.graph import build_agent_graph
 from chimera_rag.plugins.intent_agent.langgraph.llm_adapter import ChimeraReActChatModel
-from chimera_rag.plugins.intent_agent.langgraph.tools import ALL_TOOL_NAMES, ToolContext, build_tools
+from chimera_rag.plugins.intent_agent.langgraph.tools import (
+    ALL_TOOL_NAMES,
+    ToolContext,
+    build_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +55,8 @@ class LangGraphAgentRetriever(BaseRetriever):
         *,
         memory: BaseMemory | None = None,
         reflector: BaseReflector | None = None,
+        experiential_memory: BaseExperientialMemory | None = None,
+        experiential_recall_top_n: int = 3,
         tools: list[str] | None = None,
         max_iterations: int = 2,
         quality_threshold: float = 0.6,
@@ -64,6 +74,8 @@ class LangGraphAgentRetriever(BaseRetriever):
         self.llm = llm
         self.memory = memory
         self.reflector = reflector or self._default_reflector()
+        self.experiential_memory = experiential_memory
+        self.experiential_recall_top_n = experiential_recall_top_n
         self.enabled_tools = self._resolve_tool_names(tools)
         self.max_iterations = max_iterations
         self.quality_threshold = quality_threshold
@@ -128,10 +140,24 @@ class LangGraphAgentRetriever(BaseRetriever):
         if self.memory and query.session_id:
             history = self.memory.get_history(query.session_id)
 
-        final_state = graph.invoke(
-            {"query": query.text, "session_id": query.session_id},
-            {"recursion_limit": 50},
-        )
+        # Innovation #2c — entry: recall same-intent experience and inject it
+        # as an initial SystemMessage. We classify once up front to get the
+        # bucket key; the graph's reasoning_node re-classifies for its own hint
+        # (cheap, and keeps the graph topology untouched / zero-intrusion).
+        initial_state: dict = {"query": query.text, "session_id": query.session_id}
+        recalled_intent: str | None = None
+        if self.experiential_memory is not None:
+            from langchain_core.messages import SystemMessage
+
+            recalled_intent = self.classifier.classify(query).label
+            recalled = self.experiential_memory.recall(
+                recalled_intent, query.text, top_n=self.experiential_recall_top_n
+            )
+            hint = render_experience_hint(recalled)
+            if hint:
+                initial_state["messages"] = [SystemMessage(content=hint)]
+
+        final_state = graph.invoke(initial_state, {"recursion_limit": 50})
 
         result = context.merged_result(top_k=top_k)
 
@@ -151,6 +177,23 @@ class LangGraphAgentRetriever(BaseRetriever):
         result.metadata["final_quality"] = final_state.get("quality")
         if history:
             result.metadata["history_turns_used"] = len(history)
+
+        # Innovation #2c — exit: distil and persist this run's experience so a
+        # later same-intent query can reuse the successful path (or avoid the
+        # low-quality one). Sourced entirely from final_state + result.
+        if self.experiential_memory is not None:
+            intent_label = final_state.get("intent") or recalled_intent or "factual"
+            entry = build_experience_entry(
+                intent=intent_label,
+                query_text=query.text,
+                tool_sequence=final_state.get("tool_call_log", []),
+                iterations=final_state.get("iteration_count", 0),
+                quality=float(final_state.get("quality") or 0.0),
+                result=result,
+                quality_threshold=self.quality_threshold,
+            )
+            self.experiential_memory.remember(entry)
+            result.metadata["experience_recorded"] = entry.outcome
 
         if len(result.chunks) > top_k:
             result.chunks = result.chunks[:top_k]

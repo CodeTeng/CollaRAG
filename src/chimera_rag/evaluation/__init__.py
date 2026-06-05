@@ -7,6 +7,8 @@ from chimera_rag.evaluation.predictions_io import (
     read_predictions_dir,
     write_predictions_dir,
 )
+from chimera_rag.evaluation.ragas_eval import RagasEvaluator, RagasResult
+from chimera_rag.evaluation.ragas_report import RagasReporter
 from chimera_rag.evaluation.reporter import CompareReporter, EvalReporter
 from chimera_rag.evaluation.scorer import Scorer
 
@@ -15,6 +17,9 @@ __all__ = [
     "EvalReporter",
     "Evaluator",
     "InferenceRunner",
+    "RagasEvaluator",
+    "RagasReporter",
+    "RagasResult",
     "Scorer",
     "exact_match",
     "read_predictions_dir",

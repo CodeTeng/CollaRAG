@@ -51,19 +51,31 @@ uv run python main.py query --config configs/deepseek_intent_only.yaml \
   "Which company acquired the employer of Ada Verdant?"
 ```
 
-### 100 条基准评测（单配置）
+### 100 条基准评测（单配置，推理 + 打分两阶段解耦）
 ```bash
-uv run python main.py evaluate \
+# 阶段 1：推理。首次会自动构图并落盘到 storage/，之后秒级复用；加 --rebuild 可强制重建
+uv run python main.py infer \
   --config configs/deepseek_intent_only.yaml \
   --dataset mock_wiki --limit 100
-# 输出自动落到 output/mock_wiki/deepseek_intent_only.json
+# → output/mock_wiki/deepseek_intent_only/{predictions.jsonl, meta.json}
+
+# 阶段 2：打分 + 报告（0 LLM 调用）
+uv run python eval.py \
+  --predictions output/mock_wiki/deepseek_intent_only/ \
+  --metrics em,f1,rouge_l
 ```
 
 ### 多配置消融对比
 ```bash
-uv run python main.py benchmark \
-  --configs configs/deepseek_vanilla.yaml,configs/deepseek_intent_only.yaml \
-  --dataset mock_wiki --limit 100
+# 对每份配置各跑一次 infer（各自复用各自的持久化图谱）
+uv run python main.py infer --config configs/deepseek_vanilla.yaml     --dataset mock_wiki --limit 100
+uv run python main.py infer --config configs/deepseek_intent_only.yaml --dataset mock_wiki --limit 100
+
+# 再用 eval.py 多目录对比（自动生成 compare 报告 + 柱图/雷达图）
+uv run python eval.py \
+  --predictions output/mock_wiki/deepseek_vanilla/ \
+                output/mock_wiki/deepseek_intent_only/ \
+  --out output/mock_wiki/compare/ --metrics em,f1,rouge_l
 ```
 
 ## 改 LLM 连接信息
@@ -87,6 +99,31 @@ LLM_MODEL=deepseek-chat
 | IVF 超参 | `storage.vector.ivf.{nlist,nprobe,train_size}` |
 | Embedding device | `embedding.device` (`cpu` / `cuda` / `mps` / `auto`) |
 | 数据集路径 | `datasets.<name>.{corpus_path, qa_path, output_dir}` |
+
+## 可用数据集
+
+`configs/default.yaml` 注册了以下数据集（`--dataset <name>` 选用）。
+GraphRAG 评测常用的 5 个公开数据集已通过脚本下载到 `data/` 并提供两种格式：
+
+| name | 格式 | loader | 来源 / 说明 |
+|---|---|---|---|
+| `hotpotqa` / `hotpotqa_mw` | 原始 / mock_wiki | `hotpotqa` / `mock_wiki` | HotpotQA distractor dev，7405 条 |
+| `two_wiki` / `two_wiki_mw` | 原始 / mock_wiki | `two_wiki` / `mock_wiki` | 2WikiMultihopQA dev，12576 条 |
+| `musique` / `musique_mw` | 原始 / mock_wiki | `musique` / `mock_wiki` | MuSiQue-Ans dev，2417 条 |
+| `nq` / `nq_mw` | 原始 / mock_wiki | `generic_jsonl` / `mock_wiki` | Natural Questions (open)，3610 条；开放域无语料 |
+| `popqa` / `popqa_mw` | 原始 / mock_wiki | `generic_jsonl` / `mock_wiki` | PopQA test，14267 条；开放域无语料 |
+| `mock_wiki` | mock_wiki | `mock_wiki` | 100 条合成多跳 QA（默认/测试用） |
+
+- **`*_mw` 变体**：统一的 `corpus.txt`（空行分隔段落）+ `qa.jsonl`（`{question,answer,qid}`）布局，
+  走 `mock_wiki` loader，便于统一摄取/评测流程。
+- **`nq` / `popqa`** 为开放域，`*_mw` 的 `corpus.txt` 为空占位（数据集本身不带语料）。
+
+下载与转换脚本（详见各脚本 docstring）：
+
+```bash
+.venv/bin/python scripts/download_datasets.py        # 下载 5 个数据集到 data/
+.venv/bin/python scripts/convert_to_mock_wiki.py     # 转成 corpus.txt + qa.jsonl
+```
 
 ## Mock 配置哪里去了？
 

@@ -16,8 +16,14 @@ class BaseDatasetLoader(ABC):
     * :meth:`load_examples` — (question, answer) pairs for evaluation
     """
 
-    def load_documents(self) -> list[Document]:
-        """Return the corpus as :class:`Document` objects."""
+    def load_documents(self, limit: int | None = None) -> list[Document]:
+        """Return the corpus as :class:`Document` objects.
+
+        ``limit`` caps the number of source rows scanned (not output docs).
+        For loaders where one row yields multiple paragraphs (HotpotQA /
+        2Wiki / MuSiQue), capping rows is what makes ingestion-only-on-500
+        coherent with ``load_examples(limit=500)``.
+        """
         raise NotImplementedError(
             f"{type(self).__name__} does not support document loading"
         )

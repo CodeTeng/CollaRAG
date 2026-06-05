@@ -44,6 +44,29 @@ def _diff_usage(a: dict[str, int], b: dict[str, int]) -> dict[str, int]:
     return {k: int(a.get(k, 0)) - int(b.get(k, 0)) for k in keys}
 
 
+def _lookup_texts(pipeline: Any, chunk_ids: list[str]) -> list[str]:
+    """把 evidence chunk id 反查成原文，供 RAGAS 等需要 context 的离线评测使用。
+
+    chunk 原文存放在 pipeline 的 ``chunk_lookup``（IntentAgent 等检索器在其上
+    暴露），回退到 ``pipeline.state.chunk_lookup``。查不到的 id 静默跳过，保证
+    推理流程的健壮性——缺失只意味着对应指标拿不到该片段，不应让整批推理失败。
+    """
+    lookup = getattr(pipeline, "chunk_lookup", None)
+    if not lookup:
+        state = getattr(pipeline, "state", None)
+        lookup = getattr(state, "chunk_lookup", None)
+    if not lookup:
+        return []
+
+    texts: list[str] = []
+    for cid in chunk_ids:
+        chunk = lookup.get(cid)
+        text = getattr(chunk, "text", None)
+        if text:
+            texts.append(text)
+    return texts
+
+
 class InferenceRunner:
     """只跑 pipeline、不算指标；保留耗时、token、evidence 等诊断字段。"""
 
@@ -99,6 +122,7 @@ class InferenceRunner:
                 "strategy_name": answer.strategy_name,
                 "confidence": answer.confidence,
                 "evidence_chunk_ids": list(answer.evidence_chunk_ids),
+                "evidence_texts": _lookup_texts(pipeline, list(answer.evidence_chunk_ids)),
                 "prompt_tokens": int(usage_delta.get("prompt_tokens", 0)),
                 "completion_tokens": int(usage_delta.get("completion_tokens", 0)),
                 "total_tokens": int(usage_delta.get("total_tokens", 0)),

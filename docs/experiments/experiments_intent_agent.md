@@ -45,7 +45,7 @@
 | 3 | 策略路由有效性 | 正常路由 vs 强制全 direct（反事实） | EM, F1, 策略命中分布, 意图分类准确率 | 🟢 P2 |
 | 4 | Hook 组件消融 | base / +rerank / +reflect / all | F1, ROUGE-L, reflection_quality 相关性 | 🟡 P1 |
 | 5 | 效率 / 成本权衡 | intent_only vs vanilla | 延迟 P50/P95, Token/问, ΔF1÷Δ成本 | 🟡 P1 |
-| 6 | **与 SOTA 框架横向对比** | NaiveRAG / GraphRAG / LightRAG / HippoRAG / RAPTOR / Self-RAG | EM, F1, ROUGE-L, Token/问, 延迟 | 🔴 P0 |
+| 6 | **与 SOTA 框架横向对比** | Zero-shot LLM / NaiveRAG / GraphRAG / LightRAG / HippoRAG / YoutuGraphRAG | EM, F1, ROUGE-L, Token/问, 延迟 | 🔴 P0 |
 
 ---
 
@@ -151,19 +151,20 @@ uv run python eval.py \
 
 ### 7.1 对比的 Baseline 框架（近 3 年代表性工作）
 
-按「是否用图谱」分两组，覆盖朴素检索、图谱检索、层次检索、自反思检索四条技术路线：
+按「是否用图谱」分三组，覆盖无检索（纯 LLM 参数知识）、朴素检索、图谱检索三条技术路线：
 
 | 类别 | 框架 | 出处（会议/年份） | 核心机制 | 选它的理由 |
 |---|---|---|---|---|
-| 朴素 | **NaiveRAG / Vanilla RAG** | 通用基线（Lewis et al., NeurIPS 2020） | chunk + 稠密检索 + 生成 | 公认下界，对应本仓库 `deepseek_vanilla` |
-| 自反思 | **Self-RAG** | ICLR 2024 | 反思 token 自适应检索+自评 | 与本项目 Reflection hook 直接可比 |
-| 层次 | **RAPTOR** | ICLR 2024 | 递归摘要树检索 | 长文档/多跳层次检索代表作 |
+| 无检索 | **Zero-shot LLM** | 通用基线（直接 prompt LLM） | 不检索，仅靠 LLM 参数化知识直接作答 | 绝对下界，量化「检索本身带来多少增益」 |
+| 朴素 | **NaiveRAG / Vanilla RAG** | 通用基线（Lewis et al., NeurIPS 2020） | chunk + 稠密检索 + 生成 | 公认检索下界，对应本仓库 `deepseek_vanilla` |
 | 图谱 | **GraphRAG** (Microsoft) | 2024（Edge et al.） | 社区检测 + 全局/局部摘要 | 图谱 RAG 事实标准，必比 |
 | 图谱 | **LightRAG** | 2024（Guo et al.） | 双层（low/high-level）图检索 | GraphRAG 的高效替代，对照组高频出现 |
 | 图谱+记忆 | **HippoRAG / HippoRAG 2** | NeurIPS 2024 / ICML 2025 | 个性化 PageRank + 海马索引 | 多跳 KG-RAG 当前最强基线之一 |
-| 图谱（可选） | **PathRAG** | AAAI 2025 | 关系路径剪枝 | 与本项目 AdaGraph 剪枝可比（做 full 对比时加） |
+| 图谱+智能体 | **YoutuGraphRAG** (腾讯优图) | ICLR 2026（Dong et al., 2025） | 图模式（Graph Schema）垂直统一构建/索引/检索 + 分层知识树 + 双感知社区发现 + 智能体检索 | 2025 最新开源 SOTA，多跳推理强、构建成本省 90%+，最贴近本项目「智能体化图检索」路线 |
 
-> 📌 必比的最小集合（P0）：**NaiveRAG + GraphRAG + LightRAG + HippoRAG**——这是当前图谱 RAG 方向审稿人默认期待的对照。Self-RAG / RAPTOR / PathRAG 视篇幅作为扩展对照。
+> 📌 必比的全集（P0）：**Zero-shot LLM + NaiveRAG + GraphRAG + LightRAG + HippoRAG + YoutuGraphRAG**——既包含无检索/朴素检索下界，又覆盖图谱 RAG 方向审稿人默认期待的全部主流对照（含 2025 最新 YoutuGraphRAG）。
+>
+> 💡 设置两端下界（Zero-shot LLM、NaiveRAG）的意义：`NaiveRAG − Zero-shot LLM` 量化「检索」的价值，`本方法 − NaiveRAG` 量化「图谱 + 意图路由」相对朴素检索的净增益，证据链更完整。
 
 ### 7.2 对比方法（公平性是关键）
 
@@ -183,16 +184,24 @@ EM、F1、ROUGE-L（与内部实验同口径）+ **每问 Token** + **平均延�
 
 baseline 框架**不在本仓库内实现**，建议二选一：
 
-- **A（推荐）**：用各框架官方开源实现（GraphRAG/LightRAG/HippoRAG 均有 repo）在相同数据集上跑出预测 → 转成 `predictions.jsonl` → 用本仓库 `eval.py` 统一打分。
+- **A（推荐）**：用各框架官方开源实现在相同数据集上跑出预测 → 转成 `predictions.jsonl` → 用本仓库 `eval.py` 统一打分。各框架开源现状：
+  - **Zero-shot LLM**：无需 repo，直接用同一 DeepSeek 模型零样本 prompt 作答即可。
+  - **NaiveRAG**：直接复用本仓库 `deepseek_vanilla`（chunk + 稠密检索 + 生成）。
+  - **GraphRAG**：微软官方 repo `microsoft/graphrag`。
+  - **LightRAG**：官方 repo `HKUDS/LightRAG`。
+  - **HippoRAG**：官方 repo `OSU-NLP-Group/HippoRAG`（含 HippoRAG 2）。
+  - **YoutuGraphRAG**：腾讯优图官方 repo `TencentCloudADP/youtu-graphrag`（2025 开源，ICLR 2026）。
 - **B**：直接引用各原论文在 HotpotQA/2Wiki/MuSiQue 上的公开数值（需脚注标注「数据集子集/LLM 可能不同，非严格可比」），作为弱对照补充。
 
 > ⚠️ A 与 B 不要混用在同一张主表里；若用 B，必须在表注明确标注来源，否则会被审稿人判为不可比。
 
 ### 7.5 预期结论与卖点
 
-- 相比 **NaiveRAG**：全面领先（证明图谱 + 意图路由的价值）。
+- 相比 **Zero-shot LLM**：大幅领先，证明检索的必要性（坐实「问题非靠参数化知识可解」，多跳数据集尤其明显）。
+- 相比 **NaiveRAG**：全面领先（证明图谱 + 意图路由的价值，且 `本方法 − NaiveRAG` 是相对朴素检索的净增益）。
 - 相比 **GraphRAG/LightRAG**：在**多跳/比较类**问题上 F1 更高，且**意图路由让简单问题不浪费多跳开销**（Token/延迟更优）→ 这是 IntentAgent 的差异化卖点。
 - 相比 **HippoRAG**：强调本方法的**可插拔消融能力 + 意图分道**这一正交创新维度（即使指标接近，方法论新颖性是加分项）。
+- 相比 **YoutuGraphRAG**（2025 最新 SOTA、同为智能体化图检索路线）：即便指标接近，也要突出本方法的**意图感知分道路由 + 可独立消融的 Hook 架构**这一正交差异——YoutuGraphRAG 走「图模式垂直统一」，本方法走「按意图分道 + 即插即用组件」，两者创新维度不同，可作为同期工作并列对比凸显差异化；若在简单意图上 Token/延迟更省，则进一步坐实「不千篇一律重检索」的效率优势。
 
 ---
 
@@ -208,7 +217,7 @@ baseline 框架**不在本仓库内实现**，建议二选一：
 
 ## 8. 两个诚实提醒（基于代码现状）
 
-来自 `docs/innovation_2_intent_agent.md` 第 11 节 roadmap，以下为**占位实现**，做实验时勿过度宣称：
+来自 `docs/innovation_intent_agent.md` 第一部分（静态路由版），以下为**占位实现**，做实验时勿过度宣称：
 
 1. **`IterativeStrategy` 目前是单轮直检**（MVP），并非真正多轮分解 → `analytical` 意图提升有限属正常，非 bug。
 2. **Reflection 不触发重检索**（AdaptiveExecutor 未实装）→ 不要设计「反思后性能提升」的实验。

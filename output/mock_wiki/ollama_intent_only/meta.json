@@ -1,0 +1,29 @@
+{
+  "config_name": "ollama_intent_only",
+  "n_examples": 3,
+  "started_at": "2026-06-03T13:35:58+00:00",
+  "finished_at": "2026-06-03T13:36:02+00:00",
+  "elapsed_s": 3.635,
+  "usage_total": {
+    "completion_tokens": 125,
+    "total_tokens": 2259,
+    "calls": 9,
+    "prompt_tokens": 2134
+  },
+  "config_path": "/Users/teng/Projects/my/Chimera-RAG/configs/ollama_intent_only.yaml",
+  "dataset": "mock_wiki",
+  "limit": 3,
+  "ingest": {
+    "elapsed_s": 31.107,
+    "usage": {
+      "completion_tokens": 3345,
+      "total_tokens": 7127,
+      "calls": 37,
+      "prompt_tokens": 3782
+    },
+    "documents": 37,
+    "chunks": 37,
+    "triples_raw": 130,
+    "triples_pruned": 130
+  }
+}

@@ -39,14 +39,36 @@ export function GraphPage() {
     };
   }, []);
 
+  // Defensive: cytoscape throws "invalid string ID" on empty ids, so drop any
+  // node/edge whose endpoints are blank before handing data to the renderer.
+  const safeNodes = data ? data.nodes.filter((n) => n.id.trim()) : [];
+  const safeEdges = data
+    ? data.edges.filter((e) => e.source.trim() && e.target.trim())
+    : [];
+
   const elements = data
     ? [
-        ...data.nodes.map((n) => ({ data: { id: n.id, label: n.label } })),
-        ...data.edges.map((e, i) => ({
+        ...safeNodes.map((n) => ({ data: { id: n.id, label: n.label } })),
+        ...safeEdges.map((e, i) => ({
           data: { id: `e${i}`, source: e.source, target: e.target, label: e.label },
         })),
       ]
     : [];
+
+  // The cytoscape container starts at height 0 (flex layout settles a tick
+  // later), so the initial cose layout runs against a 0-sized viewport and
+  // collapses every node into the top-left corner. Once data + a real size
+  // are available, re-run the layout and fit the graph into view.
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || elements.length === 0) return;
+    const id = window.setTimeout(() => {
+      cy.resize();
+      cy.layout({ name: "cose", animate: false }).run();
+      cy.fit(undefined, 30);
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [data]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col gap-4">
@@ -94,7 +116,7 @@ export function GraphPage() {
         </div>
       </Card>
 
-      <Card className="flex-1">
+      <Card className="flex-1 min-h-0" fill bodyClassName="flex-1 min-h-0">
         <div className="h-full w-full">
           <CytoscapeComponent
             elements={elements}
