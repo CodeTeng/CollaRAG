@@ -330,7 +330,7 @@ uv run ruff format .              # format
 | [docs/innovation_intent_agent.md](docs/innovation_intent_agent.md) | IntentAgent：静态路由 + LangGraph 动态编排 + 经验记忆 |
 | [docs/experiments/](docs/experiments/) | 实验设计文档目录 |
 | [configs/README.md](configs/README.md) | yaml 预设的用途与切换方式 |
-| [paper/relink_experiments_summary.md](paper/relink_experiments_summary.md) | Relink 论文实验结果梳理 |
+| [paper/relink_experiments_summary.md](paper/references/relink_experiments_summary.md) | Relink 论文实验结果梳理 |
 | [paper/relink_qwen3_8b_estimate.md](docs/result/主实验.md) | Qwen3-8B 各方法 EM/F1 估算 + 实测 |
 
 ---
