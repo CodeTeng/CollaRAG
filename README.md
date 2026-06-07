@@ -191,6 +191,65 @@ uv run python eval.py --predictions output/musique/ollama_intent_only --metrics 
 
 详细说明、参数速查、产物路径约定见 **[docs/experiment_guide.md](docs/experiment_guide.md)**
 
+### 阶段 3️⃣ · RAGAS 语义评测（可选）
+
+除了 EM / F1 / ROUGE-L 等词面匹配指标，还可使用 [RAGAS](https://docs.ragas.io/) 进行**语义级评测**，计算四个指标：
+
+| 指标 | 含义 |
+|---|---|
+| **Faithfulness** | 回答是否忠于检索到的上下文（不编造） |
+| **Answer Relevancy** | 回答与问题的语义相关度 |
+| **Context Precision** | 检索结果中有多少是和正确答案相关的 |
+| **Context Recall** | 正确答案所需的信息在检索结果中覆盖了多少 |
+
+```bash
+# 1. 安装 RAGAS 依赖（可选依赖组）
+uv sync --extra ragas --extra chunk
+
+# 2. 重跑 infer 以产出 evidence_texts（RAGAS 的 context 类指标需要检索原文）
+uv run python main.py infer \
+    --config configs/deepseek_intent_only.yaml \
+    --dataset mock_wiki --limit 10
+
+# 3. 运行 RAGAS 评测
+uv run python eval_ragas.py \
+    --predictions output/mock_wiki/deepseek_intent_only/ \
+    --config configs/deepseek_intent_only.yaml
+
+# 产出：ragas_report.md / ragas_report.json / ragas_report.csv
+```
+
+RAGAS 的 judge LLM 和 embedding 均复用 `config.yaml` 中的 `llm` / `embedding` 配置（以及 `.env` 中的 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`），无需额外配参。
+
+> **⚠️ `ragas` 与 `agent` extra 不能同时安装**
+>
+> RAGAS 经 `langchain-community` 依赖 `langchain-core < 1.0`，而 `agent` extra（LangGraph 1.x）要求 `langchain-core >= 1.0`，两者对 `langchain-core` 的版本要求直接冲突。项目已通过 `[tool.uv] conflicts` 将二者声明为互斥 extra，uv 会分开解析：
+>
+> ```bash
+> # 使用 RAGAS 评测时
+> uv sync --extra ragas --extra chunk --extra st --extra llm --extra vec
+>
+> # 使用 LangGraph Agent 时
+> uv sync --extra agent --extra st --extra llm --extra vec
+> ```
+>
+> 两套 extra 各自独立安装，不可混用 `--extra ragas --extra agent`。
+
+#### LangChain 分块器（可选）
+
+新增基于 `RecursiveCharacterTextSplitter` 的分块器，注册名 `defaults.langchain`，在 `config.yaml` 中切换：
+
+```yaml
+ingestion:
+  chunker:
+    active: defaults.langchain   # 替代 defaults.fixed
+    params:
+      chunk_size: 500
+      chunk_overlap: 50
+```
+
+安装分块器依赖：`uv sync --extra chunk`
+
 ---
 
 ## Web 系统
@@ -272,7 +331,7 @@ uv run ruff format .              # format
 | [docs/experiments/](docs/experiments/) | 实验设计文档目录 |
 | [configs/README.md](configs/README.md) | yaml 预设的用途与切换方式 |
 | [paper/relink_experiments_summary.md](paper/relink_experiments_summary.md) | Relink 论文实验结果梳理 |
-| [paper/relink_qwen3_8b_estimate.md](docs/result/qwen3_8b主实验.md) | Qwen3-8B 各方法 EM/F1 估算 + 实测 |
+| [paper/relink_qwen3_8b_estimate.md](docs/result/主实验.md) | Qwen3-8B 各方法 EM/F1 估算 + 实测 |
 
 ---
 

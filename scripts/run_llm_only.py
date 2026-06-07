@@ -320,5 +320,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     # uv run python scripts/run_llm_only.py --dataset hotpotqa/two_wiki/musique --provider ollama --model qwen3:8b --limit 500 --out output/llm_only/qwen3_8b/hotpotqa
-    # uv run python scripts/run_llm_only.py --dataset musique --provider ollama --model qwen3:8b --limit 500 --out output/llm_only/qwen3_8b/musique
+    # uv run python scripts/run_llm_only.py --dataset musique --provider ollama --model gemma4:12b --limit 500 --out output/llm_only/gemma4_12b/musique
     raise SystemExit(main())
