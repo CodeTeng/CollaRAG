@@ -93,6 +93,29 @@ src/chimera_rag/web/static/
 # 但忽略 plan 草稿，避免污染提交历史
 .codebuddy/plans/
 
+# ---------- LaTeX ----------
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.pdfsync
+*.nav
+*.snm
+*.vrb
+*.bak
+*.run.xml
+*.bcf
+*-blx.bib
+texput.log
+
 # ---------- Jupyter ----------
 .ipynb_checkpoints/
 .certs/
