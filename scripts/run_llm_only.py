@@ -52,7 +52,7 @@ PROMPT_TEMPLATE = (
 
 # provider -> (base_url, api_key_env, default_model)
 PROVIDERS: dict[str, tuple[str, str, str]] = {
-    "ollama":   ("http://localhost:11434/v1", "OLLAMA_KEY",       "qwen3:8b"),
+    "ollama":   ("http://211.71.76.154:11434/v1", "OLLAMA_KEY",       "qwen3:32b"),
     "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY", "deepseek-chat"),
     "openai":   ("https://api.openai.com/v1",   "OPENAI_API_KEY",   "gpt-4o-mini"),
 }
