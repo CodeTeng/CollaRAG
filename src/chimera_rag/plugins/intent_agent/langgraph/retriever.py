@@ -195,6 +195,7 @@ class LangGraphAgentRetriever(BaseRetriever):
                 quality=float(final_state.get("quality") or 0.0),
                 result=result,
                 quality_threshold=self.quality_threshold,
+                reflection_text=final_state.get("reflection_text"),
             )
             self.experiential_memory.remember(entry)
             result.metadata["experience_recorded"] = entry.outcome

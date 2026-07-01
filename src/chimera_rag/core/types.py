@@ -113,12 +113,20 @@ class RetrievalResult(BaseModel):
 
 
 class QualityFeedback(BaseModel):
-    """Output of a Reflector; consumed by the executor to decide next action."""
+    """Output of a Reflector; consumed by the executor to decide next action.
+
+    ``reflection_text`` is a verbal (language) self-critique produced by
+    LLM-backed reflectors (e.g. :class:`LLMReflectionHook`). When present,
+    the reflection loop can inject it into the next planning round so the
+    agent avoids repeating the same mistake — the core mechanism behind
+    Reflexion-style self-correction (Shinn et al., 2023).
+    """
 
     quality: float = Field(ge=0.0, le=1.0)
     relevance: float = Field(default=1.0, ge=0.0, le=1.0)
     completeness: float = Field(default=1.0, ge=0.0, le=1.0)
     suggestion: str | None = None
+    reflection_text: str | None = None
 
 
 class Answer(BaseModel):

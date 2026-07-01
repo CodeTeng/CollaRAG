@@ -43,7 +43,13 @@ from chimera_rag.plugins.intent_agent.langgraph.tools import ToolContext
 
 
 class AgentState(TypedDict, total=False):
-    """Shared state threaded through the graph (LangGraph reducer-managed)."""
+    """Shared state threaded through the graph (LangGraph reducer-managed).
+
+    ``reflection_text`` carries the verbal self-critique from the reflect
+    node back into the decision node, enabling Reflexion-style
+    self-correction: the LLM reads its own reflection and adjusts tool
+    selection on the next iteration.
+    """
 
     query: str
     session_id: str | None
@@ -52,6 +58,7 @@ class AgentState(TypedDict, total=False):
     iteration_count: int
     quality: float
     tool_call_log: list[str]
+    reflection_text: str | None
 
 
 def build_agent_graph(
@@ -118,9 +125,27 @@ def build_agent_graph(
             evidence_chunk_ids=[c.chunk_id for c in merged.chunks],
         )
         feedback = _run_async(reflector.evaluate(Query(text=state["query"]), draft))
+
+        # Innovation #2d — Self-Reflection: if the reflector produced a
+        # verbal critique (reflection_text), inject it as a SystemMessage
+        # so the next decision_node round can read it and adjust tool
+        # selection. This is the Reflexion-style self-correction mechanism.
+        extra_messages: list[BaseMessage] = []
+        reflection_text = feedback.reflection_text
+        if reflection_text and feedback.quality < quality_threshold:
+            extra_messages.append(
+                SystemMessage(
+                    content=(
+                        f"Self-Reflection (quality={feedback.quality:.2f}): {reflection_text}"
+                    )
+                )
+            )
+
         return {
             "quality": float(feedback.quality),
             "iteration_count": state.get("iteration_count", 0) + 1,
+            "reflection_text": reflection_text,
+            "messages": extra_messages,
         }
 
     # -- conditional edges ------------------------------------------------

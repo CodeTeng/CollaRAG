@@ -254,10 +254,11 @@ plugins:
     strategies:
       enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
     hooks:
-      reflection:                  # 质量反思
+      reflection:                  # Self-Reflection hook (heuristic / llm_reflection)
         enabled: false
-        quality_threshold: 0.7
-        max_iterations: 3
+        type: heuristic            # heuristic (rule-based, no LLM) / llm_reflection (verbal critique via LLM)
+        quality_threshold: 0.6     # 反思退出阈值（quality >= 此值时停止循环）
+        max_iterations: 3          # Self-Reflection 最大迭代轮数
       reranking:                   # 重排（cross-encoder / token_overlap）
         enabled: false              # 需安装 reranker extra: uv sync --extra reranker
         type: cross_encoder         # cross_encoder | token_overlap

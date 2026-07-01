@@ -126,7 +126,7 @@ plugins:
     strategies:
       enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
     hooks:
-      reflection: { enabled: false }
+      reflection: { enabled: false, type: heuristic }
       reranking: { enabled: false, type: cross_encoder, model: cross-encoder/ms-marco-MiniLM-L-6-v2, top_n: 10 }
       parallel_pool: { enabled: true, max_workers: 4 }
 

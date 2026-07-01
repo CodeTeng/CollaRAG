@@ -488,6 +488,11 @@ class ChimeraRAG:
             # Config lives in plugins.intent_agent.hooks.reranking.
             if "reranker" in param_names:
                 self._wire_reranker(wiring)
+            # Reflection hook — heuristic or LLM-backed self-reflection.
+            # Config lives in plugins.intent_agent.hooks.reflection.
+            # Also wires Self-Reflection loop params (max_iterations, quality_threshold).
+            if "reflector" in param_names:
+                self._wire_reflector(wiring, call_params)
             return cls(**{**wiring, **call_params})
 
         # Classic DirectRetriever signature.
@@ -550,6 +555,52 @@ class ChimeraRAG:
                 TokenOverlapRerankerHook,
             )
             wiring["reranker"] = TokenOverlapRerankerHook(**reranker_kwargs)
+
+    def _wire_reflector(self, wiring: dict, call_params: dict) -> None:
+        """Translate the yaml reflection hook config into a BaseReflector instance.
+
+        Reads ``plugins.intent_agent.hooks.reflection`` and, when ``enabled``
+        is true, instantiates either a :class:`LLMReflectionHook` (requires
+        the shared LLM provider for verbal self-critique) or a
+        :class:`HeuristicReflectionHook` (rule-based, no LLM needed).
+
+        Also wires Self-Reflection loop parameters (max_iterations and
+        quality_threshold) from the reflection config into the retriever's
+        constructor kwargs, so IntentAgentRetriever's multi-round loop can
+        pick them up automatically.
+        """
+        cfg = self.config.plugins.intent_agent.hooks.get("reflection", {})
+        if not isinstance(cfg, dict) or not cfg.get("enabled", False):
+            return
+
+        reflector_type = cfg.get("type", "heuristic")
+        reflector_kwargs: dict = {}
+        if "min_length" in cfg:
+            reflector_kwargs["min_length"] = int(cfg["min_length"])
+
+        if reflector_type == "llm_reflection":
+            from chimera_rag.plugins.intent_agent.hooks.llm_reflection_hook import (
+                LLMReflectionHook,
+            )
+            reflector_kwargs["llm"] = self.llm
+            wiring["reflector"] = LLMReflectionHook(**reflector_kwargs)
+        else:
+            # Default: heuristic — no LLM dependency, always available.
+            from chimera_rag.plugins.intent_agent.hooks.reflection_hook import (
+                HeuristicReflectionHook,
+            )
+            wiring["reflector"] = HeuristicReflectionHook(**reflector_kwargs)
+
+        # Wire Self-Reflection loop parameters into the retriever constructor.
+        # These are read from the same reflection config block so users can
+        # tune the loop from a single place.
+        max_iterations = cfg.get("max_iterations")
+        if max_iterations is not None:
+            call_params.setdefault("max_reflection_iterations", int(max_iterations))
+
+        quality_threshold = cfg.get("quality_threshold")
+        if quality_threshold is not None:
+            call_params.setdefault("reflection_quality_threshold", float(quality_threshold))
 
     @staticmethod
     def _wire_experiential_memory(call_params: dict, wiring: dict) -> None:
