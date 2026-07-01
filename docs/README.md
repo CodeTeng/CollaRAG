@@ -43,8 +43,8 @@ AdaGraph 占 3 个构建插槽，IntentAgent 占 6 个查询插槽，两者天�
 | `retriever` | `defaults.direct` | — | `intent_agent.strategy_selector`（静态路由）/ `intent_agent.langgraph`（创新点 2b 动态编排，需 `--extra agent`） |
 | `strategy` | — | — | `intent_agent.{direct / multi_hop / parallel / iterative / expansion / context_aware}` |
 | `memory` | `defaults.none` | — | `intent_agent.session`（会话）/ `intent_agent.experiential`（创新点 2c 经验记忆，跨 session 落盘） |
-| `reflector` | `defaults.noop` | — | `intent_agent.heuristic` |
-| `reranker` | `defaults.noop` | — | `intent_agent.token_overlap` |
+| `reflector` | `defaults.noop` | — | `intent_agent.heuristic` / `intent_agent.llm_reflection`（创新点 2d Self-Reflection） |
+| `reranker` | `defaults.noop` | — | `intent_agent.token_overlap` / `intent_agent.cross_encoder`（需 `--extra reranker`） |
 | `generator` | `defaults.prompt` | — | — |
 
 ## 开发方式

@@ -85,7 +85,7 @@ class DynamicChunker(BaseChunker): ...
 ### The two innovations
 
 1. **AdaGraph** — occupies 3 ingestion slots: `chunker` (adaptive size based on complexity/density), `extractor` (4-layer extraction L1-L4), `pruner` (similarity + transitive redundancy removal)
-2. **IntentAgent** — occupies 2 query slots (`intent_classifier`, `retriever`), internally has Memory/Reasoning/Decision/Execution stages + 6 strategies + 3 pluggable hooks (reflection, reranking, parallel pool)
+2. **IntentAgent** — occupies 2 query slots (`intent_classifier`, `retriever`), internally has Memory/Reasoning/Decision/Execution stages + 6 strategies + 4 pluggable hooks/sub-systems: `reflector` (heuristic / llm_reflection → Self-Reflection loop with strategy fallback), `reranker` (token_overlap / cross_encoder), `parallel_pool`, `experiential_memory`
 
 ### Configuration
 

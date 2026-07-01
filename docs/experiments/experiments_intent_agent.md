@@ -120,15 +120,17 @@ uv run python eval.py \
 | 实验组 | reflection | reranking | parallel_pool | 验证目标 |
 |---|:---:|:---:|:---:|---|
 | base | ❌ | ❌ | ✅ | 仅四阶段 M-R-D-E |
-| +rerank | ❌ | ✅ | ✅ | **TokenOverlapReranker 的增益（最可能提升 F1）** |
-| +reflect | ✅ | ❌ | ✅ | reflection_quality 与真实 F1 的相关性 |
-| all | ✅ | ✅ | ✅ | 全开 |
+| +rerank（token_overlap） | ❌ | ✅ token_overlap | ✅ | TokenOverlapReranker 的增益 |
+| +rerank（cross_encoder） | ❌ | ✅ cross_encoder | ✅ | **CrossEncoder 的语义重排增益（最可能提升 F1）** |
+| +reflect（heuristic） | ✅ heuristic | ❌ | ✅ | heuristic reflection_quality 与真实 F1 的相关性 |
+| +reflect（llm_reflection） | ✅ llm_reflection | ❌ | ✅ | **Self-Reflection 多轮循环的净增益（策略回退驱动重检索）** |
+| all | ✅ llm_reflection | ✅ cross_encoder | ✅ | 全开（最强配置） |
 
 **指标**：F1、ROUGE-L；外加 **reflection_quality 与真实 F1 的皮尔逊相关系数**。
 
 **注意**：
-- **Reranking** 是唯一直接改检索顺序的 hook，最值得做。
-- **Reflection 当前只观测写回、不触发重检索**，所以它**不改指标**；只能做「质量分预测信号」的相关性分析，为未来 AdaptiveExecutor 铺垫。
+- **Reranking** 是直接改检索顺序的 hook，CrossEncoder 比 TokenOverlap 更可能提升 F1（语义匹配 vs 词面匹配）。
+- **Self-Reflection 现已驱动重检索**（`_execute_with_reflection` 多轮循环 + 策略回退），不再是"仅观测写回"；可以设计「反思后性能提升」的实验。`+reflect(llm_reflection)` 组预期在复杂意图上有净增益。
 
 ---
 
@@ -215,9 +217,9 @@ baseline 框架**不在本仓库内实现**，建议二选一：
 
 ---
 
-## 8. 两个诚实提醒（基于代码现状）
+## 9. 两个诚实提醒（基于代码现状）
 
 来自 `docs/innovation_intent_agent.md` 第一部分（静态路由版），以下为**占位实现**，做实验时勿过度宣称：
 
 1. **`IterativeStrategy` 目前是单轮直检**（MVP），并非真正多轮分解 → `analytical` 意图提升有限属正常，非 bug。
-2. **Reflection 不触发重检索**（AdaptiveExecutor 未实装）→ 不要设计「反思后性能提升」的实验。
+2. ~~**Reflection 不触发重检索**~~ → **已实装** Self-Reflection 多轮循环（创新点 2d），策略回退驱动重检索，可以设计「反思后性能提升」的实验。

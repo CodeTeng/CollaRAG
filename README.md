@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-blue.svg">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-348%20passing-brightgreen.svg">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-397%20passing-brightgreen.svg">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg">
   <img alt="uv" src="https://img.shields.io/badge/pkg-uv-orange.svg">
 </p>
@@ -123,6 +123,7 @@ uv run python eval.py --predictions output/musique/ollama_intent_only --metrics 
 进阶演化：
 - **2b - LangGraph 动态编排**：LLM Agent 自主选择并组合多个检索工具
 - **2c - 经验型记忆**：跨 session 持久化成功路径 + 反思教训
+- **2d - Self-Reflection**：LLM 驱动的语义反思 + 策略回退映射 + 多轮反思循环（静态版 & LangGraph 版均支持），经验沉淀闭环
 
 详见 [docs/innovation_intent_agent.md](docs/innovation_intent_agent.md)
 

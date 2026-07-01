@@ -49,8 +49,8 @@
 | `intent_classifier.py` | `intent_classifier` | `defaults.rule` | **IntentAgent** → `intent_agent.llm` |
 | `retriever.py` | `retriever` | `defaults.direct` | **IntentAgent** → `intent_agent.strategy_selector` |
 | `strategy.py`（async） | `strategy` | — | **IntentAgent** → `intent_agent.{direct/multi_hop/parallel/iterative/expansion/context_aware}` |
-| `reflector.py`（async） | `reflector` | `defaults.noop` | **IntentAgent** → `intent_agent.heuristic` |
-| `reranker.py`（async） | `reranker` | `defaults.noop` | **IntentAgent** → `intent_agent.token_overlap` |
+| `reflector.py`（async） | `reflector` | `defaults.noop` | **IntentAgent** → `intent_agent.heuristic` / `intent_agent.llm_reflection`（Self-Reflection，创新点 2d） |
+| `reranker.py`（async） | `reranker` | `defaults.noop` | **IntentAgent** → `intent_agent.token_overlap` / `intent_agent.cross_encoder`（需 `--extra reranker`） |
 | `memory.py` | `memory` | `defaults.none` | **IntentAgent** → `intent_agent.session` |
 | `generator.py` | `generator` | `defaults.prompt` | — |
 | `llm_provider.py`（async） | `llm_provider` | `mock / openai / deepseek / ollama` | — |

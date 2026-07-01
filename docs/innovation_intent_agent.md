@@ -4,11 +4,12 @@
 >
 > | 阶段 | 代号 | 一句话定位 |
 > |---|---|---|
-> | **A · 静态路由版** | IntentAgent（= 设计材料中的 `MRDE`） | M-R-D-E 四阶段 + 6 策略 + 3 Hook，意图 → 单策略**静态查表** |
-> | **B · 动态编排版** | LangGraph Agentic 检索 | 把 Decision 的静态查表升级为 **LangGraph 状态图 + LLM 自主选择/组合多工具 + 反思回路** |
+> | **A · 静态路由版** | IntentAgent（= 设计材料中的 `MRDE`） | M-R-D-E 四阶段 + 6 策略 + Hook，意图 → 单策略**静态查表** + Self-Reflection 多轮循环 |
+> | **B · 动态编排版** | LangGraph Agentic 检索 | 把 Decision 的静态查表升级为 **LangGraph 状态图 + LLM 自主选择/组合多工具 + 反思回路 + verbal reflection 注入** |
 > | **C · 经验记忆增强** | Experiential Memory | 类 Claude Code 的磁盘记忆，把检索过程中的**成功路径 / 反思教训 / 高质量 QA** 按意图沉淀、跨 session 召回复用 |
+> | **D · Self-Reflection** | Reflexion 式自纠正 | LLM 驱动语义反思 → 策略回退映射 → 多轮循环 → 经验沉淀闭环 |
 >
-> 三阶段是**逐级增量**关系：B 复用 A 的意图分类与底层策略，C 挂在 B 的状态图入口/出口。三者都对外实现同一个 `BaseRetriever.retrieve(query, top_k) -> RetrievalResult` 契约，通过一行 yaml 切换、可独立消融。
+> 四阶段是**逐级增量**关系：B 复用 A 的意图分类与底层策略，C 挂在 B 的状态图入口/出口，D 跨越 A/B 两版均落地（静态版多轮循环 + LangGraph 版 verbal reflection 注入）。
 >
 > **作用阶段**：Query（查询）　**启用方式**：`configs/*.yaml` 中 `plugins.intent_agent.enabled: true`，并按需把 `query.retriever.active` 切到 `intent_agent.strategy_selector`（A）或 `intent_agent.langgraph`（B/C）。
 
@@ -23,8 +24,8 @@
   - [A4. 阶段 2 — Reasoning（意图 + 计划）](#a4-阶段-2--reasoning意图--计划)
   - [A5. 阶段 3 — Decision（策略选择器）](#a5-阶段-3--decision策略选择器)
   - [A6. 阶段 4 — Execution（6 种检索策略）](#a6-阶段-4--execution6-种检索策略)
-  - [A7. 三个可插拔 Hook](#a7-三个可插拔-hook)
-  - [A8. IntentAgentRetriever：四阶段装配](#a8-intentagentretriever四阶段装配)
+  - [A7. 可插拔 Hook（含 Self-Reflection）](#a7-可插拔-hook含-self-reflection)
+  - [A8. IntentAgentRetriever：四阶段装配 + Self-Reflection](#a8-intentagentretriever四阶段装配--self-reflection)
   - [A9. 在 QueryPipeline 中的接入](#a9-在-querypipeline-中的接入)
   - [A10. 对应测试](#a10-对应测试)
   - [A11. 与 AdaGraph 的正交性](#a11-与-adagraph-的正交性)
@@ -75,8 +76,8 @@ IntentAgent 在 `QueryPipeline` 中同时占据两个主要插槽，并在其内
 |---|---|---|
 | `memory` | `intent_agent.session` | 会话级历史 |
 | `strategy`（6 个） | `intent_agent.{direct / multi_hop / parallel / iterative / expansion / context_aware}` | 6 种检索策略 |
-| `reflector` | `intent_agent.heuristic` | 启发式答案质量评估（hook） |
-| `reranker` | `intent_agent.token_overlap` | Jaccard 重排（hook） |
+| `reflector` | `intent_agent.heuristic` / `intent_agent.llm_reflection` | 启发式 / LLM 语义反思（Self-Reflection，创新点 2d） |
+| `reranker` | `intent_agent.token_overlap` / `intent_agent.cross_encoder` | Jaccard 重排 / CrossEncoder 语义重排（需 `--extra reranker`） |
 | — 非 slot，工具类 — | `ParallelRetrievalPool` | asyncio Semaphore 限流池（hook） |
 
 开关方式（摘自 `configs/deepseek_full.yaml`）：
@@ -98,8 +99,8 @@ plugins:
     strategies:
       enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
     hooks:
-      reflection:    { enabled: false }
-      reranking:     { enabled: false }
+      reflection:    { enabled: false, type: heuristic }       # type: heuristic / llm_reflection
+      reranking:     { enabled: false, type: token_overlap }   # type: token_overlap / cross_encoder
       parallel_pool: { enabled: true, max_workers: 4 }
 ```
 
@@ -300,9 +301,9 @@ res = self.retriever.retrieve(
 
 ---
 
-## A7. 三个可插拔 Hook
+## A7. 可插拔 Hook（含 Self-Reflection）
 
-### A7.1 HeuristicReflectionHook（reflector 插槽）
+### A7.1 HeuristicReflectionHook（reflector 插槽 · heuristic 实现）
 
 `hooks/reflection_hook.py` 实装一个**零 LLM** 的启发式答案质量评估：
 
@@ -312,9 +313,45 @@ res = self.retriever.retrieve(
 - **evidence 存在**：有 `evidence_chunk_ids` 得 1.0，否则 0.5；
 - 综合：$\text{quality} = 0.5 \cdot \text{relevance} + 0.5 \cdot \text{completeness}$。
 
-在静态版里，`IntentAgentRetriever.retrieve()` 对 reflector 只做**观测性写回**（`result.metadata["reflection_quality"]`），并**不**触发重检索——这处"反馈循环"在第二部分的 LangGraph 反思回路中被真正落地。
+> 📌 **创新点 2d — Self-Reflection 机制**已让 reflector 从"仅观测写回"升级为**驱动重检索的多轮循环**。当 `quality < reflection_quality_threshold` 时，`IntentAgentRetriever._execute_with_reflection()` 会通过 `IntentReasoner.replan()` 按策略回退阶梯（direct → multi_hop → iterative → parallel → expansion → context_aware）升级策略并重试，最多 `max_reflection_iterations` 轮。详见 [§A7.4 Self-Reflection](#a74-self-reflection创新点-2d)。
 
-### A7.2 TokenOverlapRerankerHook（reranker 插槽）
+### A7.2 LLMReflectionHook（reflector 插槽 · llm_reflection 实现）
+
+`hooks/llm_reflection_hook.py` 实装 **LLM 驱动的语义反思**，注册名 `intent_agent.llm_reflection`，是 Self-Reflection 机制的核心实现：
+
+- 继承 `HeuristicReflectionHook` 的全部数值评分逻辑（refusal / length / overlap / evidence）；
+- **新增 verbal critique**：当 `quality < 0.7`（低质量答案）时，调用 LLM 生成语言反思文本（`reflection_text`），回答"为什么差"和"怎么改"；
+- 反思文本写入 `QualityFeedback.reflection_text` 字段，可被：
+  - `IntentReasoner.replan()` 注入到下一轮 `ReasoningPlan.params["reflection_text"]`，指导策略回退选择；
+  - LangGraph 版 `reflect_node` 以 `SystemMessage` 注入到 `AgentState.messages`，让 LLM Agent 下一轮决策时"读到自己的反思"；
+  - `build_experience_entry()` 优先使用 `reflection_text` 替代规则模板作为 `ExperienceEntry.lesson`，沉淀到 Experiential Memory。
+
+```python
+@register("reflector", "intent_agent.llm_reflection")
+class LLMReflectionHook(BaseReflector):
+    def __init__(self, llm: BaseLLMProvider, min_length=10, max_reflection_words=200): ...
+    async def evaluate(self, query, answer) -> QualityFeedback:
+        # 1. 数值评分（同 HeuristicReflectionHook）
+        # 2. 若 quality < 0.7 → LLM 生成 verbal critique
+        # 3. 返回 QualityFeedback(quality=..., reflection_text="...")
+```
+
+**配置方式**：`hooks.reflection.type: llm_reflection`（默认 `heuristic`），详见 [§A7.4 配置](#a74-self-reflection创新点-2d)。
+
+### A7.3 CrossEncoderReranker（reranker 插槽 · cross_encoder 实现）
+
+`hooks/cross_encoder_reranker.py` 实装 **CrossEncoder 语义重排序**，注册名 `intent_agent.cross_encoder`，是 `TokenOverlapRerankerHook` 的升级替代：
+
+- 使用 `sentence-transformers` 的 CrossEncoder 模型对 query-chunk 对做语义相关性评分；
+- 默认模型 `cross-encoder/ms-marco-MiniLM-L-6-v2`，可通过 `hooks.reranking.model` 配置；
+- 支持 `top_n` 截断和 `device` / `max_length` 配置；
+- 需要 `--extra reranker` 安装 `sentence-transformers`；未安装时自动降级为 `TokenOverlapRerankerHook`。
+
+**与 A7.3 TokenOverlap 的关系**：Jaccard 是零依赖 MVP 实现，CrossEncoder 是语义升级版——升级只需在 yaml 中把 `hooks.reranking.type` 从 `token_overlap` 改为 `cross_encoder`。
+
+> 原先"升级只是换注册名的工作量"的声明现在已被真正落地：`CrossEncoderReranker` 已实装并注册。
+
+### A7.4 TokenOverlapRerankerHook（reranker 插槽 · token_overlap 实现）
 
 `hooks/reranking_hook.py` 用 token Jaccard 对检索结果重排：
 
@@ -322,9 +359,75 @@ $$
 \text{score}(c) = \dfrac{|\text{tokens}(q) \cap \text{tokens}(c)|}{|\text{tokens}(q) \cup \text{tokens}(c)|}
 $$
 
-得分降序，可选 `top_n` 截断。选择 Jaccard 而非 cross-encoder 出于零依赖考量——`sentence-transformers` 的 cross-encoder 不是 MVP 必需项，升级只是换注册名的工作量。
+得分降序，可选 `top_n` 截断。选择 Jaccard 出于零依赖考量——`sentence-transformers` 的 cross-encoder 不是 MVP 必需项，但现已作为可选升级实装（见 A7.3）。
 
-### A7.3 ParallelRetrievalPool（工具类）
+### A7.5 Self-Reflection（创新点 2d）
+
+Self-Reflection 机制跨越静态路由版和 LangGraph 动态编排版，核心借鉴 Reflexion（Shinn et al., 2023）的"反思式自纠正"思想：**Agent 读取自己的语言反思来调整下一轮行为**。
+
+#### A7.5.1 静态版多轮反思循环
+
+`IntentAgentRetriever._execute_with_reflection()` 在静态版中实现了真正的多轮反思循环：
+
+```
+Decision → Execution → Reflection
+    ↓ quality < threshold?
+    ↓ Yes → replan（策略回退）→ re-Decision → re-Execution → re-Reflection
+    ↓ No or max_iterations exhausted → 返回结果
+```
+
+- **策略回退阶梯**（`_STRATEGY_FALLBACK_LADDER`）：direct → multi_hop → iterative → parallel → expansion → context_aware；
+- `IntentReasoner.replan(failed_plan, reflection_text)` 会把上一轮的 verbal reflection 注入到新 `ReasoningPlan.params["reflection_text"]`，让策略知道"上一轮为什么失败"；
+- 最多 `max_reflection_iterations`（默认 3）轮，`reflection_quality_threshold`（默认 0.6）控制退出条件。
+
+#### A7.5.2 LangGraph 版 verbal reflection 注入
+
+LangGraph 版通过 `reflect_node` 增强：
+
+```python
+# AgentState 新增字段
+reflection_text: str | None
+
+# reflect_node: 当 quality < threshold 时，把 reflection_text 注入为 SystemMessage
+extra_messages.append(SystemMessage(
+    content=f"Self-Reflection (quality={feedback.quality:.2f}): {feedback.reflection_text}"
+))
+```
+
+LLM Agent 在下一轮 `decision_node` 中读到这条 SystemMessage，自动调整工具选择——这是 Reflexion 式自纠正在 LangGraph 状态图中的落地。
+
+#### A7.5.3 经验沉淀闭环
+
+Self-Reflection 与 Experiential Memory 形成闭环：
+
+```
+Reflect → Learn → Store → Recall → Plan Better
+```
+
+- `build_experience_entry()` 优先使用 `reflection_text` 作为 `ExperienceEntry.lesson`（替代规则模板）；
+- 下次相似意图召回时，LLM Agent 读到更丰富、更有行动指导性的 lesson；
+- 反思教训跨 session 持久化，逐步积累"什么策略对什么意图效果更好"的领域知识。
+
+#### A7.5.4 配置
+
+```yaml
+plugins:
+  intent_agent:
+    hooks:
+      reflection:
+        enabled: true
+        type: llm_reflection          # heuristic（零 LLM）/ llm_reflection（LLM 语义反思）
+        quality_threshold: 0.6        # 反思退出阈值（quality >= 此值时停止循环）
+        max_iterations: 3             # Self-Reflection 最大迭代轮数
+        min_length: 10                # 最短答案长度（数值评分参数）
+      reranking:
+        enabled: true
+        type: cross_encoder           # token_overlap / cross_encoder
+        model: cross-encoder/ms-marco-MiniLM-L-6-v2
+        top_n: 10
+```
+
+### A7.6 ParallelRetrievalPool（工具类）
 
 `hooks/parallel_pool_hook.py` 是一个 `asyncio.Semaphore` 限流的小工具：
 
@@ -337,9 +440,50 @@ results = await pool.run([coro1, coro2, ...])  # 顺序与输入一致
 
 ---
 
-## A8. IntentAgentRetriever：四阶段装配
+## A8. IntentAgentRetriever：四阶段装配 + Self-Reflection
 
-`agent.py::IntentAgentRetriever.retrieve()` 是整个插件唯一对外暴露的 `BaseRetriever` 入口，签名**保持同步**（以兼容 `QueryPipeline.run()` 的同步上下文），内部用 `_run_async` 承接 async 策略：
+`agent.py::IntentAgentRetriever.retrieve()` 是整个插件唯一对外暴露的 `BaseRetriever` 入口，签名**保持同步**（以兼容 `QueryPipeline.run()` 的同步上下文），内部用 `_run_async` 承接 async 策略。
+
+### A8.1 静态版：多轮反思循环
+
+当 `self.reflector is not None` 且 `self.max_reflection_iterations > 0` 时，`retrieve()` 调用 `_execute_with_reflection()` 执行多轮反思循环：
+
+```python
+def _execute_with_reflection(self, query, initial_plan, top_k) -> RetrievalResult:
+    plan = initial_plan
+    for i in range(self.max_reflection_iterations):
+        # Decision + Execution
+        strategy = self._selector.pick(plan)
+        result = _run_async(strategy.execute(query, plan))
+        if self.reranker is not None:
+            result = _run_async(self.reranker.rerank(query, result))
+
+        # Reflection
+        dummy_answer = Answer(text=" ".join(c.text for c in result.chunks))
+        feedback = _run_async(self.reflector.evaluate(query, dummy_answer))
+
+        # 退出条件：quality 达标
+        if feedback.quality >= self.reflection_quality_threshold:
+            result.metadata["reflection_quality"] = feedback.quality
+            result.metadata["reflection_iterations"] = i + 1
+            break
+
+        # 策略回退 + 注入 reflection_text
+        plan = self.reasoner.replan(plan, reflection_text=feedback.reflection_text)
+        if plan is None:  # ladder exhausted
+            result.metadata["reflection_quality"] = feedback.quality
+            result.metadata["reflection_iterations"] = i + 1
+            break
+
+    return result
+```
+
+**关键设计**：
+- **策略回退阶梯**（`_STRATEGY_FALLBACK_LADDER`）：direct → multi_hop → iterative → parallel → expansion → context_aware → 回到 multi_hop（兜底循环）；
+- `IntentReasoner.replan()` 把上一轮的 `reflection_text` 注入到新 plan 的 `params["reflection_text"]`；
+- 每次 replan 后 strategy 自动升级，不再走已失败的老策略。
+
+### A8.2 原始单轮路径（reflector=None 或 max_iterations=0）
 
 ```python
 def retrieve(self, query, top_k=5):
@@ -359,7 +503,8 @@ def retrieve(self, query, top_k=5):
     result = _run_async(strategy.execute(query, plan))
     if self.reranker is not None:
         result = _run_async(self.reranker.rerank(query, result))
-    if self.reflector is not None:
+    if self.reflector is not None and self.max_reflection_iterations <= 0:
+        # 单轮观测（无反思循环）
         dummy_answer = Answer(text=" ".join(c.text for c in result.chunks))
         feedback = _run_async(self.reflector.evaluate(query, dummy_answer))
         result.metadata["reflection_quality"] = feedback.quality
@@ -367,11 +512,6 @@ def retrieve(self, query, top_k=5):
     # 闭环：把本轮写回 Memory
     if self.memory and query.session_id:
         self.memory.append(query.session_id, query.text)
-
-    # 贯穿 trace：UI / 评测 / 论文分析共享这些字段
-    result.metadata["intent"] = intent.label
-    result.metadata["intent_confidence"] = intent.confidence
-    result.metadata.setdefault("strategy", plan.strategy_name)
 
     # 遵守 top_k 合约
     if len(result.chunks) > top_k:
@@ -383,7 +523,7 @@ def retrieve(self, query, top_k=5):
 几个要点：
 
 - **同步外观 + 异步内核**：`retrieve` 是同步，策略是 async。`_run_async` 是一个小包装器（复用自 `defaults/llm_extractor.py`），让两种签名共存；
-- **trace 透传**：`intent / intent_confidence / strategy / hops / parallel_subqueries / history_turns_used / reranked_by / reflection_quality` 都落在 `result.metadata` 里，通过 `QueryPipeline.run()` 继续落到 `Answer.trace.retrieval_metadata`，最终被 `/api/query` 返回、被 `/trace` 页面展示；
+- **trace 透传**：`intent / intent_confidence / strategy / hops / parallel_subqueries / history_turns_used / reranked_by / reflection_quality / reflection_iterations` 都落在 `result.metadata` 里，通过 `QueryPipeline.run()` 继续落到 `Answer.trace.retrieval_metadata`；
 - **top_k 合约**：不管策略内部取了多少 chunk，对外一定截断到 top_k——这是 `BaseRetriever` 的接口契约。
 
 ---
@@ -737,15 +877,16 @@ sequenceDiagram
 
 ---
 
-## B6. 反思回路：把 TODO 真正落地
+## B6. 反思回路：Self-Reflection 真正落地
 
-第一部分 `IntentAgentRetriever` 对 reflector 只做**观测写回**（A7.1）。LangGraph 版在 `reflect_node` + `route_after_reflect` conditional edge 上**真正实现** Reflexion 式回路：
+第一部分 `IntentAgentRetriever` 对 reflector 原先只做**观测写回**（A7.1），现已升级为 Self-Reflection 多轮循环（A8.1）。LangGraph 版在 `reflect_node` + `route_after_reflect` conditional edge 上**进一步增强** Reflexion 式回路：
 
-1. 每轮 tool 执行后，`reflect_node` 用 `HeuristicReflectionHook` 对"当前累积证据拼成的 draft answer"打分；
-2. 质量 `< τ` 且 `iteration_count < MAX_ITERS` → 回到 `decision_node`，LLM 在已有 observation 基础上**换工具 / 加跳数 / 拆子问题**重试；
-3. 质量达标或触顶 → 结束。
+1. 每轮 tool 执行后，`reflect_node` 用 reflector（`HeuristicReflectionHook` 或 `LLMReflectionHook`）对"当前累积证据拼成的 draft answer"打分；
+2. **LLM 反思增强**：当 reflector 为 `LLMReflectionHook` 时，`feedback.reflection_text` 包含 verbal critique（"为什么差" + "怎么改"），被以 `SystemMessage` 注入到 `AgentState.messages`，让下一轮 `decision_node` 的 LLM **读到自己的反思**并调整工具选择；
+3. 质量 `< τ` 且 `iteration_count < MAX_ITERS` → 回到 `decision_node`，LLM 在已有 observation + 反思文本基础上**换工具 / 加跳数 / 拆子问题**重试；
+4. 质量达标或触顶 → 结束。
 
-其中阈值 `τ` 与上限 `MAX_ITERS` **直接复用** `default.yaml` 里既有的 `plugins.intent_agent.hooks.reflection.quality_threshold` / `max_iterations`（见 B8），不新增配置字段。这正是 A11 之前在静态版里标注的"反馈循环"，在 LangGraph 里以声明式状态图形式自然落地，无需手写循环控制。
+其中阈值 `τ` 与上限 `MAX_ITERS` **直接复用** `default.yaml` 里既有的 `plugins.intent_agent.hooks.reflection.quality_threshold` / `max_iterations`（见 B8），不新增配置字段。reflector 类型由 `hooks.reflection.type` 控制（`heuristic` / `llm_reflection`），切换后 `reflect_node` 自动使用对应的 reflector 实例——`LLMReflectionHook` 会额外产出 `reflection_text` 并注入到下一轮 messages。
 
 ---
 
@@ -785,6 +926,7 @@ plugins:
     hooks:
       reflection:
         enabled: true
+        type: heuristic                     # heuristic / llm_reflection（Self-Reflection，创新点 2d）
         quality_threshold: 0.6              # 复用现有字段：reflect_node 的退出阈值 τ
         max_iterations: 2                   # 复用现有字段：反思回路上限 MAX_ITERS
 ```
