@@ -543,6 +543,10 @@ ragas = [
     { name = "pillow" },
     { name = "ragas" },
 ]
+reranker = [
+    { name = "sentence-transformers" },
+    { name = "torch" },
+]
 spacy = [
     { name = "spacy" },
 ]
@@ -595,15 +599,17 @@ requires-dist = [
     { name = "ragas", marker = "extra == 'ragas'", specifier = ">=0.3,<0.4" },
     { name = "rich", specifier = ">=13.7" },
     { name = "rouge-score", marker = "extra == 'eval'", specifier = ">=0.1.2" },
+    { name = "sentence-transformers", marker = "extra == 'reranker'", specifier = ">=2.5,<3.0" },
     { name = "sentence-transformers", marker = "extra == 'st'", specifier = ">=2.5,<3.0" },
     { name = "spacy", marker = "extra == 'spacy'", specifier = ">=3.7" },
     { name = "sse-starlette", marker = "extra == 'web'", specifier = ">=2.0" },
     { name = "tenacity", specifier = ">=8.2" },
+    { name = "torch", marker = "extra == 'reranker'", specifier = ">=2.0,<2.3" },
     { name = "torch", marker = "extra == 'st'", specifier = ">=2.0,<2.3" },
     { name = "tqdm", specifier = ">=4.66" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.27" },
 ]
-provides-extras = ["web", "vec", "llm", "eval", "ragas", "chunk", "st", "neo4j", "spacy", "agent"]
+provides-extras = ["web", "vec", "llm", "eval", "ragas", "chunk", "st", "reranker", "neo4j", "spacy", "agent"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -484,6 +484,10 @@ class ChimeraRAG:
             # concrete BaseExperientialMemory instance when enabled.
             if "experiential_memory" in param_names:
                 self._wire_experiential_memory(call_params, wiring)
+            # Reranking hook — cross-encoder or token-overlap reranker.
+            # Config lives in plugins.intent_agent.hooks.reranking.
+            if "reranker" in param_names:
+                self._wire_reranker(wiring)
             return cls(**{**wiring, **call_params})
 
         # Classic DirectRetriever signature.
@@ -494,6 +498,58 @@ class ChimeraRAG:
             chunk_lookup=self.state.chunk_lookup,
             **call_params,
         )
+
+    def _wire_reranker(self, wiring: dict) -> None:
+        """Translate the yaml reranking hook config into a BaseReranker instance.
+
+        Reads ``plugins.intent_agent.hooks.reranking`` and, when ``enabled`` is
+        true, instantiates either a :class:`CrossEncoderReranker` (requires the
+        ``reranker`` extra) or a :class:`TokenOverlapRerankerHook` (always
+        available, no external dependency). A missing / disabled config leaves
+        the retriever's ``reranker=None`` default — i.e. no reranking.
+        """
+        cfg = self.config.plugins.intent_agent.hooks.get("reranking", {})
+        if not isinstance(cfg, dict) or not cfg.get("enabled", False):
+            return
+
+        reranker_type = cfg.get("type", "cross_encoder")
+        reranker_kwargs: dict = {}
+        top_n = cfg.get("top_n")
+        if top_n is not None:
+            reranker_kwargs["top_n"] = int(top_n)
+
+        if reranker_type == "token_overlap":
+            from chimera_rag.plugins.intent_agent.hooks.reranking_hook import (
+                TokenOverlapRerankerHook,
+            )
+            wiring["reranker"] = TokenOverlapRerankerHook(**reranker_kwargs)
+            return
+
+        # Default: cross_encoder — requires sentence-transformers.
+        model_name = cfg.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+        reranker_kwargs["model_name"] = model_name
+        if "device" in cfg:
+            reranker_kwargs["device"] = cfg["device"]
+        if "max_length" in cfg:
+            reranker_kwargs["max_length"] = int(cfg["max_length"])
+
+        try:
+            from chimera_rag.plugins.intent_agent.hooks.cross_encoder_reranker import (
+                CrossEncoderReranker,
+            )
+            wiring["reranker"] = CrossEncoderReranker(**reranker_kwargs)
+        except ImportError as exc:
+            logger_ = __import__("logging").getLogger(__name__)
+            logger_.warning(
+                "cross_encoder reranker requested but sentence-transformers not installed "
+                "(%s); falling back to token_overlap reranker. "
+                "Install with: uv sync --extra reranker",
+                exc,
+            )
+            from chimera_rag.plugins.intent_agent.hooks.reranking_hook import (
+                TokenOverlapRerankerHook,
+            )
+            wiring["reranker"] = TokenOverlapRerankerHook(**reranker_kwargs)
 
     @staticmethod
     def _wire_experiential_memory(call_params: dict, wiring: dict) -> None:

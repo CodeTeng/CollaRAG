@@ -22,11 +22,13 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Query, RetrievalResult
+from chimera_rag.defaults.llm_extractor import _run_async
 from chimera_rag.interfaces.experiential_memory import BaseExperientialMemory
 from chimera_rag.interfaces.intent_classifier import BaseIntentClassifier
 from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 from chimera_rag.interfaces.memory import BaseMemory
 from chimera_rag.interfaces.reflector import BaseReflector
+from chimera_rag.interfaces.reranker import BaseReranker
 from chimera_rag.interfaces.retriever import BaseRetriever
 from chimera_rag.plugins.intent_agent.langgraph.experience import (
     build_experience_entry,
@@ -55,6 +57,7 @@ class LangGraphAgentRetriever(BaseRetriever):
         *,
         memory: BaseMemory | None = None,
         reflector: BaseReflector | None = None,
+        reranker: BaseReranker | None = None,
         experiential_memory: BaseExperientialMemory | None = None,
         experiential_recall_top_n: int = 3,
         tools: list[str] | None = None,
@@ -74,6 +77,7 @@ class LangGraphAgentRetriever(BaseRetriever):
         self.llm = llm
         self.memory = memory
         self.reflector = reflector or self._default_reflector()
+        self.reranker = reranker
         self.experiential_memory = experiential_memory
         self.experiential_recall_top_n = experiential_recall_top_n
         self.enabled_tools = self._resolve_tool_names(tools)
@@ -194,6 +198,10 @@ class LangGraphAgentRetriever(BaseRetriever):
             )
             self.experiential_memory.remember(entry)
             result.metadata["experience_recorded"] = entry.outcome
+
+        # Apply reranker if provided (mirrors IntentAgentRetriever Stage 4).
+        if self.reranker is not None:
+            result = _run_async(self.reranker.rerank(query, result))
 
         if len(result.chunks) > top_k:
             result.chunks = result.chunks[:top_k]

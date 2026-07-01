@@ -258,10 +258,12 @@ plugins:
         enabled: false
         quality_threshold: 0.7
         max_iterations: 3
-      reranking:                   # Cross-encoder 重排
-        enabled: false
+      reranking:                   # 重排（cross-encoder / token_overlap）
+        enabled: false              # 需安装 reranker extra: uv sync --extra reranker
+        type: cross_encoder         # cross_encoder | token_overlap
         model: cross-encoder/ms-marco-MiniLM-L-6-v2
         top_n: 10
+        device: null                # null = auto（CUDA/MPS/CPU）
       parallel_pool:               # 并行检索池
         enabled: false
         max_workers: 4
