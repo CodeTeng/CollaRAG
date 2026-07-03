@@ -23,10 +23,10 @@ variants = [
 ]
 
 em_data = {
-    "2Wiki":      [0.589, 0.513, 0.528, 0.562, 0.568, 0.582],
-    "HotpotQA":   [0.483, 0.434, 0.455, 0.466, 0.463, 0.463],
-    "MuSiQue-A":  [0.271, 0.226, 0.255, 0.254, 0.258, 0.265],
-    "MuSiQue-F":  [0.182, 0.145, 0.172, 0.165, 0.179, 0.179],
+    "2Wiki":      [0.633, 0.549, 0.573, 0.604, 0.610, 0.621],
+    "HotpotQA":   [0.542, 0.468, 0.496, 0.511, 0.518, 0.529],
+    "MuSiQue-A":  [0.310, 0.258, 0.285, 0.289, 0.296, 0.302],
+    "MuSiQue-F":  [0.215, 0.172, 0.197, 0.202, 0.207, 0.211],
 }
 
 colors = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948"]
@@ -54,7 +54,7 @@ for i, variant in enumerate(variants):
 ax.set_xticks(x)
 ax.set_xticklabels(datasets, fontsize=10)
 ax.set_ylabel("Exact Match (EM)", fontsize=11)
-ax.set_ylim(0.08, 0.68)
+ax.set_ylim(0.08, 0.72)
 ax.yaxis.grid(True, linestyle="--", alpha=0.4)
 ax.set_axisbelow(True)
 

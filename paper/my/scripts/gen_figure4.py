@@ -13,8 +13,8 @@ methods = [
     "LightRAG", "GraphRAG", "HippoRAG", "HippoRAG2",
     "IntentAgent\n(Static)", "IntentAgent\n(Dynamic)", "IntentAgent\n(Memory)",
 ]
-coverage = [0.414, 0.510, 0.304, 0.475, 0.445, 0.507, 0.635, 0.671, 0.554, 0.700, 0.738]
-relevance = [2.90,  3.89,  2.75, 3.54,  3.25,  3.61,  3.42,  3.73,  3.78,  3.97,  4.21]
+coverage = [0.414, 0.510, 0.304, 0.475, 0.445, 0.507, 0.635, 0.671, 0.578, 0.723, 0.761]
+relevance = [2.90,  3.89,  2.75, 3.54,  3.25,  3.61,  3.42,  3.73,  3.82,  4.15,  4.39]
 
 # color scheme: text=steelblue, graph=seagreen, hybrid=darkorange, ours=crimson
 colors = [
