@@ -43,7 +43,7 @@ class ReActAgent(BaseAgent):
         tool_call_log: list[str] = []
 
         for iteration in range(max_iters):
-            raw = _run_async(llm.generate(conversation, max_tokens=1024))
+            raw = _run_async(llm.complete(conversation, max_tokens=1024))
             conversation += "\n" + raw
 
             final_match = _FINAL_RE.search(raw)
@@ -87,7 +87,7 @@ class ReActAgent(BaseAgent):
             f"{conversation}\nThought: I've gathered enough evidence. "
             "Let me provide a final answer.\nFinal Answer:"
         )
-        final_text = _run_async(llm.generate(final_prompt, max_tokens=512))
+        final_text = _run_async(llm.complete(final_prompt, max_tokens=512))
         return Answer(text=final_text.strip(), strategy_name="react")
 
 

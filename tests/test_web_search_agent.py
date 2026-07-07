@@ -14,7 +14,7 @@ def _mock_web_search():
 
 def test_web_search_agent():
     class FakeLLM:
-        async def generate(self, prompt, **kw):
+        async def complete(self, prompt, **kw):
             return "Based on web results, the answer is X."
 
     agent = WebSearchAgent(

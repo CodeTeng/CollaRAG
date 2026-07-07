@@ -82,7 +82,7 @@ class TreeIntentClassifier(BaseIntentClassifier):
 
         prompt = _CLASSIFY_PROMPT.format(query=text)
         try:
-            raw = _run_async(self.llm.generate(prompt, max_tokens=20))
+            raw = _run_async(self.llm.complete(prompt, max_tokens=20))
             label = raw.strip().lower().replace('"', "").replace("'", "")
             for candidate in _VALID_LABELS:
                 if candidate in label:

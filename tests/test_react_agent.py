@@ -7,7 +7,7 @@ from langchain_core.tools import StructuredTool
 
 def test_react_agent_creates():
     class FakeLLM:
-        async def generate(self, prompt, **kw):
+        async def complete(self, prompt, **kw):
             return "Final Answer: The answer is 42."
 
     agent = ReActAgent(
@@ -20,7 +20,7 @@ def test_react_agent_creates():
 
 def test_react_agent_executes():
     class FakeLLM:
-        async def generate(self, prompt, **kw):
+        async def complete(self, prompt, **kw):
             return "Final Answer: The answer is 42."
 
     agent = ReActAgent(

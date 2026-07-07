@@ -50,12 +50,12 @@ class MapReduceAgent(BaseAgent):
         summaries = []
         for text in texts:
             prompt = _MAP_PROMPT.format(query=query.text, text=text[:1000])
-            summary = _run_async(llm.generate(prompt, max_tokens=200))
+            summary = _run_async(llm.complete(prompt, max_tokens=200))
             summaries.append(summary.strip())
 
         combined = "\n---\n".join(f"[{i+1}] {s}" for i, s in enumerate(summaries) if s)
         reduce_prompt = _REDUCE_PROMPT.format(query=query.text, summaries=combined)
-        final = _run_async(llm.generate(reduce_prompt, max_tokens=1024))
+        final = _run_async(llm.complete(reduce_prompt, max_tokens=1024))
 
         context.trace["map_count"] = len(summaries)
         return Answer(

@@ -33,7 +33,7 @@ class _RerankArgs(BaseModel):
 def build_reasoning_tools(*, llm, reflector, reranker, accumulator, chunk_lookup) -> list[StructuredTool]:
     def _sub_query_decompose(query: str, max_sub: int = 4) -> list[str]:
         prompt = _DECOMPOSE_PROMPT.format(query=query)
-        raw = _run_async(llm.generate(prompt, max_tokens=300))
+        raw = _run_async(llm.complete(prompt, max_tokens=300))
         try:
             subs = json.loads(raw.strip())
             if isinstance(subs, list):

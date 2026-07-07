@@ -42,7 +42,7 @@ class WebSearchAgent(BaseAgent):
             local_knowledge=local_text or "(none)",
             query=query.text,
         )
-        answer_text = _run_async(llm.generate(prompt, max_tokens=1024))
+        answer_text = _run_async(llm.complete(prompt, max_tokens=1024))
 
         context.trace["web_results_count"] = (
             len(web_results_text.split("\n")) if web_results_text else 0

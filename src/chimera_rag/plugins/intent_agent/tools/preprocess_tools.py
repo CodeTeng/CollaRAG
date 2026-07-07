@@ -36,17 +36,17 @@ class _FollowupArgs(BaseModel):
 def build_preprocess_tools(*, llm, session_memory) -> list[StructuredTool]:
     def _query_rewrite(query: str, context: str = "") -> str:
         prompt = _REWRITE_PROMPT.format(query=query, context=context)
-        return _run_async(llm.generate(prompt, max_tokens=200)).strip()
+        return _run_async(llm.complete(prompt, max_tokens=200)).strip()
 
     def _coreference_resolve(query: str, history: list[str] | None = None) -> str:
         hist_str = " | ".join(history or [])
         prompt = _COREF_PROMPT.format(history=hist_str, query=query)
-        return _run_async(llm.generate(prompt, max_tokens=200)).strip()
+        return _run_async(llm.complete(prompt, max_tokens=200)).strip()
 
     def _followup_merge(query: str, prev_query: str = "", prev_answer: str = "") -> str:
         merged = f"{prev_query} {prev_answer} {query}".strip()
         prompt = _REWRITE_PROMPT.format(query=merged, context="Follow-up question")
-        return _run_async(llm.generate(prompt, max_tokens=200)).strip()
+        return _run_async(llm.complete(prompt, max_tokens=200)).strip()
 
     return [
         StructuredTool.from_function(_query_rewrite, name="query_rewrite",

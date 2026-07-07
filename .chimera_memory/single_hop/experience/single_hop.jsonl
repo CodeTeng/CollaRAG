@@ -1,0 +1,1 @@
+{"intent": "single_hop", "query_text": "Where was Einstein born?", "tool_sequence": [], "final_quality": 0.75, "outcome": "success", "hit_count": 0}

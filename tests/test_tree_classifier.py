@@ -10,7 +10,7 @@ class FakeLLM:
     def __init__(self, response: str = "single_hop"):
         self.response = response
 
-    async def generate(self, prompt: str, **kwargs) -> str:
+    async def complete(self, prompt: str, **kwargs) -> str:
         return self.response
 
 

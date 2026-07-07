@@ -4,7 +4,7 @@ from chimera_rag.core.types import Chunk, Query, RetrievalResult
 
 
 class MockLLM:
-    async def generate(self, prompt: str, **kw) -> str:
+    async def complete(self, prompt: str, **kw) -> str:
         if "category" in prompt.lower() or "classify" in prompt.lower():
             return "single_hop"
         return "Mock answer based on evidence."

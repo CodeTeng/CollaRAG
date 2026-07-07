@@ -25,7 +25,7 @@ def _mock_assess():
 
 def test_native_rag_produces_answer():
     class FakeLLM:
-        async def generate(self, prompt, **kw):
+        async def complete(self, prompt, **kw):
             return "Einstein was born in Ulm, Germany."
 
     agent = NativeRAGAgent(

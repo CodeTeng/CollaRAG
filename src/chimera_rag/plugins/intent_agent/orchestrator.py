@@ -101,7 +101,7 @@ class MultiAgentRetriever(BaseRetriever):
 
         # 2. Greeting short-circuit
         if label == "greeting":
-            greeting_text = _run_async(self.llm.generate(
+            greeting_text = _run_async(self.llm.complete(
                 f"Respond warmly to this greeting: {query.text}", max_tokens=100,
             ))
             return RetrievalResult(

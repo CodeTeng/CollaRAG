@@ -3,7 +3,7 @@ from chimera_rag.plugins.intent_agent.tools.preprocess_tools import build_prepro
 
 
 class FakeLLM:
-    async def generate(self, prompt: str, **kw) -> str:
+    async def complete(self, prompt: str, **kw) -> str:
         if "rewrite" in prompt.lower() or "改写" in prompt.lower():
             return "What is Albert Einstein's birthplace?"
         if "coreference" in prompt.lower() or "指代" in prompt.lower():

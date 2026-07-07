@@ -202,6 +202,7 @@ class IntentAgentConfig(BaseModel):
     intent_classifier: dict[str, Any] = Field(default_factory=dict)
     strategies: dict[str, Any] = Field(default_factory=dict)
     hooks: dict[str, Any] = Field(default_factory=dict)
+    multi_agent: dict[str, Any] = Field(default_factory=dict)
 
 
 class PluginsConfig(BaseModel):

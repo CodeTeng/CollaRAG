@@ -17,7 +17,7 @@ def _mock_hybrid():
 
 def test_map_reduce_produces_summary():
     class FakeLLM:
-        async def generate(self, prompt, **kw):
+        async def complete(self, prompt, **kw):
             if "extract" in prompt.lower() or "key information" in prompt.lower():
                 return "Key point from this chunk."
             return "Summary: The topic has two main points."

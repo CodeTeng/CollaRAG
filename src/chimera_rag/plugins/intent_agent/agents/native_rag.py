@@ -34,7 +34,7 @@ class NativeRAGAgent(BaseAgent):
             context.trace["low_confidence"] = quality < self.config.get("quality_threshold", 0.4)
 
         prompt = _GENERATE_PROMPT.format(evidence=evidence, query=query.text)
-        answer_text = _run_async(llm.generate(prompt, max_tokens=512))
+        answer_text = _run_async(llm.complete(prompt, max_tokens=512))
 
         return Answer(
             text=answer_text.strip(),

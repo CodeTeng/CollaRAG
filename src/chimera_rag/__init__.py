@@ -452,6 +452,31 @@ class ChimeraRAG:
         # + classifier + optional hooks. We inspect the ctor and adapt.
         param_names = set(sig.parameters.keys())
 
+        # Multi-agent retriever — wires the full multi-agent orchestrator.
+        if cls.__name__ == "MultiAgentRetriever":
+            wiring: dict = {
+                "llm": self.llm,
+                "vector_store": self.vector_store,
+                "graph_store": self.graph_store,
+                "embedder": self.embedder,
+                "chunk_lookup": self.state.chunk_lookup,
+            }
+            ma_cfg = self.config.plugins.intent_agent.multi_agent
+            if ma_cfg.get("memory", {}).get("shared", {}).get("path"):
+                wiring["memory_path"] = ma_cfg["memory"]["shared"]["path"]
+            if ma_cfg.get("classifier"):
+                wiring["classifier_config"] = ma_cfg["classifier"]
+            agent_configs: dict = {}
+            _LABEL_MAP = {
+                "native_rag": "single_hop", "react": "multi_hop",
+                "map_reduce": "summarization", "web_search": "other",
+            }
+            for key, label in _LABEL_MAP.items():
+                if key in ma_cfg:
+                    agent_configs[label] = ma_cfg[key]
+            wiring["agent_configs"] = agent_configs
+            return cls(**wiring)
+
         if "base_retriever" in param_names:
             # IntentAgent-style retriever: wrap a DirectRetriever under the hood.
             from chimera_rag.defaults.direct_retriever import DirectRetriever
