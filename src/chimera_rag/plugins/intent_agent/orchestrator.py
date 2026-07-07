@@ -90,8 +90,8 @@ class MultiAgentRetriever(BaseRetriever):
 
     @staticmethod
     def _default_reflector():
-        from chimera_rag.plugins.intent_agent.hooks.reflection_hook import HeuristicReflectionHook
-        return HeuristicReflectionHook()
+        from chimera_rag.plugins.intent_agent.tools.quality_evaluator import HeuristicQualityEvaluator
+        return HeuristicQualityEvaluator()
 
     def retrieve(self, query: Query, top_k: int = 5) -> RetrievalResult:
         # 1. Classify

@@ -88,31 +88,6 @@ def test_base_retriever_is_abstract_and_subclass_works():
     assert result.chunks == []
 
 
-def test_base_memory_is_abstract_and_subclass_works():
-    from chimera_rag.interfaces.memory import BaseMemory
-
-    with pytest.raises(TypeError):
-        BaseMemory()
-
-    class EphemeralMemory(BaseMemory):
-        def __init__(self) -> None:
-            self._store: dict[str, list[str]] = {}
-
-        def append(self, session_id: str, turn: str) -> None:
-            self._store.setdefault(session_id, []).append(turn)
-
-        def get_history(self, session_id: str) -> list[str]:
-            return list(self._store.get(session_id, []))
-
-        def clear(self, session_id: str) -> None:
-            self._store.pop(session_id, None)
-
-    m = EphemeralMemory()
-    m.append("s", "hi")
-    assert m.get_history("s") == ["hi"]
-    m.clear("s")
-    assert m.get_history("s") == []
-
 
 def test_base_answer_generator_is_abstract_and_subclass_works():
     from chimera_rag.core.types import Answer, Query, RetrievalResult

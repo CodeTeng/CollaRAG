@@ -1,23 +1,14 @@
-"""Heuristic reflection hook (no LLM required).
+"""Heuristic quality evaluator — lightweight, no LLM required.
 
-Scores an answer's quality by simple, local signals:
-
-* length (very short answers are suspicious)
-* presence of "I don't know" / refusal phrases
-* whether evidence_chunk_ids is non-empty
-* whether query key tokens appear in the answer
-
-A real LLM-backed reflector lives in a future TDD cycle; this one is
-deterministic enough for tests and useful as a real default.
+Scores an answer by: length, refusal detection, query token overlap,
+evidence presence. Used as the default reflector in MultiAgentRetriever
+when no explicit reflector is provided.
 """
-
 from __future__ import annotations
 
 import re
 
-from chimera_rag.core.registry import register
 from chimera_rag.core.types import Answer, QualityFeedback, Query
-from chimera_rag.interfaces.reflector import BaseReflector
 
 _REFUSAL_RE = re.compile(
     r"\b(i (?:do not|don'?t) know|not enough (?:context|information)|unknown)\b", re.I
@@ -25,8 +16,7 @@ _REFUSAL_RE = re.compile(
 _WORD_RE = re.compile(r"\w+")
 
 
-@register("reflector", "intent_agent.heuristic")
-class HeuristicReflectionHook(BaseReflector):
+class HeuristicQualityEvaluator:
     """Non-LLM, deterministic quality estimator."""
 
     def __init__(self, min_length: int = 10) -> None:
@@ -38,22 +28,18 @@ class HeuristicReflectionHook(BaseReflector):
             return QualityFeedback(quality=0.0, relevance=0.0, completeness=0.0,
                                    suggestion="empty answer")
 
-        # Signal 1: refusal/unknown
         if _REFUSAL_RE.search(text):
             return QualityFeedback(
                 quality=0.2, relevance=0.3, completeness=0.1,
                 suggestion="answer refuses; re-retrieve or widen strategy",
             )
 
-        # Signal 2: length
         length_score = min(1.0, len(text) / max(self.min_length, 1) / 4)
 
-        # Signal 3: query token overlap
         q_tokens = {t.lower() for t in _WORD_RE.findall(query.text)}
         a_tokens = {t.lower() for t in _WORD_RE.findall(text)}
         overlap = len(q_tokens & a_tokens) / max(1, len(q_tokens))
 
-        # Signal 4: evidence present
         has_evidence = 1.0 if answer.evidence_chunk_ids else 0.5
 
         relevance = float(0.5 * overlap + 0.5 * has_evidence)
@@ -68,4 +54,4 @@ class HeuristicReflectionHook(BaseReflector):
         )
 
 
-__all__ = ["HeuristicReflectionHook"]
+__all__ = ["HeuristicQualityEvaluator"]

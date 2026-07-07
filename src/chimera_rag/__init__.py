@@ -277,9 +277,6 @@ class ChimeraRAG:
         retr = self._query.retriever
         if hasattr(retr, "chunk_lookup"):
             retr.chunk_lookup = self.state.chunk_lookup
-        base = getattr(retr, "base", None)
-        if base is not None and hasattr(base, "chunk_lookup"):
-            base.chunk_lookup = self.state.chunk_lookup
         return True
 
     # ------------------------------------------------------------------
@@ -335,12 +332,6 @@ class ChimeraRAG:
             retr.graph_store = self.graph_store
         if hasattr(retr, "vector_store"):
             retr.vector_store = self.vector_store
-        # IntentAgentRetriever wraps a base retriever; patch its base too.
-        base = getattr(retr, "base", None)
-        if base is not None:
-            base.chunk_lookup = self.state.chunk_lookup
-            base.graph_store = self.graph_store
-            base.vector_store = self.vector_store
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -477,49 +468,6 @@ class ChimeraRAG:
             wiring["agent_configs"] = agent_configs
             return cls(**wiring)
 
-        if "base_retriever" in param_names:
-            # IntentAgent-style retriever: wrap a DirectRetriever under the hood.
-            from chimera_rag.defaults.direct_retriever import DirectRetriever
-
-            inner_hops = int(call_params.pop("neighbor_hops", 1))
-            base = DirectRetriever(
-                vector_store=self.vector_store,
-                graph_store=self.graph_store,
-                embedder=self.embedder,
-                chunk_lookup=self.state.chunk_lookup,
-                neighbor_hops=inner_hops,
-            )
-            wiring: dict = {"base_retriever": base}
-            if "classifier" in param_names:
-                # Use the already-instantiated query intent classifier if we have one,
-                # otherwise create a default LLM one.
-                from chimera_rag.plugins.intent_agent.intent_classifier import (
-                    LLMIntentClassifier,
-                )
-
-                wiring["classifier"] = LLMIntentClassifier(llm=self.llm)
-            # Agentic retrievers (intent_agent.langgraph) additionally need the
-            # shared LLM provider and the graph store to drive tool selection.
-            if "llm" in param_names:
-                wiring["llm"] = self.llm
-            if "graph_store" in param_names:
-                wiring["graph_store"] = self.graph_store
-            # Innovation #2c — experiential memory. The yaml carries a config
-            # dict (enabled/path/recall_top_n/max_per_bucket); turn it into a
-            # concrete BaseExperientialMemory instance when enabled.
-            if "experiential_memory" in param_names:
-                self._wire_experiential_memory(call_params, wiring)
-            # Reranking hook — cross-encoder or token-overlap reranker.
-            # Config lives in plugins.intent_agent.hooks.reranking.
-            if "reranker" in param_names:
-                self._wire_reranker(wiring)
-            # Reflection hook — heuristic or LLM-backed self-reflection.
-            # Config lives in plugins.intent_agent.hooks.reflection.
-            # Also wires Self-Reflection loop params (max_iterations, quality_threshold).
-            if "reflector" in param_names:
-                self._wire_reflector(wiring, call_params)
-            return cls(**{**wiring, **call_params})
-
         # Classic DirectRetriever signature.
         return cls(
             vector_store=self.vector_store,
@@ -528,129 +476,6 @@ class ChimeraRAG:
             chunk_lookup=self.state.chunk_lookup,
             **call_params,
         )
-
-    def _wire_reranker(self, wiring: dict) -> None:
-        """Translate the yaml reranking hook config into a BaseReranker instance.
-
-        Reads ``plugins.intent_agent.hooks.reranking`` and, when ``enabled`` is
-        true, instantiates either a :class:`CrossEncoderReranker` (requires the
-        ``reranker`` extra) or a :class:`TokenOverlapRerankerHook` (always
-        available, no external dependency). A missing / disabled config leaves
-        the retriever's ``reranker=None`` default — i.e. no reranking.
-        """
-        cfg = self.config.plugins.intent_agent.hooks.get("reranking", {})
-        if not isinstance(cfg, dict) or not cfg.get("enabled", False):
-            return
-
-        reranker_type = cfg.get("type", "cross_encoder")
-        reranker_kwargs: dict = {}
-        top_n = cfg.get("top_n")
-        if top_n is not None:
-            reranker_kwargs["top_n"] = int(top_n)
-
-        if reranker_type == "token_overlap":
-            from chimera_rag.plugins.intent_agent.hooks.reranking_hook import (
-                TokenOverlapRerankerHook,
-            )
-            wiring["reranker"] = TokenOverlapRerankerHook(**reranker_kwargs)
-            return
-
-        # Default: cross_encoder — requires sentence-transformers.
-        model_name = cfg.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
-        reranker_kwargs["model_name"] = model_name
-        if "device" in cfg:
-            reranker_kwargs["device"] = cfg["device"]
-        if "max_length" in cfg:
-            reranker_kwargs["max_length"] = int(cfg["max_length"])
-
-        try:
-            from chimera_rag.plugins.intent_agent.hooks.cross_encoder_reranker import (
-                CrossEncoderReranker,
-            )
-            wiring["reranker"] = CrossEncoderReranker(**reranker_kwargs)
-        except ImportError as exc:
-            logger_ = __import__("logging").getLogger(__name__)
-            logger_.warning(
-                "cross_encoder reranker requested but sentence-transformers not installed "
-                "(%s); falling back to token_overlap reranker. "
-                "Install with: uv sync --extra reranker",
-                exc,
-            )
-            from chimera_rag.plugins.intent_agent.hooks.reranking_hook import (
-                TokenOverlapRerankerHook,
-            )
-            wiring["reranker"] = TokenOverlapRerankerHook(**reranker_kwargs)
-
-    def _wire_reflector(self, wiring: dict, call_params: dict) -> None:
-        """Translate the yaml reflection hook config into a BaseReflector instance.
-
-        Reads ``plugins.intent_agent.hooks.reflection`` and, when ``enabled``
-        is true, instantiates either a :class:`LLMReflectionHook` (requires
-        the shared LLM provider for verbal self-critique) or a
-        :class:`HeuristicReflectionHook` (rule-based, no LLM needed).
-
-        Also wires Self-Reflection loop parameters (max_iterations and
-        quality_threshold) from the reflection config into the retriever's
-        constructor kwargs, so IntentAgentRetriever's multi-round loop can
-        pick them up automatically.
-        """
-        cfg = self.config.plugins.intent_agent.hooks.get("reflection", {})
-        if not isinstance(cfg, dict) or not cfg.get("enabled", False):
-            return
-
-        reflector_type = cfg.get("type", "heuristic")
-        reflector_kwargs: dict = {}
-        if "min_length" in cfg:
-            reflector_kwargs["min_length"] = int(cfg["min_length"])
-
-        if reflector_type == "llm_reflection":
-            from chimera_rag.plugins.intent_agent.hooks.llm_reflection_hook import (
-                LLMReflectionHook,
-            )
-            reflector_kwargs["llm"] = self.llm
-            wiring["reflector"] = LLMReflectionHook(**reflector_kwargs)
-        else:
-            # Default: heuristic — no LLM dependency, always available.
-            from chimera_rag.plugins.intent_agent.hooks.reflection_hook import (
-                HeuristicReflectionHook,
-            )
-            wiring["reflector"] = HeuristicReflectionHook(**reflector_kwargs)
-
-        # Wire Self-Reflection loop parameters into the retriever constructor.
-        # These are read from the same reflection config block so users can
-        # tune the loop from a single place.
-        max_iterations = cfg.get("max_iterations")
-        if max_iterations is not None:
-            call_params.setdefault("max_reflection_iterations", int(max_iterations))
-
-        quality_threshold = cfg.get("quality_threshold")
-        if quality_threshold is not None:
-            call_params.setdefault("reflection_quality_threshold", float(quality_threshold))
-
-    @staticmethod
-    def _wire_experiential_memory(call_params: dict, wiring: dict) -> None:
-        """Translate the yaml experiential_memory config into an instance.
-
-        Mutates ``call_params`` (pops the raw config) and ``wiring`` (adds the
-        constructed memory + recall_top_n). A missing / disabled config leaves
-        the retriever's ``experiential_memory=None`` default — i.e. pure 2b.
-        """
-        raw = call_params.pop("experiential_memory", None)
-        if not isinstance(raw, dict) or not raw.get("enabled", False):
-            return
-
-        from chimera_rag.plugins.intent_agent.experiential_memory import (
-            FileExperientialMemory,
-        )
-
-        mem_kwargs: dict = {}
-        if "path" in raw:
-            mem_kwargs["path"] = raw["path"]
-        if "max_per_bucket" in raw:
-            mem_kwargs["max_per_bucket"] = int(raw["max_per_bucket"])
-        wiring["experiential_memory"] = FileExperientialMemory(**mem_kwargs)
-        if "recall_top_n" in raw:
-            wiring["experiential_recall_top_n"] = int(raw["recall_top_n"])
 
     def _instantiate_generator(self, cls: type, params: dict) -> BaseAnswerGenerator:
         call_params = self._filter_params(cls, params)
