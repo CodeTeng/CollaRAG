@@ -159,15 +159,16 @@ query → Preprocessor Agent → Tree-Intent Classifier
 
 ## 配置文件
 
-`configs/` 提供 5 份 yaml 预设：
+`configs/` 提供 6 份 yaml 预设：
 
 | 文件 | AdaGraph | IntentAgent | 用途 |
 |---|:---:|:---:|---|
 | `default.yaml` | — | — | 全字段注释模板 |
 | `deepseek_vanilla.yaml` | off | off | 裸 KG-RAG 基线 |
 | `deepseek_adagraph_only.yaml` | on | off | 仅测创新点 1 |
-| `deepseek_intent_only.yaml` | off | on | 仅测创新点 2 |
+| `deepseek_intent_only.yaml` | off | on | 仅测创新点 2（云端 DeepSeek） |
 | `deepseek_full.yaml` | on | on | 全启用 |
+| `ollama_intent_only.yaml` | off | on | 仅测创新点 2（本地 Ollama，免 API 费用） |
 
 ---
 
