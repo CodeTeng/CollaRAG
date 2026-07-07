@@ -122,6 +122,7 @@ texput.log
 data/musique/_musique_release.zip
 
 # ---------- AI / Agent 工具 ----------
+.agentix/
 .aone_copilot/
 .chimera_memory/
 .codegraph/
