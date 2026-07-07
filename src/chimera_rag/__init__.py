@@ -307,8 +307,8 @@ class ChimeraRAG:
         elif name == "intent_agent":
             self.config.plugins.intent_agent.enabled = enabled
             if enabled:
-                self.config.query.intent_classifier.active = "intent_agent.llm"
-                self.config.query.retriever.active = "intent_agent.strategy_selector"
+                self.config.query.intent_classifier.active = "intent_agent.tree"
+                self.config.query.retriever.active = "intent_agent.multi_agent"
             else:
                 self.config.query.intent_classifier.active = "defaults.rule"
                 self.config.query.retriever.active = "defaults.direct"

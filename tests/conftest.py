@@ -53,10 +53,10 @@ def _mock_config_yaml(
         query_lines = [
             "query:",
             "  intent_classifier:",
-            "    active: intent_agent.llm",
+            "    active: intent_agent.tree",
             "    params: {}",
             "  retriever:",
-            "    active: intent_agent.strategy_selector",
+            "    active: intent_agent.multi_agent",
             "    params: { top_k: 5, neighbor_hops: 1 }",
             "  generator:",
             "    active: defaults.prompt",

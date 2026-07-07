@@ -22,8 +22,8 @@ def test_intent_agent_plugin_activates_when_enabled(intent_agent_config: Path):
     assert active["extractor"].startswith("defaults.")
     assert active["pruner"].startswith("defaults.")
     # Query side is taken over by intent_agent.
-    assert active["intent_classifier"] == "intent_agent.llm"
-    assert active["retriever"] == "intent_agent.strategy_selector"
+    assert active["intent_classifier"] == "intent_agent.tree"
+    assert active["retriever"] == "intent_agent.multi_agent"
 
 
 def test_intent_agent_end_to_end_ingest_then_query(intent_agent_config: Path):
@@ -47,6 +47,5 @@ def test_intent_agent_end_to_end_ingest_then_query(intent_agent_config: Path):
     assert isinstance(ans.text, str)
     # intent_label must have been populated by the agent.
     assert ans.intent_label in {
-        "factual", "analytical", "comparative",
-        "multi_hop", "exploratory", "follow_up",
+        "greeting", "single_hop", "multi_hop", "summarization", "other",
     }

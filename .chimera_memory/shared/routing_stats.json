@@ -2,5 +2,13 @@
   "1cdfb008894804df74fbc3f6b67b6e3f": {
     "intent": "single_hop",
     "agent": "single_hop"
+  },
+  "ce90ffd0e29ab4c4dea5d4e158387871": {
+    "intent": "single_hop",
+    "agent": "single_hop"
+  },
+  "31aaf0afaeec0f78201d0b13cb6ef8be": {
+    "intent": "multi_hop",
+    "agent": "multi_hop"
   }
 }

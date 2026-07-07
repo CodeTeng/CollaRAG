@@ -22,8 +22,8 @@ def test_full_config_activates_both_plugins_across_all_slots(full_config: Path):
     assert active["extractor"].startswith("adagraph.")
     assert active["pruner"].startswith("adagraph.")
     # query side -> IntentAgent
-    assert active["intent_classifier"] == "intent_agent.llm"
-    assert active["retriever"] == "intent_agent.strategy_selector"
+    assert active["intent_classifier"] == "intent_agent.tree"
+    assert active["retriever"] == "intent_agent.multi_agent"
 
 
 def test_full_pipeline_ingest_then_query_with_both_plugins(full_config: Path):
@@ -45,10 +45,9 @@ def test_full_pipeline_ingest_then_query_with_both_plugins(full_config: Path):
     )
     ans = crag.query(Query(text="Who invented dynamite?"))
     assert isinstance(ans.text, str)
-    # intent is populated by IntentAgent
+    # intent is populated by multi-agent classifier
     assert ans.intent_label in {
-        "factual", "analytical", "comparative",
-        "multi_hop", "exploratory", "follow_up",
+        "greeting", "single_hop", "multi_hop", "summarization", "other",
     }
 
 

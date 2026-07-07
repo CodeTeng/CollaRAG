@@ -18,7 +18,7 @@ from chimera_rag.plugins.intent_agent import orchestrator as _orchestrator  # no
 from chimera_rag.plugins.intent_agent import (  # noqa: F401
     experiential_memory,
     intent_classifier,
-    memory,
+    session_memory,
 )
 
 # Legacy modules that may fail if old code is partially present
