@@ -207,17 +207,17 @@ ingestion:
     params: {}
 
 # --------------------------------------------------------------------------
-# 查询阶段——创新点二 IntentAgent 插件入口在这里
+# 查询阶段——创新点二 IntentAgent 多Agent架构入口
 # --------------------------------------------------------------------------
 query:
   intent_classifier:
-    active: defaults.rule          # defaults.rule / intent_agent.llm
+    active: defaults.rule          # defaults.rule / intent_agent.tree
     params: {}
   retriever:
-    active: defaults.direct        # defaults.direct / intent_agent.strategy_selector
+    active: defaults.direct        # defaults.direct / intent_agent.multi_agent
     params:
       top_k: 5
-      neighbor_hops: 1             # 图上邻居扩展跳数
+      neighbor_hops: 1             # 图上邻居扩展跳数（仅 defaults.direct 使用）
   generator:
     active: defaults.prompt
     params:
@@ -242,32 +242,50 @@ plugins:
       similarity_threshold: 0.85   # 相似性冗余剪枝阈值（Jaccard）
       enable_transitive: false     # 传递性冗余（保留位，暂不实装）
 
-  # 创新点二：意图感知智能体
+  # 创新点二：多Agent意图感知检索
   intent_agent:
     enabled: false
-    memory:
-      backend: in_memory           # in_memory / redis（未实装）
-      max_history: 10              # 每个 session 保留的最近历史轮数
-    intent_classifier:
-      provider: llm                # llm / rule
-      confidence_threshold: 0.6    # LLM 置信度低于此值时回退规则
-    strategies:
-      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
-    hooks:
-      reflection:                  # Self-Reflection hook (heuristic / llm_reflection)
-        enabled: false
-        type: heuristic            # heuristic (rule-based, no LLM) / llm_reflection (verbal critique via LLM)
-        quality_threshold: 0.6     # 反思退出阈值（quality >= 此值时停止循环）
-        max_iterations: 3          # Self-Reflection 最大迭代轮数
-      reranking:                   # 重排（cross-encoder / token_overlap）
-        enabled: false              # 需安装 reranker extra: uv sync --extra reranker
-        type: cross_encoder         # cross_encoder | token_overlap
-        model: cross-encoder/ms-marco-MiniLM-L-6-v2
-        top_n: 10
-        device: null                # null = auto（CUDA/MPS/CPU）
-      parallel_pool:               # 并行检索池
-        enabled: false
-        max_workers: 4
+    multi_agent:
+      # 树形意图分类器
+      classifier:
+        confidence_threshold: 0.7    # LLM 分类置信度阈值
+        rule_fallback: true          # LLM 输出无效时回退到规则分类
+
+      # 预处理 Agent
+      preprocessor:
+        enable_rewrite: true         # 查询改写
+        enable_coreference: true     # 指代消解
+        enable_followup_merge: true  # 追问拼接
+
+      # Native RAG Agent（单跳查询）
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4      # 低于此值标记 low_confidence
+
+      # ReAct Agent（多跳/比较/探索查询）
+      react:
+        max_iterations: 3           # ReAct 循环最大轮数
+        quality_threshold: 0.6      # 反思退出阈值
+
+      # Map-Reduce Agent（归纳总结查询）
+      map_reduce:
+        retrieve_top_k: 50          # 检索候选 chunk 数量
+        map_concurrency: 5          # Map 阶段并发数
+
+      # WebSearch + LLM Agent（超出知识库范围的查询）
+      web_search:
+        search_backend: duckduckgo  # duckduckgo / serpapi
+        max_results: 5
+        supplement_local: true      # 是否同时查本地知识库
+
+      # 双层记忆
+      memory:
+        shared:
+          path: .chimera_memory/shared
+          qa_cache_ttl: 3600
+          max_qa_cache: 1000
+        agent_private:
+          max_per_bucket: 200
 
 # --------------------------------------------------------------------------
 # Web 服务

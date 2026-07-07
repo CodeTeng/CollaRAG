@@ -2,8 +2,7 @@
 # deepseek_full.yaml
 #
 # 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
-#       两个创新点（AdaGraph + IntentAgent）全部启用。
-#       parallel_pool hook 开启；reflection / reranking hook 默认关（避免额外延迟）。
+#       两个创新点（AdaGraph + 多Agent IntentAgent）全部启用。
 # 典型场景：
 #   - 最终演示配置：展示两创新点叠加后的 EM / F1 / ROUGE-L 最高分
 #   - 与 deepseek_vanilla 对比展示完整增益
@@ -22,7 +21,6 @@ logging:
 
 llm:
   provider: deepseek
-  # model / api_key / base_url 来自 .env（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）
   temperature: 0.1
   max_tokens: 512
   timeout: 60
@@ -34,7 +32,7 @@ embedding:
   dim: 384
   batch_size: 32
   normalize: true
-  device: cpu                   # cpu / cuda / mps / auto
+  device: cpu
 
 storage:
   graph:
@@ -42,17 +40,12 @@ storage:
     persist_path: ./storage/deepseek_full/graph.gpickle
   vector:
     backend: faiss
-    index_type: hnsw            # flat_ip / flat_l2 / ivf_flat / hnsw
-    metric: ip                  # ip / l2
+    index_type: hnsw
+    metric: ip
     persist_path: ./storage/deepseek_full/vectors
     top_k: 5
-    hnsw:
-      M: 32
-      ef_construction: 200
-      ef_search: 64
-    ivf:
-      nlist: 100
-      nprobe: 8
+    hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
+    ivf: { nlist: 100, nprobe: 8 }
 
 datasets:
   mock_wiki:
@@ -61,6 +54,7 @@ datasets:
     qa_path: ./data/mock_wiki/qa.jsonl
     output_dir: ./output/mock_wiki
 
+# AdaGraph ON
 ingestion:
   chunker:
     active: adagraph.dynamic
@@ -78,14 +72,14 @@ ingestion:
       similarity_threshold: 0.85
       enable_transitive: false
 
+# IntentAgent ON — 多Agent架构
 query:
   intent_classifier:
     active: intent_agent.tree
-    params:
-      confidence_threshold: 0.55
+    params: {}
   retriever:
     active: intent_agent.multi_agent
-    params: { top_k: 5, neighbor_hops: 1 }
+    params: {}
   generator:
     active: defaults.prompt
     params: {}
@@ -104,16 +98,26 @@ plugins:
       enable_transitive: false
   intent_agent:
     enabled: true
-    memory:
-      max_history: 10
-    intent_classifier:
-      confidence_threshold: 0.55
-    strategies:
-      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
-    hooks:
-      reflection: { enabled: false, type: heuristic }
-      reranking: { enabled: false, type: cross_encoder, model: cross-encoder/ms-marco-MiniLM-L-6-v2, top_n: 10 }
-      parallel_pool: { enabled: true, max_workers: 4 }
+    multi_agent:
+      classifier:
+        confidence_threshold: 0.7
+        rule_fallback: true
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4
+      react:
+        max_iterations: 3
+        quality_threshold: 0.6
+      map_reduce:
+        retrieve_top_k: 50
+      web_search:
+        search_backend: duckduckgo
+        max_results: 5
+      memory:
+        shared:
+          path: .chimera_memory/shared
+        agent_private:
+          max_per_bucket: 200
 
 web:
   host: 0.0.0.0

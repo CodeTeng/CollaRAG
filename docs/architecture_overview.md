@@ -1,220 +1,220 @@
 # 架构总览：Chimera-RAG 如何承载双创新点
 
-> 本文档根据 `docs/plan.md` 与 `src/chimera_rag/` 实际实装整理，不依赖历史设计材料。目的是让读者在进入两个创新点的细节文档之前，先看清"**注册表 + 插槽 + yaml 开关**"这套骨架是如何设计的，以及两个创新点如何以**纯插件形态**挂载其上。
+> 本文档基于 `src/chimera_rag/` 实际实装整理。目的是让读者先看清"**注册表 + 插槽 + yaml 开关**"这套骨架是如何设计的，以及两个创新点如何以**纯插件形态**挂载其上。
 
 ---
 
 ## 1. 项目定位
 
-**Chimera-RAG** 是一个从零自研的、基于知识图谱的可插拔 RAG 框架，由 `docs/plan.md` 定义为以下五件事的集合：
+**Chimera-RAG** 是一个从零自研的、基于知识图谱的可插拔 RAG 框架：
 
 1. **一个可独立运行的裸 KG-RAG 基线**：固定分块 + LLM 显式三元组提取 + NetworkX 图存储 + FAISS 向量索引 + 直接检索 + LLM 生成。
 2. **两个研究创新点作为可选插件**：
-   - **AdaGraph**（知识构建阶段增强，plan.md 中标注为原 DEKER）
-   - **IntentAgent**（查询阶段智能体，plan.md 中标注为原 MRDE）
+   - **AdaGraph**（知识构建阶段增强）
+   - **IntentAgent**（查询阶段多Agent智能检索）
 3. **一套注册表驱动的依赖注入机制**：创新点开/关只改一行 yaml，`core/` 代码不动。
-4. **一个 FastAPI + React 的演示系统**：单端口部署，包含 ingest/查询/图谱/评测/插件开关/配置编辑/追踪七个页面。
+4. **一个 FastAPI + React 的演示系统**：单端口部署。
 5. **一个 TDD 体系**：全部实现由失败测试驱动，所有测试默认 `MockProvider`，CI 零 API key 依赖。
-
-项目名取自希腊神话融合体 Chimera，对应"知识构建 × 智能检索"两个头并存（plan.md §实施策略）。
 
 ---
 
 ## 2. 分层架构
 
-`docs/plan.md` 的架构图（Mermaid）在实际代码中落地为如下六层：
-
 | 层 | 目录 | 职责 | 允许 import |
 |---|---|---|---|
-| **入口层** | `main.py` + `src/chimera_rag/cli.py` | 六个子命令的 argparse 分发 | 全部 |
+| **入口层** | `main.py` + `src/chimera_rag/cli.py` | 子命令的 argparse 分发 | 全部 |
 | **门面层** | `src/chimera_rag/__init__.py` 的 `ChimeraRAG` | 组装所有插槽、暴露 `ingest/query/stats/toggle_plugin` | 全部 |
 | **核心层** | `src/chimera_rag/core/` | `types / config / registry / pipeline / logging / exceptions / env_loader` | 仅 `interfaces/` |
-| **接口层** | `src/chimera_rag/interfaces/` | 14 个 ABC（见下表） | 仅 `core/types` |
-| **默认层** | `src/chimera_rag/defaults/` | 9 个裸实现，都以 `defaults.<name>` 注册 | `core/` + `interfaces/` |
-| **插件层** | `src/chimera_rag/plugins/adagraph/` 与 `plugins/intent_agent/` | 两个创新点，均以 `<plugin>.<name>` 注册 | `core/` + `interfaces/` + `defaults/`（仅复用，不反向引用） |
+| **接口层** | `src/chimera_rag/interfaces/` | ABC 接口 | 仅 `core/types` |
+| **默认层** | `src/chimera_rag/defaults/` | 裸实现，都以 `defaults.<name>` 注册 | `core/` + `interfaces/` |
+| **插件层** | `src/chimera_rag/plugins/adagraph/` 与 `plugins/intent_agent/` | 两个创新点，均以 `<plugin>.*` 注册 | `core/` + `interfaces/` + `defaults/`（仅复用，不反向引用） |
 
-**依赖方向（plan.md §实施注意事项 第 1 条）**：`core/` **绝不** import `defaults/` 和 `plugins/`，这是保证"关闭插件即降级"契约的前提，由 `tests/test_plugin_toggle_regression.py` 守护。
+**依赖方向**：`core/` **绝不** import `defaults/` 和 `plugins/`，由 `tests/test_plugin_toggle_regression.py` 守护。
 
 ---
 
-## 3. 14 个抽象接口
+## 3. 核心接口
 
-`src/chimera_rag/interfaces/` 下每个 ABC 对应 `registry.py` 中的一个 slot 名（plan.md §关键代码结构）：
+`src/chimera_rag/interfaces/` 下每个 ABC 对应 `registry.py` 中的一个 slot 名：
 
-| 接口文件 | slot 名 | 典型默认实现（`defaults.*`） | 两创新点覆盖 |
-|---|---|---|---|
-| `chunker.py` | `chunker` | `defaults.fixed` | **AdaGraph** → `adagraph.dynamic` |
-| `extractor.py` | `extractor` | `defaults.simple_llm` | **AdaGraph** → `adagraph.layered` |
-| `pruner.py` | `pruner` | `defaults.noop` | **AdaGraph** → `adagraph.dual_redundancy` |
-| `intent_classifier.py` | `intent_classifier` | `defaults.rule` | **IntentAgent** → `intent_agent.llm` |
-| `retriever.py` | `retriever` | `defaults.direct` | **IntentAgent** → `intent_agent.strategy_selector` |
-| `strategy.py`（async） | `strategy` | — | **IntentAgent** → `intent_agent.{direct/multi_hop/parallel/iterative/expansion/context_aware}` |
-| `reflector.py`（async） | `reflector` | `defaults.noop` | **IntentAgent** → `intent_agent.heuristic` / `intent_agent.llm_reflection`（Self-Reflection，创新点 2d） |
-| `reranker.py`（async） | `reranker` | `defaults.noop` | **IntentAgent** → `intent_agent.token_overlap` / `intent_agent.cross_encoder`（需 `--extra reranker`） |
-| `memory.py` | `memory` | `defaults.none` | **IntentAgent** → `intent_agent.session` |
-| `generator.py` | `generator` | `defaults.prompt` | — |
-| `llm_provider.py`（async） | `llm_provider` | `mock / openai / deepseek / ollama` | — |
-| `embedding_provider.py` | `embedding_provider` | `mock / openai / ollama / sentence_transformer` | — |
-| `graph_store.py` | `graph_store` | `networkx`（`neo4j` 占位） | — |
-| `vector_store.py` | `vector_store` | `faiss`（flat_ip / flat_l2 / hnsw / ivf_flat） | — |
+| 接口文件 | slot 名 | 默认实现 | AdaGraph 覆盖 | IntentAgent 覆盖 |
+|---|---|---|---|---|
+| `chunker.py` | `chunker` | `defaults.fixed` | `adagraph.dynamic` | — |
+| `extractor.py` | `extractor` | `defaults.simple_llm` | `adagraph.layered` | — |
+| `pruner.py` | `pruner` | `defaults.noop` | `adagraph.dual_redundancy` | — |
+| `intent_classifier.py` | `intent_classifier` | `defaults.rule` | — | `intent_agent.tree` |
+| `retriever.py` | `retriever` | `defaults.direct` | — | `intent_agent.multi_agent` |
+| `generator.py` | `generator` | `defaults.prompt` | — | — |
+| `llm_provider.py` | `llm_provider` | `mock / openai / deepseek / ollama` | — | — |
+| `embedding_provider.py` | `embedding_provider` | `mock / openai / ollama / sentence_transformer` | — | — |
+| `graph_store.py` | `graph_store` | `networkx` | — | — |
+| `vector_store.py` | `vector_store` | `faiss` | — | — |
+| `base_agent.py` | — | — | — | `BaseAgent` ABC + `AgentContext` |
 
-> 表中标出的"两创新点覆盖"列即本文档的切入点：**AdaGraph 占 3 个插槽，IntentAgent 占 6 个插槽**，彼此不重叠，这就是两者天然正交的结构性原因。
+**AdaGraph 占 3 个构建插槽，IntentAgent 占 2 个查询插槽**，彼此不重叠。
 
 ---
 
 ## 4. 注册表如何工作
 
-### 4.1 装饰器写法（`src/chimera_rag/core/registry.py`）
+### 4.1 装饰器写法
 
 ```python
 @register("chunker", "adagraph.dynamic")
-class DynamicChunker(BaseChunker):
-    ...
+class DynamicChunker(BaseChunker): ...
 
-@register("retriever", "intent_agent.strategy_selector")
-class IntentAgentRetriever(BaseRetriever):
-    ...
+@register("retriever", "intent_agent.multi_agent")
+class MultiAgentRetriever(BaseRetriever): ...
 ```
-
-`Registry` 是一个 `slot → name → class` 的二级字典，提供 `register / get / get_or_default / list_slot` 四个方法。`register` 对同名重复注册**主动抛 `ValueError`**，而非静默覆盖——这个防御性选择让调试更直接。
 
 ### 4.2 动态 import 触发注册
 
-`ChimeraRAG.__init__` 在解析 yaml 之后，按 `config.plugins.<name>.enabled` 决定**是否** `importlib.import_module("chimera_rag.plugins.<name>")`（源码：`src/chimera_rag/__init__.py::_load_enabled_plugins`）。这一步只有成功 import，`@register` 装饰器的副作用才会把插件类注册进表。
-
-这样得到三条硬性保障（plan.md §实施注意事项 第 2 条）：
-
-1. **关闭插件 = 不 import** → 插件所需的可选依赖缺失也不会报错；
-2. **关闭插件 + yaml 仍指向插件名** → `Registry.get_or_default` 打 warning 后回退 `defaults.*`；
-3. **开启插件 = 装饰器副作用跑完** → yaml 里的 `adagraph.*` / `intent_agent.*` 名字都能被解析。
+`ChimeraRAG.__init__` 在解析 yaml 之后，按 `config.plugins.<name>.enabled` 决定**是否** `importlib.import_module("chimera_rag.plugins.<name>")`。只有成功 import，`@register` 装饰器的副作用才会把插件类注册进表。
 
 ### 4.3 门面装配
 
-`ChimeraRAG._build()`（facade 内部）顺序做六件事：
+`ChimeraRAG._build()` 顺序做：触发插件 import → 构建 Provider → 构建 Store → 解析 slot → 实例化 → 组装 Pipeline。
 
-1. 触发插件动态 import（上一步）；
-2. 构建 LLM / Embedding Provider（`providers/__init__.py::build_*`）；
-3. 构建 GraphStore / VectorStore（NetworkX / FAISS）；
-4. 对六个 slot（chunker / extractor / pruner / intent_classifier / retriever / generator）分别 `registry.get(slot, config.<...>.active)` 拿到类；
-5. 用 `_filter_params` 根据每个类的 `__init__` 签名过滤参数，避免 "fixed → dynamic" 切换时 yaml 里多余字段报 `TypeError`；
-6. 组装 `IngestionPipeline` 和 `QueryPipeline` 两条管线。
-
-热切换（`toggle_plugin(name, enabled)`）复用了同样的 `_build()`，但**保留 `PipelineState`（graph + vector + chunk_lookup）**——这正是 plan.md §实施注意事项 第 4 条要求的"切换不需要重新 ingest"。
+热切换（`toggle_plugin(name, enabled)`）复用 `_build()`，但**保留 `PipelineState`**——切换不需要重新 ingest。
 
 ---
 
 ## 5. 两条管线的数据流
 
-源码：`src/chimera_rag/core/pipeline.py`
-
 ### 5.1 IngestionPipeline
 
 ```
 documents
-  → chunker.chunk()          ← 默认 defaults.fixed；AdaGraph 改为 adagraph.dynamic
+  → chunker.chunk()          ← defaults.fixed / adagraph.dynamic
   → embedder.encode(...)     → vector_store.add()
-  → extractor.extract()      ← 默认 defaults.simple_llm；AdaGraph 改为 adagraph.layered
-  → pruner.prune()           ← 默认 defaults.noop；AdaGraph 改为 adagraph.dual_redundancy
+  → extractor.extract()      ← defaults.simple_llm / adagraph.layered
+  → pruner.prune()           ← defaults.noop / adagraph.dual_redundancy
   → graph_store.add_triple()
 ```
-
-返回统计：`{"documents": N, "chunks": M, "triples_raw": R, "triples_pruned": P}`。
 
 ### 5.2 QueryPipeline
 
 ```
 query
-  → intent_classifier.classify()   ← 默认 defaults.rule；IntentAgent 改为 intent_agent.llm
-  → retriever.retrieve(top_k)      ← 默认 defaults.direct；IntentAgent 改为 intent_agent.strategy_selector
-                                     （后者内部再串联 Memory / Reasoning / Decision / Execution + hooks）
+  → intent_classifier.classify()   ← defaults.rule / intent_agent.tree
+  → retriever.retrieve(top_k)      ← defaults.direct / intent_agent.multi_agent
   → generator.generate()           ← defaults.prompt
-  → Answer（带 intent_label / strategy_name / trace.retrieval_metadata）
+  → Answer
 ```
 
-两条管线共享 `PipelineState`（`graph_store + vector_store + chunk_lookup`），但**方法签名彼此无依赖**——ingest 完全可以用配置 A 跑完，再把 query 切换成配置 B（热切换场景）。
+当 `intent_agent.multi_agent` 启用时，`MultiAgentRetriever.retrieve()` 内部展开为：
+
+```
+query
+  → Preprocessor Agent（查询改写/指代消解/追问拼接）
+  → Tree-Intent Classifier
+      ├─ greeting      → LLM 直答（短路）
+      ├─ single_hop    → Native RAG Agent（混合检索 → 重排 → 质量检查 → 生成）
+      ├─ multi_hop     → ReAct Agent（工具选择循环 + 反思 → 生成）
+      ├─ summarization → Map-Reduce Agent（检索 → Map 摘要 → Reduce 综合）
+      └─ other         → WebSearch + LLM Agent（联网搜索 → 生成）
+  → 后处理（写入记忆、trace 元数据、QA 缓存）
+  → RetrievalResult
+```
 
 ---
 
-## 6. 四种部署组合
+## 6. IntentAgent 多Agent内部架构
 
-`configs/` 目录下提供了 5 份 yaml：
+### 6.1 共享工具层（19 个工具）
 
-| 文件 | 对应 plan.md 规划 | 插件开关 |
-|---|---|---|
-| `default.yaml` | 全字段注释参考模板 | 不直接用于运行 |
-| `deepseek_vanilla.yaml` | 裸 KG-RAG 基线 | AdaGraph=off，IntentAgent=off |
-| `deepseek_adagraph_only.yaml` | 仅创新点一 | AdaGraph=on，IntentAgent=off |
-| `deepseek_intent_only.yaml` | 仅创新点二 | AdaGraph=off，IntentAgent=on |
-| `deepseek_full.yaml` | 全启用 | 两个都 on |
+| 分类 | 工具 |
+|---|---|
+| **检索** | `vector_search` · `bm25_search` · `hybrid_search` · `graph_neighbors` · `graph_path_search` · `graph_community_search` |
+| **推理** | `sub_query_decompose` · `assess_evidence` · `rerank` |
+| **预处理** | `query_rewrite` · `coreference_resolve` · `followup_merge` |
+| **记忆** | `read_session_context` · `write_session_context` · `read_shared_memory` · `write_shared_memory` · `read_agent_memory` · `write_agent_memory` |
+| **Web** | `web_search` · `web_fetch` |
+| **IO** | `save_to_file` · `load_from_file` |
 
-四种组合共用同一份 `QueryPipeline.run()` 代码路径，差异**只由 yaml 的 `active` 字段驱动**。这是消融实验可信度的工程基础：同数据集、同评测逻辑，只比较配置差异带来的 EM / F1 / ROUGE-L 变化。
+每个 Agent 只能使用 `TOOL_MATRIX` 中指定的工具子集（由 `ToolSetBuilder` 在创建时过滤）。
 
-要逐个跑这几份配置做横向对比，直接对每份 yaml 各执行一次 `main.py infer --config <name>.yaml --dataset <name>`，再用 `eval.py` 对产出的 `predictions.jsonl` 打分；推理与打分两阶段解耦，详见 §8.5 与 `README.md` 的「离线评测」一节。
+### 6.2 Agent ↔ 工具可用矩阵
+
+| 工具 | Preprocessor | Native RAG | ReAct | Map-Reduce | WebSearch |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `vector_search` | | ✅ | ✅ | ✅ | |
+| `bm25_search` | | ✅ | ✅ | ✅ | |
+| `hybrid_search` | | ✅ | ✅ | ✅ | ✅ |
+| `graph_neighbors` | | ✅ | ✅ | | |
+| `graph_path_search` | | | ✅ | | |
+| `graph_community_search` | | | ✅ | ✅ | |
+| `sub_query_decompose` | | | ✅ | | |
+| `assess_evidence` | | ✅ | ✅ | | |
+| `rerank` | | ✅ | ✅ | ✅ | |
+| `query_rewrite` | ✅ | | | | |
+| `coreference_resolve` | ✅ | | | | |
+| `followup_merge` | ✅ | | | | |
+| `read_session_context` | ✅ | | ✅ | | |
+| `web_search` | | | | | ✅ |
+| `web_fetch` | | | | | ✅ |
+| `save/load_from_file` | | ✅ | ✅ | ✅ | ✅ |
+| `read/write_*_memory` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### 6.3 双层记忆架构
+
+```
+.chimera_memory/
+├── shared/                         # SharedMemory（JSON-backed）
+│   ├── routing_stats.json          #   query→intent→agent→quality 路由统计
+│   ├── qa_cache.json               #   高质量 QA 对缓存（同 query 直接返回）
+│   ├── entity_aliases.json         #   实体别名表
+│   └── rewrite_templates.json      #   成功的改写 pattern
+├── react/experience/               # ReAct Agent 私有记忆
+│   └── multi_hop.jsonl             #   按意图分桶的 JSONL 经验
+├── native_rag/experience/          # Native RAG Agent 私有记忆
+│   └── single_hop.jsonl
+├── map_reduce/experience/          # Map-Reduce Agent 私有记忆
+│   └── summarization.jsonl
+└── web_search/experience/          # WebSearch Agent 私有记忆
+    └── other.jsonl
+```
+
+### 6.4 设计模式
+
+| 模式 | 应用位置 |
+|---|---|
+| **Strategy** | 每个 Agent 实现 `BaseAgent.do_execute()` |
+| **Factory** | `AgentFactory.create(intent, all_tools, ...)` 映射意图到 Agent 类 |
+| **Builder** | `ToolSetBuilder.for_agent(agent_type, all_tools)` 按矩阵过滤工具 |
+| **Template Method** | `BaseAgent.execute()` 定义 `_pre → do → _post` 骨架 |
+| **Facade** | `MultiAgentRetriever` 对外暴露 `retrieve()`，内部完成编排 |
+| **Registry** | `@register` 装饰器 + 全局 Registry 单例 |
 
 ---
 
-## 7. 数据契约（`src/chimera_rag/core/types.py`）
+## 7. 四种部署组合
 
-所有跨层/跨模块传递的结构都用 Pydantic v2 锁定（plan.md §目录结构 第 169 行）：
+| 文件 | 插件开关 |
+|---|---|
+| `deepseek_vanilla.yaml` | AdaGraph=off，IntentAgent=off |
+| `deepseek_adagraph_only.yaml` | AdaGraph=on，IntentAgent=off |
+| `deepseek_intent_only.yaml` | AdaGraph=off，IntentAgent=on |
+| `deepseek_full.yaml` | 两个都 on |
 
-```
-Document / Chunk / Triple / Entity                        ← 构建阶段
-Query / Intent / ReasoningPlan / RetrievalResult / Answer ← 查询阶段
-QualityFeedback                                            ← 反馈循环
-QAExample / EvalResult                                    ← 评测
-```
-
-关键字段对两创新点特别重要：
-
-- `Triple.layer: Literal["L1","L2","L3","L4"]` — 标注来自 AdaGraph 的哪一层抽取；
-- `Intent.label: Literal[6 项]` — 严格约束 IntentAgent 的 6 类意图；
-- `Answer.trace: dict` — 承载检索元数据，供 `/trace` 页面还原决策过程。
+四种组合共用同一份 `QueryPipeline.run()` 代码路径，差异**只由 yaml 的 `active` 字段驱动**。
 
 ---
 
-## 8. Web 系统（单端口部署）
+## 8. 数据契约（`src/chimera_rag/core/types.py`）
 
-后端（`src/chimera_rag/web/`）由 FastAPI + `create_app(crag)` 工厂生成，路由组与 plan.md §核心功能 第 7 条要求一致：
-
-| 路由 | 用途 |
-|---|---|
-| `POST /api/ingest` | 触发 IngestionPipeline（AdaGraph 作用点） |
-| `POST /api/query` | 触发 QueryPipeline（IntentAgent 作用点） |
-| `GET /api/graph` + `/api/graph/stats` | 图谱可视化数据源（前端 `GraphPage` 渲染节点 / 边；见 §8.5） |
-| `GET/POST /api/plugins(/toggle)` | 列出 / 热切换两个插件 |
-| `GET/PUT /api/config` | 在线读/写 yaml，api_key 字段脱敏 |
-| `POST /api/evaluate` | 触发 Evaluator |
-| `GET /api/health` | 健康检查 + 激活插件状态 |
-
-前端（`web-ui/`）共 7 个页面与上述路由一一对应：`IngestPage / QueryPage / GraphPage / EvaluatePage / PluginsPage / ConfigPage / TracePage`。构建产物 `pnpm build` 后拷贝到 `src/chimera_rag/web/static/`，FastAPI 通过 `StaticFiles(html=True)` 挂载到 `/`，dev 模式下 Vite 起 5173 端口并 proxy `/api` 到 8000（plan.md §实施注意事项 第 3 条）。
-
-### 8.5 图谱持久化与可视化数据源
-
-知识图谱构建（ingest）依赖 LLM 逐 chunk 抽三元组，是整条链路里最慢、最贵的一步。为避免每次推理 / 起服务都重新构图，门面层提供了一套**落盘—指纹校验—复用**机制（源码：`src/chimera_rag/__init__.py`）：
-
-| 方法 | 作用 |
-|---|---|
-| `ChimeraRAG.persist_graph(dataset)` | 构图后把图、向量索引、`chunk_lookup` 与指纹一次性写盘 |
-| `ChimeraRAG.try_load_graph(dataset)` | 起步时尝试加载已持久化图谱；指纹匹配则复用并返回 `True`，否则返回 `False` 交由调用方重新 ingest |
-
-落盘产物全部位于配置的 `storage.graph.persist_path` / `storage.vector.persist_path` 同目录（默认 `storage/`）：
-
-| 文件 | 内容 |
-|---|---|
-| `<graph_path>` | `NetworkXGraphStore` 的 `MultiDiGraph`（pickle，含全部三元组） |
-| `<vector_path>.faiss` + `<vector_path>.ids.pkl` | FAISS 索引 + chunk_id 旁路表 |
-| `<graph_path>.chunks.pkl` | `chunk_lookup`（chunk_id → Chunk），缺它则检索拿不到原文 |
-| `<graph_path>.meta.json` | **指纹**：对 `ingestion`（chunker / extractor / pruner）+ `embedding` + `dataset` 求 SHA-256；任一项变更即判定旧图谱失效，自动重建，杜绝脏读 |
-
-**CLI 接入**（`src/chimera_rag/cli.py`）：`ingest` 与 `infer` 都会先 `try_load_graph`，命中则秒级复用、跳过构图；未命中（首次运行或配置变更）才构图并 `persist_graph`。两个子命令均新增 `--rebuild` 开关，强制忽略已持久化图谱、从头重建。
-
-**与可视化的关系**：`GET /api/graph` / `/api/graph/stats` 读取的是当前进程内 `chimera.graph_store` 的三元组。因此先用 `infer` / `ingest` 把图谱构好并落盘，再 `serve` 起服务（同一份 config 会自动 `try_load_graph` 复用持久化图谱），前端 `GraphPage` 即可渲染已构建好的图谱——构图与可视化两个阶段就此解耦。
+```
+Document / Chunk / Triple / Entity                                ← 构建阶段
+Query / Intent / ReasoningPlan / RetrievalResult / Answer         ← 查询阶段
+PreprocessResult / AgentExperienceEntry                           ← 多Agent架构
+QualityFeedback                                                    ← 质量评估
+MultiAgentIntentLabel = ["greeting","single_hop","multi_hop","summarization","other"]
+QAExample / EvalResult                                            ← 评测
+```
 
 ---
 
 ## 9. 创新点在整个系统里的位置
-
-一张图概括两个创新点如何挂到骨架上：
 
 ```
              ┌──────────── ChimeraRAG (facade) ────────────┐
@@ -222,15 +222,15 @@ QAExample / EvalResult                                    ← 评测
              │   IngestionPipeline        QueryPipeline    │
              │        ▲                        ▲           │
              │        │                        │           │
-  chunker ──►│   chunker slot           intent_classifier ─│◄── IntentAgent
-  extractor ►│   extractor slot         retriever slot ───│◄── IntentAgent
-  pruner   ─►│   pruner slot            generator slot     │
-             │        ▲                                    │
-             │        │                                    │
-             │        └─── AdaGraph 占据 3 个构建插槽       │
-             │                                             │
-             │   PipelineState                             │
-             │   ├─ NetworkXGraphStore                     │
+  chunker ──►│   chunker slot           intent_classifier ─│◄── TreeIntentClassifier
+  extractor ►│   extractor slot         retriever slot ───│◄── MultiAgentRetriever
+  pruner   ─►│   pruner slot            generator slot     │        │
+             │        ▲                                    │   ┌────┴────┐
+             │        │                                    │   │ 5 Agents│
+             │        └─── AdaGraph 占据 3 个构建插槽       │   │ 19 Tools│
+             │                                             │   │ 2-Layer │
+             │   PipelineState                             │   │ Memory  │
+             │   ├─ NetworkXGraphStore                     │   └─────────┘
              │   ├─ FAISSVectorStore                       │
              │   └─ chunk_lookup                           │
              └─────────────────────────────────────────────┘
@@ -239,13 +239,14 @@ QAExample / EvalResult                                    ← 评测
 - **AdaGraph** 只改变"图长什么样"；
 - **IntentAgent** 只改变"在图上怎么查"。
 
-它们通过共享 `PipelineState` 产生**正交但可叠加**的效果，这是下一章两份细节文档的共同前提。
+它们通过共享 `PipelineState` 产生**正交但可叠加**的效果。
 
 ---
 
 ## 10. 相关文档
 
-- `docs/plan.md` — 最初的实施计划，本文档的上游"事实来源"；
 - `docs/innovation_1_adagraph.md` — 创新点一的 3 个子模块实装细节；
-- `docs/innovation_intent_agent.md` — 创新点二合并文档：静态 M/R/D/E 四阶段 + 6 策略 + 3 hook、LangGraph 动态编排、经验记忆增强；
-- `README.md` — 仓库根目录的用户级入门文档，不在 `docs/` 下。
+- `docs/innovation_intent_agent.md` — 创新点二旧版架构文档（历史参考）；
+- `docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md` — 创新点二多Agent架构设计文档；
+- `docs/experiment_guide.md` — 实验指南；
+- `README.md` — 仓库根目录的用户级入门文档。

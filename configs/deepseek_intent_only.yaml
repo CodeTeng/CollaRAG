@@ -2,7 +2,7 @@
 # deepseek_intent_only.yaml
 #
 # 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
-#       仅启用创新点二（IntentAgent：6 意图分类 → 6 策略选择 → 反思）。
+#       仅启用创新点二（多Agent意图感知检索架构）。
 #       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
 # 典型场景：
 #   - 消融实验：比较 vs deepseek_vanilla，单独衡量 IntentAgent 带来的增益
@@ -34,7 +34,7 @@ embedding:
   dim: 384
   batch_size: 32
   normalize: true
-  device: cpu                   # cpu / cuda / mps / auto
+  device: cpu
 
 storage:
   graph:
@@ -42,19 +42,12 @@ storage:
     persist_path: ./storage/deepseek_intent_only/graph.gpickle
   vector:
     backend: faiss
-    # 100 条规模下 flat_ip 最准（100% 召回）且速度完全够用；
-    # 若语料扩到 10k+ 再切换到 hnsw。
-    index_type: flat_ip         # flat_ip / flat_l2 / ivf_flat / hnsw
-    metric: ip                  # ip / l2
+    index_type: flat_ip
+    metric: ip
     persist_path: ./storage/deepseek_intent_only/vectors
     top_k: 5
-    hnsw:
-      M: 32
-      ef_construction: 200
-      ef_search: 64
-    ivf:
-      nlist: 100
-      nprobe: 8
+    hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
+    ivf: { nlist: 100, nprobe: 8 }
 
 datasets:
   mock_wiki:
@@ -75,15 +68,14 @@ ingestion:
     active: defaults.noop
     params: {}
 
-# IntentAgent ON — 只测创新点二
+# IntentAgent ON — 多Agent架构
 query:
   intent_classifier:
     active: intent_agent.tree
-    params:
-      confidence_threshold: 0.55
+    params: {}
   retriever:
     active: intent_agent.multi_agent
-    params: { top_k: 5, neighbor_hops: 1 }
+    params: {}
   generator:
     active: defaults.prompt
     params: {}
@@ -93,16 +85,21 @@ plugins:
     enabled: false
   intent_agent:
     enabled: true
-    memory:
-      max_history: 10
-    intent_classifier:
-      confidence_threshold: 0.55
-    strategies:
-      enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware]
-    hooks:
-      reflection: { enabled: false, type: heuristic }
-      reranking: { enabled: false, type: cross_encoder, model: cross-encoder/ms-marco-MiniLM-L-6-v2, top_n: 10 }
-      parallel_pool: { enabled: true, max_workers: 4 }
+    multi_agent:
+      classifier:
+        confidence_threshold: 0.7
+        rule_fallback: true
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4
+      react:
+        max_iterations: 3
+        quality_threshold: 0.6
+      map_reduce:
+        retrieve_top_k: 50
+      web_search:
+        search_backend: duckduckgo
+        max_results: 5
 
 web:
   host: 0.0.0.0

@@ -35,18 +35,11 @@ uv run python main.py export --config <cfg> --out ./output/
 uv run python main.py serve --config <cfg>
 ```
 
-### Datasets (download + convert)
-
-```bash
-.venv/bin/python scripts/download_datasets.py        # download HotpotQA/2Wiki/MuSiQue/NQ/PopQA into data/
-.venv/bin/python scripts/convert_to_mock_wiki.py     # convert each into corpus.txt + qa.jsonl (mock_wiki layout)
-```
-
 ### Evaluation (two-stage)
 
 ```bash
-uv run python main.py infer --config configs/deepseek_vanilla.yaml --dataset hotpotqa --limit 10
-uv run python eval.py --predictions_dir output/hotpotqa/deepseek_vanilla
+uv run python main.py infer --config configs/deepseek_intent_only.yaml --dataset hotpotqa --limit 10
+uv run python eval.py --predictions_dir output/hotpotqa/deepseek_intent_only
 ```
 
 ## Architecture
@@ -60,47 +53,95 @@ Chimera-RAG is a pluggable knowledge-graph RAG framework with two optional resea
 | Entry | `main.py` + `cli.py` | Six argparse subcommands (ingest/query/infer/export/serve) |
 | Facade | `src/chimera_rag/__init__.py::ChimeraRAG` | Assembles all slots, exposes `ingest`/`query`/`stats`/`toggle_plugin` |
 | Core | `core/` | `types.py`, `config.py`, `registry.py`, `pipeline.py`, `logging.py`, `exceptions.py`, `env_loader.py` |
-| Interfaces | `interfaces/` | 14 ABCs — all slot abstractions |
-| Defaults | `defaults/` | 9 vanilla implementations registered as `defaults.*` — the "bare KG-RAG" baseline |
+| Interfaces | `interfaces/` | ABCs — all slot abstractions (`BaseChunker`, `BaseRetriever`, `BaseIntentClassifier`, `BaseAgent`, etc.) |
+| Defaults | `defaults/` | Vanilla implementations registered as `defaults.*` — the "bare KG-RAG" baseline |
 | Plugins | `plugins/adagraph/` + `plugins/intent_agent/` | Two innovations, registered as `<plugin>.*` |
 
 **Critical rule**: `core/` never imports from `defaults/` or `plugins/`. The dependency direction is one-way: core → interfaces, defaults/plugins → interfaces + core.
 
 ### Plugin system: Registry + Slots
 
-The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`. Implementations register via the `@register(slot, name)` decorator:
-
-```python
-@register("chunker", "adagraph.dynamic")
-class DynamicChunker(BaseChunker): ...
-```
-
-`ChimeraRAG._build()` resolves each slot by reading `config.<slot>.active` (e.g., `"defaults.fixed"` or `"adagraph.dynamic"`) and calling `registry.get(slot, name)`. Plugins are only `importlib`-imported if their `config.plugins.<name>.enabled` is `true` — so optional dependencies don't break when a plugin is off.
+The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`. Implementations register via the `@register(slot, name)` decorator. `ChimeraRAG._build()` resolves each slot by reading `config.<slot>.active` and calling `registry.get(slot, name)`. Plugins are only `importlib`-imported if `config.plugins.<name>.enabled` is `true`.
 
 ### Two pipelines share one PipelineState
 
-- **IngestionPipeline** (`core/pipeline.py`): `documents → chunker → embedder + extractor → pruner → graph_store + vector_store`. Produces knowledge graph.
-- **QueryPipeline**: `query → intent_classifier → retriever → generator → Answer`. Both share `PipelineState` (graph_store, vector_store, chunk_lookup).
+- **IngestionPipeline**: `documents → chunker → embedder + extractor → pruner → graph_store + vector_store`
+- **QueryPipeline**: `query → intent_classifier → retriever → generator → Answer`
+- Both share `PipelineState` (graph_store, vector_store, chunk_lookup).
 
 ### The two innovations
 
 1. **AdaGraph** — occupies 3 ingestion slots: `chunker` (adaptive size based on complexity/density), `extractor` (4-layer extraction L1-L4), `pruner` (similarity + transitive redundancy removal)
-2. **IntentAgent** — occupies 2 query slots (`intent_classifier`, `retriever`), internally has Memory/Reasoning/Decision/Execution stages + 6 strategies + 4 pluggable hooks/sub-systems: `reflector` (heuristic / llm_reflection → Self-Reflection loop with strategy fallback), `reranker` (token_overlap / cross_encoder), `parallel_pool`, `experiential_memory`
+
+2. **IntentAgent (Multi-Agent Architecture)** — occupies 2 query slots (`intent_classifier` as `intent_agent.tree`, `retriever` as `intent_agent.multi_agent`). Inside the `MultiAgentRetriever` facade:
+   - **Preprocessor Agent**: query rewriting, coreference resolution, follow-up merging
+   - **Tree-Intent Classifier**: Level-1 greeting filter → Level-2 LLM + rule-fallback classification into `greeting | single_hop | multi_hop | summarization | other`
+   - **Native RAG Agent**: single-round hybrid retrieval for simple factual queries
+   - **ReAct Agent**: multi-step reasoning with tool selection + reflection loop for multi-hop/comparative/exploratory queries
+   - **Map-Reduce Agent**: retrieve → map (per-chunk LLM summary) → reduce (final synthesis) for summarization queries
+   - **WebSearch + LLM Agent**: DuckDuckGo search + optional local knowledge for out-of-scope queries
+   - **Shared Tool Layer**: 19 tools (vector/BM25/hybrid/graph retrieval, sub-query decompose, assess evidence, rerank, query rewrite, memory read/write, web search, file IO)
+   - **Dual-Layer Memory**: SharedMemory (QA cache, routing stats, entity aliases) + AgentPrivateMemory (per-agent per-intent JSONL experience store)
+
+### Key design patterns (IntentAgent)
+
+- **Strategy**: each Agent implements `BaseAgent.do_execute()`
+- **Factory**: `AgentFactory.create(intent, all_tools, ...)` — maps intent label to Agent class
+- **Builder**: `ToolSetBuilder.for_agent(agent_type, all_tools)` — filters tools per TOOL_MATRIX
+- **Template Method**: `BaseAgent.execute()` calls `_pre_execute → do_execute → _post_execute`
+- **Facade**: `MultiAgentRetriever.retrieve()` hides the full orchestration behind `BaseRetriever`
 
 ### Configuration
 
-Single YAML config drives everything with 10 top-level domains: `app`, `logging`, `llm`, `embedding`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Five config variants in `configs/` let you run vanilla, AdaGraph-only, IntentAgent-only, or full. Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.
+Single YAML config with 10 top-level domains: `app`, `logging`, `llm`, `embedding`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Four config variants in `configs/`:
 
-`configs/default.yaml` registers the GraphRAG eval datasets in two formats: native (`hotpotqa`, `two_wiki`, `musique`, `nq`, `popqa`) and a unified `mock_wiki` layout (`*_mw`, i.e. `corpus.txt` + `qa.jsonl`). `nq`/`popqa` are open-domain, so their `*_mw` `corpus.txt` is an empty placeholder. Generate them with `scripts/download_datasets.py` then `scripts/convert_to_mock_wiki.py`.
+| Config | AdaGraph | IntentAgent |
+|---|:---:|:---:|
+| `deepseek_vanilla.yaml` | off | off |
+| `deepseek_adagraph_only.yaml` | on | off |
+| `deepseek_intent_only.yaml` | off | on |
+| `deepseek_full.yaml` | on | on |
+
+Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.
 
 ### Data contracts (Pydantic v2)
 
-All cross-layer types in `core/types.py`: `Document`, `Chunk`, `Triple`, `Entity`, `Query`, `Intent`, `ReasoningPlan`, `RetrievalResult`, `Answer`, `QualityFeedback`, `QAExample`, `EvalResult`.
+All cross-layer types in `core/types.py`: `Document`, `Chunk`, `Triple`, `Entity`, `Query`, `Intent`, `ReasoningPlan`, `RetrievalResult`, `Answer`, `QualityFeedback`, `PreprocessResult`, `AgentExperienceEntry`, `QAExample`, `EvalResult`.
+
+`MultiAgentIntentLabel = Literal["greeting", "single_hop", "multi_hop", "summarization", "other"]`
+
+### IntentAgent plugin structure
+
+```
+plugins/intent_agent/
+├── __init__.py              # Plugin entry, triggers @register
+├── classifier.py            # TreeIntentClassifier (greeting + LLM + rule fallback)
+├── orchestrator.py          # MultiAgentRetriever facade
+├── agent_factory.py         # AgentFactory + ToolSetBuilder + TOOL_MATRIX
+├── agents/                  # 5 specialized agents
+│   ├── preprocessor.py      # PreprocessorAgent
+│   ├── native_rag.py        # NativeRAGAgent
+│   ├── react_agent.py       # ReActAgent
+│   ├── map_reduce.py        # MapReduceAgent
+│   └── web_search.py        # WebSearchAgent
+├── tools/                   # 19 shared tools
+│   ├── retrieval_tools.py   # vector/BM25/hybrid/graph (+ BM25Index, ToolAccumulator)
+│   ├── reasoning_tools.py   # sub_query_decompose/assess_evidence/rerank
+│   ├── preprocess_tools.py  # query_rewrite/coreference_resolve/followup_merge
+│   ├── memory_tools.py      # read/write session/shared/agent memory
+│   ├── web_tools.py         # web_search/web_fetch
+│   ├── io_tools.py          # save_to_file/load_from_file
+│   └── quality_evaluator.py # HeuristicQualityEvaluator
+└── memory/                  # Dual-layer memory
+    ├── shared_memory.py     # SharedMemory (JSON-backed)
+    ├── agent_memory.py      # AgentPrivateMemory (JSONL per-agent per-intent)
+    └── memory_manager.py    # MemoryManager facade + SessionMemory
+```
 
 ### Web system
 
-FastAPI at `src/chimera_rag/web/` — 7 route modules under `routers/`: health, ingest, query, graph, plugins, config, evaluate. React frontend at `web-ui/` (Vite + TypeScript + Tailwind v4 + Cytoscape for graph viz + Zustand for state). Dev: Vite on :5173 proxies `/api` to FastAPI on :8000. Production: `pnpm build` output mounted as static files by FastAPI at `/`.
+FastAPI at `src/chimera_rag/web/` — 7 route modules. React frontend at `web-ui/` (Vite + TypeScript + Tailwind v4 + Cytoscape). Dev: Vite on :5173 proxies `/api` to FastAPI on :8000. Production: `pnpm build` output mounted as static files.
 
 ### Testing
 
-All tests use `MockLLMProvider` + `MockEmbeddingProvider` — no real API keys needed. Conftest at `tests/conftest.py` provides shared fixtures. Tests cover: registry, config, types, pipeline end-to-end (vanilla/AdaGraph/IntentAgent), individual defaults, individual plugins, stores, datasets, evaluation metrics, and the web API.
+All tests use `MockLLMProvider` + `MockEmbeddingProvider` — no real API keys needed. Tests cover: registry, config, types, pipeline end-to-end (vanilla/AdaGraph/IntentAgent/full), individual defaults, agents, tools, memory, stores, datasets, and evaluation.

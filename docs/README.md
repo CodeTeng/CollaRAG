@@ -1,52 +1,37 @@
 # Chimera-RAG 文档目录
 
-本目录存放项目的设计与实现文档，是仓库版本化的"事实来源"（single source of truth）。所有文档基于 `docs/plan.md` 与 `src/chimera_rag/` 实际实装整理，全部使用简体中文。
+本目录存放项目的设计与实现文档。
 
 ## 文档清单
 
 | 文件 | 用途 |
 |------|------|
-| `plan.md` | 项目最初的实施计划（从 Plan 模式同步；**本目录下其他文档的上游事实来源**） |
-| `architecture_overview.md` | **架构总览**：分层、14 个 ABC 插槽、注册表机制、`ChimeraRAG` 门面装配流程、四种部署组合、Web 系统单端口部署 |
-| `innovation_1_adagraph.md` | **创新点一：AdaGraph（原 DEKER）**。作用于知识构建阶段。DynamicChunker（自适应公式已实装）/ LayeredTripleExtractor（L1 实装，L2-L4 TODO）/ DualRedundancyPruner（相似性实装，传递性 TODO） |
-| `innovation_intent_agent.md` | **创新点二：IntentAgent（原 MRDE）合并文档**。作用于查询阶段，分三部分：① 静态路由版（Memory / Reasoning / Decision / Execution 四阶段 + 6 策略 + 3 Hook）；② LangGraph 动态编排版（LLM 在状态图里自主选择 / 组合检索工具 + 反思回路，检索器 `intent_agent.langgraph`，需 `--extra agent`）；③ 经验记忆增强（`FileExperientialMemory` 把成功工具序列 / 反思教训 / QA 对按意图分桶**跨 session 落盘**、相似问题召回复用，并盘活意图分类） |
-| `experiments/` | **实验文档目录**：存放各创新点「需要做的实验」相关设计文档（可独立消融、同管线、同评测）。当前含 `experiments_intent_agent.md`（创新点 2 实验设计） |
-| `old/` | **归档目录**：创新点二合并前的三份原始文档（`innovation_2_intent_agent.md` / `innovation_2b_langgraph_agent.md` / `innovation_2c_experiential_memory.md`），留档备查 |
-| `README.md`（本文件） | 文档索引 |
+| `architecture_overview.md` | **架构总览**：分层、接口插槽、注册表机制、`ChimeraRAG` 门面装配流程、多Agent内部架构、四种部署组合 |
+| `innovation_1_adagraph.md` | **创新点一：AdaGraph**。作用于知识构建阶段。DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner |
+| `innovation_intent_agent.md` | **创新点二旧版文档（历史参考）**。原 M-R-D-E 四阶段 + 6 策略 + LangGraph 动态编排 + 经验记忆增强 |
+| `experiment_guide.md` | **实验指南**：三阶段工作流（ingest → infer → eval）、数据集格式、操作手册 |
+| `plan.md` | 项目最初的实施计划 |
+| `experiments/` | 实验设计文档目录 |
+| `old/` | 归档目录：旧版创新点二的原始文档 |
+| `superpowers/specs/` | **多Agent架构设计文档**：2026-07-07 版本的完整设计（5 Agent + 19 工具 + 双层记忆） |
+| `superpowers/plans/` | 多Agent架构实现计划 |
 
 ## 阅读顺序
 
-1. **`architecture_overview.md`** — 先建立"注册表 + 插槽 + yaml 开关"这套骨架的心智模型；
-2. **`innovation_1_adagraph.md`** — 深入第一个创新点的三个子模块；
-3. **`innovation_intent_agent.md`** — 深入第二个创新点：依次读三部分（静态四阶段+六策略+三 Hook → LangGraph 动态工具编排 → 经验记忆增强及它如何盘活意图分类）；
-4. **`experiments/`** — 各创新点的实验设计文档（消融对比、按意图分组归因、SOTA 横向对比等），动手做实验前读；
-5. **`plan.md`** — 如需追溯最初的设计决策再读。
-
-## 名称映射（出自 plan.md §产品概述）
-
-| 当前代码命名 | plan.md 中标注的原设计命名 |
-|---|---|
-| **Chimera-RAG** | KG-RAG / Agent-Graph-RAG |
-| **AdaGraph** | DEKER（知识构建双重增强） |
-| **IntentAgent** | MRDE（Memory-Reasoning-Decision-Execution） |
+1. **`architecture_overview.md`** — 先建立"注册表 + 插槽 + yaml 开关"这套骨架的心智模型，以及多Agent内部架构；
+2. **`innovation_1_adagraph.md`** — 深入创新点一的三个子模块；
+3. **`superpowers/specs/2026-07-07-multi-agent-architecture-design.md`** — 创新点二的多Agent架构完整设计；
+4. **`experiment_guide.md`** — 动手做实验前读。
 
 ## 注册表插槽速查
 
-AdaGraph 占 3 个构建插槽，IntentAgent 占 6 个查询插槽，两者天然不重叠：
+AdaGraph 占 3 个构建插槽，IntentAgent 占 2 个查询插槽：
 
 | 插槽（slot） | 默认实现 | AdaGraph | IntentAgent |
 |---|---|---|---|
 | `chunker` | `defaults.fixed` | `adagraph.dynamic` | — |
 | `extractor` | `defaults.simple_llm` | `adagraph.layered` | — |
 | `pruner` | `defaults.noop` | `adagraph.dual_redundancy` | — |
-| `intent_classifier` | `defaults.rule` | — | `intent_agent.llm` |
-| `retriever` | `defaults.direct` | — | `intent_agent.strategy_selector`（静态路由）/ `intent_agent.langgraph`（创新点 2b 动态编排，需 `--extra agent`） |
-| `strategy` | — | — | `intent_agent.{direct / multi_hop / parallel / iterative / expansion / context_aware}` |
-| `memory` | `defaults.none` | — | `intent_agent.session`（会话）/ `intent_agent.experiential`（创新点 2c 经验记忆，跨 session 落盘） |
-| `reflector` | `defaults.noop` | — | `intent_agent.heuristic` / `intent_agent.llm_reflection`（创新点 2d Self-Reflection） |
-| `reranker` | `defaults.noop` | — | `intent_agent.token_overlap` / `intent_agent.cross_encoder`（需 `--extra reranker`） |
+| `intent_classifier` | `defaults.rule` | — | `intent_agent.tree`（树形分类：greeting / single_hop / multi_hop / summarization / other） |
+| `retriever` | `defaults.direct` | — | `intent_agent.multi_agent`（MultiAgentRetriever：5 Agent + 19 工具 + 双层记忆） |
 | `generator` | `defaults.prompt` | — | — |
-
-## 开发方式
-
-项目采用 **TDD（测试驱动开发）**：**RED → GREEN → REFACTOR → COMMIT**。所有测试默认使用 `MockLLMProvider` + `MockEmbeddingProvider`，`uv run pytest -q` 无需任何真实 API key 即可跑完。详见 `plan.md` §实施策略。
