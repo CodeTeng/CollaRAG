@@ -1,8 +1,8 @@
-# 创新点 2（IntentAgent）实验设计
+# 创新点 2（IntentAgent 多Agent架构）实验设计
 
-> 目标：用一套**可独立消融、同管线、同评测**的实验，量化证明 **IntentAgent（意图感知检索）** 的有效性。
+> 目标：用一套**可独立消融、同管线、同评测**的实验，量化证明 **IntentAgent（多Agent意图感知检索）** 的有效性。
 >
-> 核心论点：**「按意图分道检索」优于「千篇一律直检」**。
+> 核心论点：**「按意图分派到专职 Agent」优于「千篇一律直检」**。
 
 ---
 
@@ -24,14 +24,14 @@
 
 | 指标 | 衡量对象 | 是否已实装 |
 |---|---|:---:|
-| **意图分类准确率 (Intent Accuracy)** | `LLMIntentClassifier` 6 类分类是否分对 | ❌ 需补 |
+| **意图分类准确率 (Intent Accuracy)** | `TreeIntentClassifier` 5 类分类（greeting/single_hop/multi_hop/summarization/other）是否分对 | ❌ 需补 |
 | **检索 Precision@k / Recall@k** | top-k chunk 中真证据的比例 | ❌ 需补（需数据集带证据标注） |
 | **token Precision / Recall** | 从 `token_f1` 内部暴露出来 | ❌ 需补（改动极小） |
 
 ### 0.3 数据集与配置（仓库现状）
 
 - **数据集 loader**（`datasets/`）：`mock_wiki`（冒烟用，仅 10 QA）、`hotpotqa`、`two_wiki`、`musique`、`plain_text`、`generic_jsonl`
-- **消融配置**（`configs/`）：`deepseek_vanilla` / `deepseek_intent_only` / `deepseek_adagraph_only` / `deepseek_full`
+- **消融配置**（`configs/`）：`deepseek_vanilla` / `deepseek_intent_only` / `deepseek_adagraph_only` / `deepseek_full` / `ollama_intent_only`
 - ⚠️ 论文级结论必须接**真实多跳数据集**（hotpotqa / 2wiki / musique），`mock_wiki` 仅够冒烟。
 
 ---
@@ -41,9 +41,9 @@
 | # | 实验名称 | 对比方法 | 核心指标 | 优先级 |
 |---|---|---|---|:---:|
 | 1 | 主消融对比 | vanilla / intent_only / adagraph_only / full | EM, F1, ROUGE-L | 🔴 P0 |
-| 2 | 按意图分组归因 | intent_only vs vanilla（按 6 类意图拆分） | 各意图的 EM/F1/ROUGE-L + 延迟 + Token | 🔴 P0 |
-| 3 | 策略路由有效性 | 正常路由 vs 强制全 direct（反事实） | EM, F1, 策略命中分布, 意图分类准确率 | 🟢 P2 |
-| 4 | Hook 组件消融 | base / +rerank / +reflect / all | F1, ROUGE-L, reflection_quality 相关性 | 🟡 P1 |
+| 2 | 按意图分组归因 | intent_only vs vanilla（按 5 类意图拆分） | 各意图的 EM/F1/ROUGE-L + 延迟 + Token | 🔴 P0 |
+| 3 | Agent 路由有效性 | 正常路由 vs 强制全走 Native RAG（反事实） | EM, F1, Agent 命中分布, 意图分类准确率 | 🟢 P2 |
+| 4 | 多Agent组件消融 | Full / w/o Preprocess / w/o TreeIntent / w/o Reflect / w/o Memory / w/o BM25 / w/o Graph | EM, F1, ROUGE-L | 🟡 P1 |
 | 5 | 效率 / 成本权衡 | intent_only vs vanilla | 延迟 P50/P95, Token/问, ΔF1÷Δ成本 | 🟡 P1 |
 | 6 | **与 SOTA 框架横向对比** | Zero-shot LLM / NaiveRAG / GraphRAG / LightRAG / HippoRAG / YoutuGraphRAG | EM, F1, ROUGE-L, Token/问, 延迟 | 🔴 P0 |
 
@@ -83,66 +83,78 @@ uv run python eval.py \
 
 ## 3. 实验 2 · 按意图分组归因 🔴 P0
 
-**目的**：创新点 2 **最有说服力**的实验——证明「分道」的合理性。报告第四章「按意图分组」原生支持。
+**目的**：创新点 2 **最有说服力**的实验——证明「分派到专职 Agent」的合理性。
 
-**对比方法**：`intent_only` vs `vanilla`，把每个指标**按 6 类意图拆开**横向对比。
+**对比方法**：`intent_only` vs `vanilla`，把每个指标**按 5 类意图拆开**横向对比。
+
+**5 类意图 → 路由到的 Agent**：
+
+| 意图 | 路由 Agent | 典型问法 |
+|---|---|---|
+| `greeting` | LLM 直答（短路，不进入任何 Agent） | "你好" |
+| `single_hop` | Native RAG Agent | "爱因斯坦的出生地？" |
+| `multi_hop` | ReAct Agent（含比较型、探索型、追问型，靠 ReAct 灵活覆盖） | "比较 A 和 B 的贡献差异" |
+| `summarization` | Map-Reduce Agent | "总结这篇文档的主要观点" |
+| `other` | WebSearch + LLM Agent | "今天东京天气怎样？" |
 
 **指标**：每类意图下的 EM / F1 / ROUGE-L + 平均延迟 + 平均 Token。
 
 **预期结论**：
-- `multi_hop / comparative / analytical / follow_up` 等**复杂意图提升明显**（路由到 multi_hop / parallel / iterative / context_aware）。
-- `factual` 提升有限（它本来就走 direct ≈ vanilla）。
-- 「提升分布不均」恰好反向证明路由的价值。
+- `multi_hop`（涵盖原来的比较/探索/追问语义）**提升明显**，因为路由到 ReAct Agent 的工具选择循环 + 反思。
+- `single_hop` 提升有限（它本来就走轻量 Native RAG ≈ vanilla 直检）。
+- `summarization` 单独看增益最大——这是 vanilla 完全不具备的能力（vanilla 只会退化为直接检索+生成，没有 Map-Reduce 式全局聚合）。
+- 「提升分布不均」恰好反向证明按意图分派的价值。
 
-**执行**：复用实验 1 的预测产物，直接看单目录报告的「按意图分组」与「策略分布」两章即可。
-
----
-
-## 4. 实验 3 · 策略路由有效性（机制验证）🟢 P2
-
-**目的**：证明增益确实来自「意图→策略」路由，而非其他因素。
-
-**对比方法**：
-1. **路由命中分布**：报告第五章「策略分布」直接给出各策略命中次数，核对是否与数据集真实意图分布吻合。
-2. **反事实实验**：临时改 `reasoning.py::_INTENT_TO_STRATEGY`，把所有意图强制路由到 `direct`，与正常路由对比。若性能掉回接近 vanilla，则归因成立。
-3. **意图分类准确率**（需数据集带意图标注）：统计 `LLMIntentClassifier` 6 类分类准确率；并扫描 `confidence_threshold`（默认 0.55）观察 LLM↔规则兜底的触发比例。
-
-**指标**：EM、F1、**策略命中分布**、**意图分类准确率**。
+**执行**：复用实验 1 的预测产物，`predictions.jsonl` 每行的 `intent_label` 字段（新架构下取值为 `greeting/single_hop/multi_hop/summarization/other`）用于分组统计。
 
 ---
 
-## 5. 实验 4 · Hook 组件消融 🟡 P1
+## 4. 实验 3 · Agent 路由有效性（机制验证）🟢 P2
 
-**目的**：拆解 3 个 Hook（`hooks.*.enabled` 可独立开关）各自的贡献。
+**目的**：证明增益确实来自「意图→Agent」路由，而非其他因素。
 
 **对比方法**：
+1. **路由命中分布**：统计 `predictions.jsonl` 中各 `intent_label` 出现频次，核对是否与数据集真实意图分布吻合。
+2. **反事实实验**：临时修改 `MultiAgentRetriever.retrieve()`，把所有意图强制路由到 `single_hop`（即所有查询都走 Native RAG Agent），与正常路由对比。若性能掉回接近 vanilla，则归因成立。
+3. **意图分类准确率**（需数据集带意图标注）：统计 `TreeIntentClassifier` 5 类分类准确率；并扫描 `classifier.confidence_threshold`（默认 0.7）观察 LLM↔规则兜底的触发比例。
 
-| 实验组 | reflection | reranking | parallel_pool | 验证目标 |
-|---|:---:|:---:|:---:|---|
-| base | ❌ | ❌ | ✅ | 仅四阶段 M-R-D-E |
-| +rerank（token_overlap） | ❌ | ✅ token_overlap | ✅ | TokenOverlapReranker 的增益 |
-| +rerank（cross_encoder） | ❌ | ✅ cross_encoder | ✅ | **CrossEncoder 的语义重排增益（最可能提升 F1）** |
-| +reflect（heuristic） | ✅ heuristic | ❌ | ✅ | heuristic reflection_quality 与真实 F1 的相关性 |
-| +reflect（llm_reflection） | ✅ llm_reflection | ❌ | ✅ | **Self-Reflection 多轮循环的净增益（策略回退驱动重检索）** |
-| all | ✅ llm_reflection | ✅ cross_encoder | ✅ | 全开（最强配置） |
+**指标**：EM、F1、**Agent 命中分布**、**意图分类准确率**。
 
-**指标**：F1、ROUGE-L；外加 **reflection_quality 与真实 F1 的皮尔逊相关系数**。
+---
 
-**注意**：
-- **Reranking** 是直接改检索顺序的 hook，CrossEncoder 比 TokenOverlap 更可能提升 F1（语义匹配 vs 词面匹配）。
-- **Self-Reflection 现已驱动重检索**（`_execute_with_reflection` 多轮循环 + 策略回退），不再是"仅观测写回"；可以设计「反思后性能提升」的实验。`+reflect(llm_reflection)` 组预期在复杂意图上有净增益。
+## 5. 实验 4 · 多Agent组件消融 🟡 P1
+
+**目的**：拆解多Agent架构各组件的独立贡献。
+
+**对比方法（对应设计文档 `docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md` §11 的消融表）**：
+
+| 实验组 | 做法 | 验证目标 |
+|---|---|---|
+| Full | 完整多Agent架构 | 基线（上界） |
+| w/o Preprocess | 跳过 Preprocessor Agent，原始 query 直接分类 | 预处理（查询改写/指代消解/追问拼接）的价值 |
+| w/o TreeIntent | 所有 query 统一走 ReAct Agent | 意图路由的必要性 |
+| w/o Reflect | ReAct Agent 只跑单轮，不做反思循环 | 反思机制的贡献 |
+| w/o Memory | 禁用双层记忆（SharedMemory + AgentPrivateMemory 都关） | 经验记忆的累积价值 |
+| w/o SharedMem | 只禁用共享记忆，保留 Agent 私有记忆 | 共享 vs 私有记忆的贡献分离 |
+| w/o BM25 | 去掉 BM25 和混合检索，只用向量检索 | BM25/混合检索的增益 |
+| w/o Graph | 去掉图相关工具（graph_neighbors/graph_path_search/graph_community_search） | 知识图谱工具的贡献 |
+| w/o MapReduce | 归纳总结类查询退化为 Native RAG Agent | Map-Reduce 的增量价值 |
+
+**指标**：EM、F1、ROUGE-L。
+
+> ⚠️ 上述消融变体目前**均未实装为可直接开关的 yaml 配置**，需要临时代码改动（如注释掉 Preprocessor 调用、固定路由标签等）才能跑。若要把它们落地为正式的 yaml 消融开关（类似旧版 `hooks.*.enabled`），需要额外的工程量——这属于新增实验基建，见文末「需要确认的后续实验」。
 
 ---
 
 ## 6. 实验 5 · 效率 / 成本权衡 🟡 P1
 
-**目的**：审稿人必问——增益是否划算。报告自带耗时分布与 Token 分布。
+**目的**：审稿人必问——增益是否划算。
 
 **对比方法**：`intent_only` vs `vanilla`。
 
 **指标**：
-- **延迟**：P50 / P95（重点看 parallel 并发、multi_hop/expansion 放大 hops 的开销）。
-- **Token**：IntentAgent 多一次意图分类 LLM 调用，统计每问平均增量 Token。
+- **延迟**：P50 / P95（重点看 ReAct Agent 的多轮工具调用、Map-Reduce Agent 的逐 chunk map 阶段的开销）。
+- **Token**：IntentAgent 多一次意图分类 LLM 调用 + Preprocessor 的改写调用，统计每问平均增量 Token。
 - **性价比**：`ΔF1 ÷ Δ延迟` 或 `ΔF1 ÷ ΔToken`。
 
 ---
@@ -166,7 +178,7 @@ uv run python eval.py \
 
 > 📌 必比的全集（P0）：**Zero-shot LLM + NaiveRAG + GraphRAG + LightRAG + HippoRAG + YoutuGraphRAG**——既包含无检索/朴素检索下界，又覆盖图谱 RAG 方向审稿人默认期待的全部主流对照（含 2025 最新 YoutuGraphRAG）。
 >
-> 💡 设置两端下界（Zero-shot LLM、NaiveRAG）的意义：`NaiveRAG − Zero-shot LLM` 量化「检索」的价值，`本方法 − NaiveRAG` 量化「图谱 + 意图路由」相对朴素检索的净增益，证据链更完整。
+> 💡 设置两端下界（Zero-shot LLM、NaiveRAG）的意义：`NaiveRAG − Zero-shot LLM` 量化「检索」的价值，`本方法 − NaiveRAG` 量化「图谱 + 多Agent意图路由」相对朴素检索的净增益，证据链更完整。
 
 ### 7.2 对比方法（公平性是关键）
 
@@ -200,10 +212,10 @@ baseline 框架**不在本仓库内实现**，建议二选一：
 ### 7.5 预期结论与卖点
 
 - 相比 **Zero-shot LLM**：大幅领先，证明检索的必要性（坐实「问题非靠参数化知识可解」，多跳数据集尤其明显）。
-- 相比 **NaiveRAG**：全面领先（证明图谱 + 意图路由的价值，且 `本方法 − NaiveRAG` 是相对朴素检索的净增益）。
-- 相比 **GraphRAG/LightRAG**：在**多跳/比较类**问题上 F1 更高，且**意图路由让简单问题不浪费多跳开销**（Token/延迟更优）→ 这是 IntentAgent 的差异化卖点。
+- 相比 **NaiveRAG**：全面领先（证明图谱 + 多Agent意图路由的价值，且 `本方法 − NaiveRAG` 是相对朴素检索的净增益）。
+- 相比 **GraphRAG/LightRAG**：在**多跳/归纳总结类**问题上 F1 更高，且**意图路由让简单问题不浪费多轮工具调用开销**（Token/延迟更优）→ 这是 IntentAgent 的差异化卖点。
 - 相比 **HippoRAG**：强调本方法的**可插拔消融能力 + 意图分道**这一正交创新维度（即使指标接近，方法论新颖性是加分项）。
-- 相比 **YoutuGraphRAG**（2025 最新 SOTA、同为智能体化图检索路线）：即便指标接近，也要突出本方法的**意图感知分道路由 + 可独立消融的 Hook 架构**这一正交差异——YoutuGraphRAG 走「图模式垂直统一」，本方法走「按意图分道 + 即插即用组件」，两者创新维度不同，可作为同期工作并列对比凸显差异化；若在简单意图上 Token/延迟更省，则进一步坐实「不千篇一律重检索」的效率优势。
+- 相比 **YoutuGraphRAG**（2025 最新 SOTA、同为智能体化图检索路线）：即便指标接近，也要突出本方法的**意图感知分道路由 + 专职 Agent + 可独立消融的工具架构**这一正交差异——YoutuGraphRAG 走「图模式垂直统一」，本方法走「按意图分派专职 Agent + 即插即用工具」，两者创新维度不同，可作为同期工作并列对比凸显差异化；若在简单意图上 Token/延迟更省，则进一步坐实「不千篇一律重检索」的效率优势。
 
 ---
 
@@ -212,14 +224,23 @@ baseline 框架**不在本仓库内实现**，建议二选一：
 | 优先级 | 实验 | 理由 |
 |---|---|---|
 | 🔴 P0 | 实验 1 主消融 + 实验 2 按意图分组 + **实验 6 SOTA 横向对比** | 论文主结论 + 竞争力证明，缺一不可 |
-| 🟡 P1 | 实验 5 效率成本 + 实验 4 Reranking 消融 | 审稿人必问 + 组件贡献 |
+| 🟡 P1 | 实验 5 效率成本 + 实验 4 多Agent组件消融 | 审稿人必问 + 组件贡献 |
 | 🟢 P2 | 实验 3 路由反事实 + 意图分类准确率 | 机制深挖，加分项 |
 
 ---
 
 ## 9. 两个诚实提醒（基于代码现状）
 
-来自 `docs/innovation_intent_agent.md` 第一部分（静态路由版），以下为**占位实现**，做实验时勿过度宣称：
+1. **实验 4 的消融变体目前不是 yaml 一键开关**。旧版架构有 `hooks.reflection.enabled` / `hooks.reranking.enabled` 这类现成开关，新的多Agent架构下 `w/o Preprocess`、`w/o TreeIntent`、`w/o BM25` 等变体需要临时代码改动才能跑（例如让 `MultiAgentRetriever` 跳过预处理步骤、固定路由到某个 Agent、从 `ToolSetBuilder` 的 `TOOL_MATRIX` 里剔除 `bm25_search`）。若要把它们变成正式消融开关，需要额外工程量。
+2. **ReAct Agent 的 `max_iterations` 默认值为 3**（新架构，比旧版 LangGraph 的 `max_iterations=2` 多一轮，因为工具集更丰富）。跑效率对比实验时注意这个默认值差异。
 
-1. **`IterativeStrategy` 目前是单轮直检**（MVP），并非真正多轮分解 → `analytical` 意图提升有限属正常，非 bug。
-2. ~~**Reflection 不触发重检索**~~ → **已实装** Self-Reflection 多轮循环（创新点 2d），策略回退驱动重检索，可以设计「反思后性能提升」的实验。
+---
+
+## 需要确认的后续实验（未直接添加，等待确认）
+
+以下是新多Agent架构下**可能值得补充**的实验方向，但目前尚未在本文档中正式定义为消融变体（也未落地为 yaml 开关）。是否要将它们纳入实验计划，请明确告知：
+
+1. **消融实验的 yaml 化**：把 §5 表格中的 8 个消融变体（w/o Preprocess/TreeIntent/Reflect/Memory/SharedMem/BM25/Graph/MapReduce）落地为 `configs/` 下可直接跑的 yaml + 对应的代码开关（类似旧版 `hooks.*.enabled` 的做法），而不是要求临时改代码。
+2. **Map-Reduce Agent 专项实验**：单独评测归纳总结类查询（需要专门构造或筛选"总结/综述"类 QA 数据，现有 HotpotQA/2Wiki/MuSiQue 均为事实问答，不含摘要类问题）。
+3. **WebSearch Agent 专项实验**：单独评测超出知识库范围的查询（需要构造知识库之外的问题集，现有多跳数据集不适用）。
+4. **双层记忆的飞轮效应曲线**（对标旧版 `docs/result/消融实验.md` 中的经验记忆增长曲线实验），验证新架构 `AgentPrivateMemory` 是否有同等的跨查询学习效应。

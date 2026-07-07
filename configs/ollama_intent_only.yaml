@@ -1,0 +1,126 @@
+# ============================================================================
+# ollama_intent_only.yaml
+#
+# 用途：本地 Ollama（Qwen3-8B 等）+ 本地 sentence-transformers embedding，
+#       仅启用创新点二（多Agent意图感知检索架构）。
+#       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
+# 典型场景：
+#   - 本地实验：docs/experiment_guide.md 「方式 A」流程的默认配置
+#   - 免 API 费用的多跳数据集（HotpotQA/2Wiki/MuSiQue）批量实验
+# 依赖：.env 中需有 LLM_API_KEY=ollama / LLM_BASE_URL / LLM_MODEL
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/ollama_intent_only
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  provider: ollama
+  # model / api_key / base_url 来自 .env（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）
+  temperature: 0.1
+  max_tokens: 2048
+  timeout: 120
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
+
+embedding:
+  provider: sentence_transformer
+  model: ./models/sentence-transformers_all-MiniLM-L6-v2
+  dim: 384
+  batch_size: 32
+  normalize: true
+  device: cpu
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/ollama_intent_only/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: flat_ip
+    metric: ip
+    persist_path: ./storage/ollama_intent_only/vectors
+    top_k: 5
+    hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
+    ivf: { nlist: 100, nprobe: 8 }
+
+datasets:
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
+  hotpotqa:
+    loader: hotpotqa
+    path: ./data/hotpotqa/hotpotqa.json
+    output_dir: ./output/hotpotqa
+    split: dev
+  two_wiki:
+    loader: two_wiki
+    path: ./data/two_wiki/dev.json
+    output_dir: ./output/two_wiki
+  musique:
+    loader: musique
+    path: ./data/musique/musique_ans_v1.0_dev.jsonl
+    output_dir: ./output/musique
+
+# AdaGraph OFF — ingestion 走 defaults (和 vanilla 相同)
+ingestion:
+  chunker:
+    active: defaults.fixed
+    params: { chunk_size: 300, overlap: 30 }
+  extractor:
+    active: defaults.simple_llm
+    params: { extract_workers: 4 }
+  pruner:
+    active: defaults.noop
+    params: {}
+
+# IntentAgent ON — 多Agent架构
+query:
+  intent_classifier:
+    active: intent_agent.tree
+    params: {}
+  retriever:
+    active: intent_agent.multi_agent
+    params: {}
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: false
+  intent_agent:
+    enabled: true
+    multi_agent:
+      classifier:
+        confidence_threshold: 0.7
+        rule_fallback: true
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4
+      react:
+        max_iterations: 3
+        quality_threshold: 0.6
+      map_reduce:
+        retrieve_top_k: 50
+      web_search:
+        search_backend: duckduckgo
+        max_results: 5
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 500
+  parallel: 1
