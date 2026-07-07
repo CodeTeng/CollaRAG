@@ -407,7 +407,7 @@ def main():
 - **Mock 优先**：所有 pytest 默认用 `MockLLMProvider` + `MockEmbeddingProvider`，`pytest -q` 不需真实 API key
 - **数据集文件不入库**：`data/` 加入 `.gitignore`，仅保留 `data/README.md` 说明下载方式；`config.datasets.<name>.path` 指向本地绝对路径或相对 workspace 路径
 - **名字映射记录**：README 中声明"AdaGraph（原设计文档中的 DEKER）/ IntentAgent（原设计文档中的 MRDE）"，避免读者混淆
-- **不修改 my/ 下 5 份材料**，仅新建项目骨架与 web-ui/
+- **不修改设计材料**，仅新建项目骨架与 web-ui/
 - **性能与降级**：cytoscape 渲染节点 > 500 时降级布局；FAISS 索引 > 10k 时考虑 IVF（本阶段不做）
 
 ## 设计风格
@@ -449,8 +449,8 @@ def main():
 ### SubAgent
 
 - **code-explorer**
-- Purpose: 工作区需要新建 60+ 文件、20+ 目录；在动工前以及关键里程碑复核 my/ 下 5 份设计材料的具体公式、prompt 模板、意图分类示例，为 AdaGraph 公式实装和 IntentAgent prompt 提供 ground truth；同时在前后端联调阶段跨文件验证 API 契约一致性
-- Expected outcome: 精确提取 my/ 材料中 DEKER 自适应分块公式、MRDE 6 类意图 prompt、冗余阈值等关键数值；给出跨模块一致性检查报告
+- Purpose: 工作区需要新建 60+ 文件、20+ 目录；在动工前以及关键里程碑复核设计材料的具体公式、prompt 模板、意图分类示例，为 AdaGraph 公式实装和 IntentAgent prompt 提供 ground truth；同时在前后端联调阶段跨文件验证 API 契约一致性
+- Expected outcome: 精确提取设计材料中 DEKER 自适应分块公式、MRDE 6 类意图 prompt、冗余阈值等关键数值；给出跨模块一致性检查报告
 
 ### Skill
 
