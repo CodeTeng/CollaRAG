@@ -129,7 +129,7 @@ query → Preprocessor Agent → Tree-Intent Classifier
 | `other` | WebSearch + LLM Agent | "今天东京天气怎样？" |
 
 **核心组件**：
-- **19 个共享工具**：向量检索 / BM25 / 混合检索(RRF) / 图邻居展开 / 图路径搜索 / 子查询分解 / 证据评估 / 重排序 / 查询改写 / 指代消解 / 记忆读写 / 联网搜索 / 文件 IO
+- **22 个共享工具**：向量检索 / BM25 / 混合检索(RRF) / 图邻居展开 / 图路径搜索 / 实体提取 / 关系提取 / 实体链接 / 子查询分解 / 证据评估 / 重排序 / 查询改写 / 指代消解 / 记忆读写 / 联网搜索 / 文件 IO
 - **双层记忆**：SharedMemory（QA 缓存 + 路由统计 + 实体别名）+ AgentPrivateMemory（按 Agent × 意图分桶的 JSONL 经验存储）
 - **设计模式**：Strategy / Factory / Builder / Template Method / Facade
 
@@ -206,7 +206,7 @@ chimera-rag/
 │   │       ├── orchestrator.py   #   MultiAgentRetriever 编排器
 │   │       ├── agent_factory.py  #   AgentFactory + ToolSetBuilder
 │   │       ├── agents/           #   5 个专职 Agent
-│   │       ├── tools/            #   19 个共享工具
+│   │       ├── tools/            #   22 个共享工具
 │   │       └── memory/           #   双层记忆系统
 │   ├── datasets/                 # 数据集 loader
 │   ├── evaluation/               # 推理运行器 + 打分器

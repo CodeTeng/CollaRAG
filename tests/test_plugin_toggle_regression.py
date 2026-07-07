@@ -11,7 +11,7 @@ def test_filter_params_rejects_kwargs_for_classes_without_own_init():
     """Classes that don't declare __init__ (NoOpPruner) inherit object's
     (self, *args, **kwargs) — *filtered* to empty, not passed verbatim."""
     from chimera_rag import ChimeraRAG
-    from chimera_rag.defaults.noop_pruner import NoOpPruner
+    from chimera_rag.defaults.pruner import NoOpPruner
 
     assert ChimeraRAG._filter_params(NoOpPruner, {"foo": 1, "bar": 2}) == {}
 

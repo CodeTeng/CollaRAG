@@ -2,19 +2,10 @@
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
-
-_GENERATE_PROMPT = """Answer the question based on the following web search results and local knowledge.
-Web results:
-{web_results}
-
-Local knowledge:
-{local_knowledge}
-
-Question: {query}
-Answer:"""
+from chimera_rag.plugins.intent_agent.prompts import WEBSEARCH_GENERATE_PROMPT
 
 
 @AgentFactory.register("other")
@@ -37,7 +28,7 @@ class WebSearchAgent(BaseAgent):
             chunks = local.get("chunks", [])
             local_text = "\n".join(c.get("preview", "") for c in chunks)
 
-        prompt = _GENERATE_PROMPT.format(
+        prompt = WEBSEARCH_GENERATE_PROMPT.format(
             web_results=web_results_text or "(none)",
             local_knowledge=local_text or "(none)",
             query=query.text,

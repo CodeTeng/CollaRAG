@@ -43,7 +43,7 @@ def _build_cfg(**overrides) -> LLMConfig:
 # ---------------------------------------------------------------------------
 def test_missing_api_key_raises_provider_error(monkeypatch):
     monkeypatch.delenv("TEST_API_KEY", raising=False)
-    from chimera_rag.providers.llm_provider import LLMProvider
+    from chimera_rag.providers.llm import LLMProvider
 
     with pytest.raises(ProviderError, match="TEST_API_KEY"):
         LLMProvider(_build_cfg())
@@ -53,15 +53,15 @@ def test_missing_api_key_raises_provider_error(monkeypatch):
 async def test_complete_returns_text(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
     fake_client = MagicMock()
     fake_client.chat.completions.create = AsyncMock(
         return_value=_fake_response("hello world")
     )
 
-    with patch.object(llm_provider, "_make_async_client", return_value=fake_client) as mk:
-        provider = llm_provider.LLMProvider(_build_cfg())
+    with patch.object(llm, "_make_async_client", return_value=fake_client) as mk:
+        provider = llm.LLMProvider(_build_cfg())
         out = await provider.complete("ping")
 
     assert out == "hello world"
@@ -80,15 +80,15 @@ async def test_complete_returns_text(monkeypatch):
 async def test_complete_retries_on_transient_failure(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
     fake_client = MagicMock()
     fake_client.chat.completions.create = AsyncMock(
         side_effect=[RuntimeError("transient"), _fake_response("ok")]
     )
 
-    with patch.object(llm_provider, "_make_async_client", return_value=fake_client):
-        provider = llm_provider.LLMProvider(_build_cfg())
+    with patch.object(llm, "_make_async_client", return_value=fake_client):
+        provider = llm.LLMProvider(_build_cfg())
         out = await provider.complete("ping")
 
     assert out == "ok"
@@ -99,13 +99,13 @@ async def test_complete_retries_on_transient_failure(monkeypatch):
 async def test_complete_raises_provider_error_when_all_attempts_fail(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
     fake_client = MagicMock()
     fake_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("boom"))
 
-    with patch.object(llm_provider, "_make_async_client", return_value=fake_client):
-        provider = llm_provider.LLMProvider(_build_cfg())
+    with patch.object(llm, "_make_async_client", return_value=fake_client):
+        provider = llm.LLMProvider(_build_cfg())
         with pytest.raises(ProviderError, match="boom|failed"):
             await provider.complete("ping")
 
@@ -115,16 +115,16 @@ async def test_complete_raises_provider_error_when_all_attempts_fail(monkeypatch
 def test_base_url_forwarded_to_client(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
-    with patch.object(llm_provider, "_make_async_client", return_value=MagicMock()) as mk:
-        llm_provider.LLMProvider(_build_cfg(base_url="https://api.example.com/v1"))
+    with patch.object(llm, "_make_async_client", return_value=MagicMock()) as mk:
+        llm.LLMProvider(_build_cfg(base_url="https://api.example.com/v1"))
 
     assert mk.call_args.kwargs["base_url"] == "https://api.example.com/v1"
 
 
 def test_llm_provider_is_instance_of_base_provider():
     from chimera_rag.interfaces.llm_provider import BaseLLMProvider
-    from chimera_rag.providers.llm_provider import LLMProvider
+    from chimera_rag.providers.llm import LLMProvider
 
     assert issubclass(LLMProvider, BaseLLMProvider)

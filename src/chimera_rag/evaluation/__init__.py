@@ -1,6 +1,5 @@
-"""Evaluation metrics, runner and reporter."""
+"""Evaluation metrics, runner, scorer, and reporter."""
 
-from chimera_rag.evaluation.evaluator import Evaluator
 from chimera_rag.evaluation.inference import InferenceRunner
 from chimera_rag.evaluation.metrics import exact_match, rouge_l, token_f1
 from chimera_rag.evaluation.predictions_io import (
@@ -15,7 +14,6 @@ from chimera_rag.evaluation.scorer import Scorer
 __all__ = [
     "CompareReporter",
     "EvalReporter",
-    "Evaluator",
     "InferenceRunner",
     "RagasEvaluator",
     "RagasReporter",

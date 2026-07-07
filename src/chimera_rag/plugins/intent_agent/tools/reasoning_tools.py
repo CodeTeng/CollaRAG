@@ -7,12 +7,8 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
-
-_DECOMPOSE_PROMPT = """Decompose the following complex query into simpler sub-queries.
-Return a JSON list of strings, e.g. ["sub-query 1", "sub-query 2"].
-Query: {query}
-Sub-queries:"""
+from chimera_rag.defaults.extractor import _run_async
+from chimera_rag.plugins.intent_agent.prompts import SUB_QUERY_DECOMPOSE_PROMPT
 
 
 class _DecomposeArgs(BaseModel):
@@ -32,7 +28,7 @@ class _RerankArgs(BaseModel):
 
 def build_reasoning_tools(*, llm, reflector, reranker, accumulator, chunk_lookup) -> list[StructuredTool]:
     def _sub_query_decompose(query: str, max_sub: int = 4) -> list[str]:
-        prompt = _DECOMPOSE_PROMPT.format(query=query)
+        prompt = SUB_QUERY_DECOMPOSE_PROMPT.format(query=query)
         raw = _run_async(llm.complete(prompt, max_tokens=300))
         try:
             subs = json.loads(raw.strip())

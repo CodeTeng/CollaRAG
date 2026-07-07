@@ -362,20 +362,14 @@ class ChimeraRAG:
                 logging.getLogger(__name__).warning("intent_agent plugin not available: %s", e)
 
     def _build_stores(self):
-        from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
-        from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+        from chimera_rag.stores.graph import NetworkXGraphStore
+        from chimera_rag.stores.vector import FAISSVectorStore
 
         graph_cfg = self.config.storage.graph
         if graph_cfg.backend == "networkx":
             graph = NetworkXGraphStore()
-        elif graph_cfg.backend == "neo4j":  # pragma: no cover - placeholder
-            from chimera_rag.stores.graph.neo4j_store import Neo4jGraphStore
-
-            graph = Neo4jGraphStore(
-                uri=graph_cfg.neo4j_uri or "bolt://localhost:7687",
-                user=graph_cfg.neo4j_user or "neo4j",
-                password="",
-            )
+        elif graph_cfg.backend == "neo4j":  # pragma: no cover - removed in cleanup
+            raise ValueError("neo4j backend is not supported in this version")
         else:  # pragma: no cover - guarded by Pydantic
             raise ValueError(f"unknown graph backend: {graph_cfg.backend}")
 

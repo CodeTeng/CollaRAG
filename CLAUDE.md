@@ -80,7 +80,7 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
    - **ReAct Agent**: multi-step reasoning with tool selection + reflection loop for multi-hop/comparative/exploratory queries
    - **Map-Reduce Agent**: retrieve → map (per-chunk LLM summary) → reduce (final synthesis) for summarization queries
    - **WebSearch + LLM Agent**: DuckDuckGo search + optional local knowledge for out-of-scope queries
-   - **Shared Tool Layer**: 19 tools (vector/BM25/hybrid/graph retrieval, sub-query decompose, assess evidence, rerank, query rewrite, memory read/write, web search, file IO)
+   - **Shared Tool Layer**: 22 tools (vector/BM25/hybrid/graph retrieval, entity/relation extraction, entity linking, sub-query decompose, assess evidence, rerank, query rewrite, memory read/write, web search, file IO)
    - **Dual-Layer Memory**: SharedMemory (QA cache, routing stats, entity aliases) + AgentPrivateMemory (per-agent per-intent JSONL experience store)
 
 ### Key design patterns (IntentAgent)
@@ -117,6 +117,7 @@ All cross-layer types in `core/types.py`: `Document`, `Chunk`, `Triple`, `Entity
 ```
 plugins/intent_agent/
 ├── __init__.py              # Plugin entry, triggers @register
+├── prompts.py               # Centralized prompt templates (13 prompts)
 ├── classifier.py            # TreeIntentClassifier (greeting + LLM + rule fallback)
 ├── orchestrator.py          # MultiAgentRetriever facade
 ├── agent_factory.py         # AgentFactory + ToolSetBuilder + TOOL_MATRIX
@@ -126,8 +127,9 @@ plugins/intent_agent/
 │   ├── react_agent.py       # ReActAgent
 │   ├── map_reduce.py        # MapReduceAgent
 │   └── web_search.py        # WebSearchAgent
-├── tools/                   # 19 shared tools
+├── tools/                   # 22 shared tools
 │   ├── retrieval_tools.py   # vector/BM25/hybrid/graph (+ BM25Index, ToolAccumulator)
+│   ├── entity_tools.py      # entity_extract/relation_extract/entity_link
 │   ├── reasoning_tools.py   # sub_query_decompose/assess_evidence/rerank
 │   ├── preprocess_tools.py  # query_rewrite/coreference_resolve/followup_merge
 │   ├── memory_tools.py      # read/write session/shared/agent memory

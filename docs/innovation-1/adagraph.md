@@ -113,7 +113,7 @@ plan.md §核心功能 第 2 条明确把抽取拆成 4 层：
 
 | 层次 | 目标 | 当前实装 |
 |---|---|---|
-| **L1 — explicit** | 文本字面写出的 (s, p, o) | ✅ 复用 `defaults/llm_extractor.py::SimpleLLMExtractor` 的单 prompt 抽取 + JSON 解析 |
+| **L1 — explicit** | 文本字面写出的 (s, p, o) | ✅ 复用 `defaults/extractor.py::SimpleLLMExtractor` 的单 prompt 抽取 + JSON 解析 |
 | **L2 — implicit** | 共指、因果、时序等隐式关系 | 🚧 接口存在，返回空列表 + debug 日志（plan.md §目录结构 第 235 行所标 TODO） |
 | **L3 — schema** | 受实体类型 schema 约束的补全关系 | 🚧 接口存在，返回空列表 + debug 日志 |
 | **L4 — cross-sentence** | 需要跨句融合多处证据的事实 | 🚧 接口存在，返回空列表 + debug 日志 |

@@ -51,7 +51,7 @@ def _fake_rerank_response(indices: list[int], scores: list[float]):
 async def test_rerank_reorders_by_score(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_post.return_value = AsyncMock()
@@ -76,7 +76,7 @@ async def test_rerank_reorders_by_score(monkeypatch):
 async def test_rerank_empty_result_returns_as_is(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     provider = RerankProvider(_build_cfg())
     query = Query(text="test")
@@ -91,7 +91,7 @@ async def test_rerank_empty_result_returns_as_is(monkeypatch):
 async def test_rerank_retries_on_failure(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_post.return_value = AsyncMock()
@@ -122,7 +122,7 @@ async def test_rerank_raises_when_all_attempts_fail(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
     from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_post.side_effect = RuntimeError("boom")
@@ -136,7 +136,7 @@ async def test_rerank_raises_when_all_attempts_fail(monkeypatch):
 
 def test_rerank_provider_is_instance_of_base_provider():
     from chimera_rag.interfaces.rerank_provider import BaseRerankProvider
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     assert issubclass(RerankProvider, BaseRerankProvider)
 
@@ -145,7 +145,7 @@ def test_rerank_provider_missing_api_key(monkeypatch):
     monkeypatch.delenv("TEST_API_KEY", raising=False)
 
     from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     with pytest.raises(ProviderError, match="TEST_API_KEY"):
         RerankProvider(_build_cfg())

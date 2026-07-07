@@ -192,12 +192,12 @@ flowchart TB
 │   │
 │   ├── defaults/                             # 9 个裸实现，通过 @register 注册为 defaults.*
 │   │   ├── __init__.py                       # import 所有子模块触发注册
-│   │   ├── fixed_chunker.py                  # FixedSizeChunker：token 固定窗口 + overlap
-│   │   ├── llm_extractor.py                  # SimpleLLMExtractor：单 prompt 提取显式三元组 + JSON 解析
-│   │   ├── noop_pruner.py                    # NoOpPruner：原样返回
-│   │   ├── rule_intent_classifier.py         # RuleBasedIntentClassifier：全部归为 factual
-│   │   ├── direct_retriever.py               # DirectRetriever：向量 top-k + 1 跳邻居扩展
-│   │   ├── prompt_generator.py               # PromptBasedGenerator：context+query → LLM → Answer
+│   │   ├── chunker.py                        # FixedSizeChunker：token 固定窗口 + overlap
+│   │   ├── extractor.py                     # SimpleLLMExtractor：单 prompt 提取显式三元组 + JSON 解析
+│   │   ├── pruner.py                        # NoOpPruner：原样返回
+│   │   ├── classifier.py                    # RuleBasedIntentClassifier：全部归为 factual
+│   │   ├── retriever.py                     # DirectRetriever：向量 top-k + 1 跳邻居扩展
+│   │   ├── generator.py                     # PromptBasedGenerator：context+query → LLM → Answer
 │   │   ├── no_memory.py                      # NoMemory：无状态实现
 │   │   ├── no_reflection.py                  # NoOpReflector：永返回 quality=1.0
 │   │   └── no_reranker.py                    # NoOpReranker：原序返回
@@ -220,11 +220,11 @@ flowchart TB
 │   │   ├── __init__.py
 │   │   ├── graph/
 │   │   │   ├── __init__.py
-│   │   │   ├── networkx_store.py             # NetworkXGraphStore 实装（add_triple/get_neighbors/persist pickle）
-│   │   │   └── neo4j_store.py                # Neo4jGraphStore 占位：方法签名齐全，raise NotImplementedError + docstring
+│   │   │   ├── graph.py                         # NetworkXGraphStore 实装（add_triple/get_neighbors/persist pickle）
+│   │   │   └── (removed)                          # Neo4jGraphStore 占位：方法签名齐全，raise NotImplementedError + docstring
 │   │   └── vector/
 │   │       ├── __init__.py
-│   │       └── faiss_store.py                # FAISSVectorStore：IndexFlatIP，持久化 .faiss + .pkl
+│   │       └── vector.py                       # FAISSVectorStore：IndexFlatIP，持久化 .faiss + .pkl
 │   │
 │   ├── plugins/                              # 两大创新点，与 defaults 平级
 │   │   ├── __init__.py                       # 根据 config.plugins.<name>.enabled 动态 importlib 子包
@@ -270,7 +270,7 @@ flowchart TB
 │   ├── evaluation/                           # 评测
 │   │   ├── __init__.py
 │   │   ├── metrics.py                        # exact_match / token_f1 / rouge_l / bertscore（bertscore 可选 extras）
-│   │   └── evaluator.py                      # Evaluator.run(dataset, pipeline, metrics) -> EvalResult
+│   │   └── (removed)                          # Evaluator.run(dataset, pipeline, metrics) -> EvalResult
 │   │
 │   └── web/                                  # FastAPI Web 系统
 │       ├── __init__.py

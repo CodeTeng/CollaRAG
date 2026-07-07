@@ -17,10 +17,10 @@ import pytest
 def test_llm_provider_instantiation(monkeypatch):
     monkeypatch.setenv("FAKE_KEY", "sk-test")
     from chimera_rag.core.config import LLMConfig
-    from chimera_rag.providers.llm_provider import LLMProvider
+    from chimera_rag.providers.llm import LLMProvider
 
     with patch(
-        "chimera_rag.providers.llm_provider._make_async_client",
+        "chimera_rag.providers.llm._make_async_client",
         return_value=MagicMock(),
     ):
         cfg = LLMConfig(model="test-model", api_key_env="FAKE_KEY")
@@ -31,7 +31,7 @@ def test_llm_provider_instantiation(monkeypatch):
 def test_llm_provider_raises_when_api_key_missing(monkeypatch):
     from chimera_rag.core.config import LLMConfig
     from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers.llm_provider import LLMProvider
+    from chimera_rag.providers.llm import LLMProvider
 
     monkeypatch.delenv("FAKE_KEY", raising=False)
     cfg = LLMConfig(model="test-model", api_key_env="FAKE_KEY")
@@ -45,10 +45,10 @@ def test_llm_provider_raises_when_api_key_missing(monkeypatch):
 def test_embedding_provider_instantiation(monkeypatch):
     monkeypatch.setenv("FAKE_KEY", "sk-test")
     from chimera_rag.core.config import EmbeddingConfig
-    from chimera_rag.providers.embedding_provider import EmbeddingProvider
+    from chimera_rag.providers.embedding import EmbeddingProvider
 
     with patch(
-        "chimera_rag.providers.embedding_provider._make_client",
+        "chimera_rag.providers.embedding._make_client",
         return_value=MagicMock(),
     ):
         cfg = EmbeddingConfig(
@@ -72,7 +72,7 @@ def test_rerank_provider_returns_none_when_disabled():
 
 def test_rerank_provider_instantiation():
     from chimera_rag.core.config import RerankConfig
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     cfg = RerankConfig(
         enabled=True,
@@ -81,7 +81,7 @@ def test_rerank_provider_instantiation():
         api_key_env="FAKE_KEY",
     )
     with patch(
-        "chimera_rag.providers.rerank_provider.os.getenv",
+        "chimera_rag.providers.rerank.os.getenv",
         return_value="fake-api-key",
     ):
         provider = RerankProvider(cfg)

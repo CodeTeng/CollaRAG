@@ -1,4 +1,4 @@
-"""Tests for :mod:`chimera_rag.stores.graph.networkx_store`."""
+"""Tests for :mod:`chimera_rag.stores.graph`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 def test_networkx_store_add_triple_and_all_triples():
     from chimera_rag.core.types import Triple
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+    from chimera_rag.stores.graph import NetworkXGraphStore
 
     s = NetworkXGraphStore()
     s.add_triple(Triple(subject="A", predicate="invented", object="B"))
@@ -19,7 +19,7 @@ def test_networkx_store_add_triple_and_all_triples():
 
 def test_networkx_store_get_neighbors_one_hop_finds_inbound_and_outbound():
     from chimera_rag.core.types import Triple
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+    from chimera_rag.stores.graph import NetworkXGraphStore
 
     s = NetworkXGraphStore()
     s.add_triple(Triple(subject="Nobel", predicate="invented", object="dynamite"))
@@ -36,7 +36,7 @@ def test_networkx_store_get_neighbors_one_hop_finds_inbound_and_outbound():
 
 def test_networkx_store_get_neighbors_two_hops_expands_frontier():
     from chimera_rag.core.types import Triple
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+    from chimera_rag.stores.graph import NetworkXGraphStore
 
     s = NetworkXGraphStore()
     s.add_triple(Triple(subject="A", predicate="p", object="B"))
@@ -52,7 +52,7 @@ def test_networkx_store_get_neighbors_two_hops_expands_frontier():
 
 def test_networkx_store_persist_and_load_round_trip(tmp_path: Path):
     from chimera_rag.core.types import Triple
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
+    from chimera_rag.stores.graph import NetworkXGraphStore
 
     s1 = NetworkXGraphStore()
     s1.add_triple(Triple(subject="A", predicate="p", object="B", confidence=0.9, layer="L2"))

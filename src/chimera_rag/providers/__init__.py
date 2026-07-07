@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 
 
 def build_llm_provider(cfg: LLMConfig | Any) -> BaseLLMProvider:
-    from chimera_rag.providers.llm_provider import LLMProvider
+    from chimera_rag.providers.llm import LLMProvider
 
     return LLMProvider(cfg)
 
 
 def build_embedding_provider(cfg: EmbeddingConfig | Any) -> BaseEmbeddingProvider:
-    from chimera_rag.providers.embedding_provider import EmbeddingProvider
+    from chimera_rag.providers.embedding import EmbeddingProvider
 
     return EmbeddingProvider(cfg)
 
@@ -30,7 +30,7 @@ def build_embedding_provider(cfg: EmbeddingConfig | Any) -> BaseEmbeddingProvide
 def build_rerank_provider(cfg: RerankConfig | Any) -> BaseRerankProvider | None:
     if not cfg.enabled:
         return None
-    from chimera_rag.providers.rerank_provider import RerankProvider
+    from chimera_rag.providers.rerank import RerankProvider
 
     return RerankProvider(cfg)
 

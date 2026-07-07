@@ -45,11 +45,11 @@
 | `intent_classifier.py` | `intent_classifier` | `defaults.rule` | — | `intent_agent.tree` |
 | `retriever.py` | `retriever` | `defaults.direct` | — | `intent_agent.multi_agent` |
 | `generator.py` | `generator` | `defaults.prompt` | — | — |
-| `llm_provider.py` | `llm_provider` | OpenAI-compatible (single client) | — | — |
-| `embedding_provider.py` | `embedding_provider` | OpenAI-compatible (single client) | — | — |
-| `rerank_provider.py` | `rerank_provider` | OpenAI-compatible `/rerank` endpoint | — | — |
-| `graph_store.py` | `graph_store` | `networkx` | — | — |
-| `vector_store.py` | `vector_store` | `faiss` | — | — |
+| `llm_provider.py` | `llm_provider` | `providers/llm.py` (OpenAI-compatible) | — | — |
+| `embedding_provider.py` | `embedding_provider` | `providers/embedding.py` (OpenAI-compatible) | — | — |
+| `rerank_provider.py` | `rerank_provider` | `providers/rerank.py` (OpenAI-compatible) | — | — |
+| `graph_store.py` | `graph_store` | `stores/graph.py` (NetworkX) | — | — |
+| `vector_store.py` | `vector_store` | `stores/vector.py` (FAISS) | — | — |
 | `base_agent.py` | — | — | — | `BaseAgent` ABC + `AgentContext` |
 
 **AdaGraph 占 3 个构建插槽，IntentAgent 占 2 个查询插槽**，彼此不重叠。
@@ -122,11 +122,12 @@ query
 
 ## 6. IntentAgent 多Agent内部架构
 
-### 6.1 共享工具层（19 个工具）
+### 6.1 共享工具层（22 个工具）
 
 | 分类 | 工具 |
 |---|---|
 | **检索** | `vector_search` · `bm25_search` · `hybrid_search` · `graph_neighbors` · `graph_path_search` · `graph_community_search` |
+| **实体** | `entity_extract` · `relation_extract` · `entity_link` |
 | **推理** | `sub_query_decompose` · `assess_evidence` · `rerank` |
 | **预处理** | `query_rewrite` · `coreference_resolve` · `followup_merge` |
 | **记忆** | `read_session_context` · `write_session_context` · `read_shared_memory` · `write_shared_memory` · `read_agent_memory` · `write_agent_memory` |
@@ -145,6 +146,9 @@ query
 | `graph_neighbors` | | ✅ | ✅ | | |
 | `graph_path_search` | | | ✅ | | |
 | `graph_community_search` | | | ✅ | ✅ | |
+| `entity_extract` | | ✅ | ✅ | ✅ | ✅ |
+| `relation_extract` | | | ✅ | | |
+| `entity_link` | | ✅ | ✅ | | |
 | `sub_query_decompose` | | | ✅ | | |
 | `assess_evidence` | | ✅ | ✅ | | |
 | `rerank` | | ✅ | ✅ | ✅ | |
@@ -228,7 +232,7 @@ QAExample / EvalResult                                            ← 评测
   pruner   ─►│   pruner slot            generator slot     │        │
              │        ▲                                    │   ┌────┴────┐
              │        │                                    │   │ 5 Agents│
-             │        └─── AdaGraph 占据 3 个构建插槽       │   │ 19 Tools│
+             │        └─── AdaGraph 占据 3 个构建插槽       │   │ 22 Tools│
              │                                             │   │ 2-Layer │
              │   PipelineState                             │   │ Memory  │
              │   ├─ NetworkXGraphStore                     │   └─────────┘

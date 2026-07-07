@@ -2,20 +2,10 @@
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
-
-_MAP_PROMPT = """Extract key information relevant to the query from this passage.
-Query: {query}
-Passage: {text}
-Key information:"""
-
-_REDUCE_PROMPT = """Based on the following extracted information, provide a comprehensive summary.
-Query: {query}
-Extracted information:
-{summaries}
-Summary:"""
+from chimera_rag.plugins.intent_agent.prompts import MAP_PROMPT, REDUCE_PROMPT
 
 
 @AgentFactory.register("summarization")
@@ -49,12 +39,12 @@ class MapReduceAgent(BaseAgent):
 
         summaries = []
         for text in texts:
-            prompt = _MAP_PROMPT.format(query=query.text, text=text[:1000])
+            prompt = MAP_PROMPT.format(query=query.text, text=text[:1000])
             summary = _run_async(llm.complete(prompt, max_tokens=200))
             summaries.append(summary.strip())
 
         combined = "\n---\n".join(f"[{i+1}] {s}" for i, s in enumerate(summaries) if s)
-        reduce_prompt = _REDUCE_PROMPT.format(query=query.text, summaries=combined)
+        reduce_prompt = REDUCE_PROMPT.format(query=query.text, summaries=combined)
         final = _run_async(llm.complete(reduce_prompt, max_tokens=1024))
 
         context.trace["map_count"] = len(summaries)

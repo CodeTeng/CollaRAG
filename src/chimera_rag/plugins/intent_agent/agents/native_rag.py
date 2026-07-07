@@ -2,16 +2,10 @@
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
-
-_GENERATE_PROMPT = """Answer the question based on the following evidence.
-Evidence:
-{evidence}
-
-Question: {query}
-Answer:"""
+from chimera_rag.plugins.intent_agent.prompts import NATIVE_RAG_GENERATE_PROMPT
 
 
 @AgentFactory.register("single_hop")
@@ -33,7 +27,7 @@ class NativeRAGAgent(BaseAgent):
             context.trace["quality"] = quality
             context.trace["low_confidence"] = quality < self.config.get("quality_threshold", 0.4)
 
-        prompt = _GENERATE_PROMPT.format(evidence=evidence, query=query.text)
+        prompt = NATIVE_RAG_GENERATE_PROMPT.format(evidence=evidence, query=query.text)
         answer_text = _run_async(llm.complete(prompt, max_tokens=512))
 
         return Answer(

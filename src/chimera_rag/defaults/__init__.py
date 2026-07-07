@@ -8,11 +8,10 @@ pipeline is built.
 
 # Eagerly import submodules to fire the @register decorators.
 from chimera_rag.defaults import (  # noqa: F401
-    direct_retriever,
-    fixed_chunker,
-    langchain_chunker,
-    llm_extractor,
-    noop_pruner,
-    prompt_generator,
-    rule_intent_classifier,
+    chunker,
+    classifier,
+    extractor,
+    generator,
+    pruner,
+    retriever,
 )

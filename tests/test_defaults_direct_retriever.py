@@ -7,9 +7,9 @@ def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
 
     from _fakes import FakeEmbeddingProvider
     from chimera_rag.core.types import Chunk, Query
-    from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.defaults.retriever import DirectRetriever
+    from chimera_rag.stores.graph import NetworkXGraphStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     # Build a tiny corpus
     chunks = [
@@ -44,9 +44,9 @@ def test_direct_retriever_pulls_graph_neighbors_when_hops_positive():
 
     from _fakes import FakeEmbeddingProvider
     from chimera_rag.core.types import Chunk, Query, Triple
-    from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.defaults.retriever import DirectRetriever
+    from chimera_rag.stores.graph import NetworkXGraphStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     chunks = [
         Chunk(chunk_id="c0", doc_id="d", index=0, text="Alfred Nobel invented dynamite"),
@@ -90,7 +90,7 @@ def test_direct_retriever_pulls_graph_neighbors_when_hops_positive():
 def test_direct_retriever_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
     from chimera_rag.core.registry import get_registry
-    from chimera_rag.defaults.direct_retriever import DirectRetriever
+    from chimera_rag.defaults.retriever import DirectRetriever
 
     assert get_registry().get("retriever", "defaults.direct") is DirectRetriever
 
@@ -102,9 +102,9 @@ def test_direct_retriever_shares_chunk_lookup_reference_when_empty():
     fill it during ingest. The retriever must hold the same reference.
     """
     from _fakes import FakeEmbeddingProvider
-    from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.defaults.retriever import DirectRetriever
+    from chimera_rag.stores.graph import NetworkXGraphStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     shared: dict = {}
     r = DirectRetriever(

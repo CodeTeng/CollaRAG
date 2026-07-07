@@ -27,20 +27,20 @@ def _cfg(*, model: str = "test-model", api_key_env: str = "LLM_API_KEY") -> LLMC
 
 def test_api_key_resolved_from_default_env(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
-    with patch.object(llm_provider, "_make_async_client", return_value=MagicMock()) as mk:
-        llm_provider.LLMProvider(_cfg())
+    with patch.object(llm, "_make_async_client", return_value=MagicMock()) as mk:
+        llm.LLMProvider(_cfg())
 
     assert mk.call_args.kwargs["api_key"] == "sk-test"
 
 
 def test_api_key_resolved_from_custom_env(monkeypatch):
     monkeypatch.setenv("CUSTOM_KEY", "sk-custom")
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
-    with patch.object(llm_provider, "_make_async_client", return_value=MagicMock()) as mk:
-        llm_provider.LLMProvider(_cfg(api_key_env="CUSTOM_KEY"))
+    with patch.object(llm, "_make_async_client", return_value=MagicMock()) as mk:
+        llm.LLMProvider(_cfg(api_key_env="CUSTOM_KEY"))
 
     assert mk.call_args.kwargs["api_key"] == "sk-custom"
 
@@ -48,19 +48,19 @@ def test_api_key_resolved_from_custom_env(monkeypatch):
 def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
-    with patch.object(llm_provider, "_make_async_client", return_value=MagicMock()):
+    with patch.object(llm, "_make_async_client", return_value=MagicMock()):
         with pytest.raises(ProviderError, match="LLM_API_KEY"):
-            llm_provider.LLMProvider(_cfg())
+            llm.LLMProvider(_cfg())
 
 
 def test_model_and_base_url_come_from_config(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "sk-x")
-    from chimera_rag.providers import llm_provider
+    from chimera_rag.providers import llm
 
-    with patch.object(llm_provider, "_make_async_client", return_value=MagicMock()):
-        provider = llm_provider.LLMProvider(
+    with patch.object(llm, "_make_async_client", return_value=MagicMock()):
+        provider = llm.LLMProvider(
             _cfg(model="my-model", api_key_env="LLM_API_KEY"),
         )
 

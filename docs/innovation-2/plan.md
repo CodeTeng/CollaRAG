@@ -527,7 +527,7 @@ class TreeIntentClassifier(BaseIntentClassifier):
         return False
 
     def _llm_classify(self, text: str) -> str:
-        from chimera_rag.defaults.llm_extractor import _run_async
+        from chimera_rag.defaults.extractor import _run_async
 
         prompt = _CLASSIFY_PROMPT.format(query=text)
         try:
@@ -1244,7 +1244,7 @@ from __future__ import annotations
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 
 _REWRITE_PROMPT = """Rewrite the following query to be clearer, more specific, and self-contained.
 Context: {context}
@@ -1309,7 +1309,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 
 _DECOMPOSE_PROMPT = """Decompose the following complex query into simpler sub-queries.
 Return a JSON list of strings, e.g. ["sub-query 1", "sub-query 2"].
@@ -2430,7 +2430,7 @@ __all__ = ["PreprocessorAgent"]
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
 
@@ -2489,7 +2489,7 @@ import logging
 import re
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
 
@@ -2584,7 +2584,7 @@ __all__ = ["ReActAgent"]
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
 
@@ -2662,7 +2662,7 @@ __all__ = ["MapReduceAgent"]
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
 
@@ -2835,7 +2835,7 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Answer, Chunk, Query, RetrievalResult
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.interfaces.retriever import BaseRetriever
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory

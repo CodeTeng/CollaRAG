@@ -14,7 +14,7 @@ def _make_chunk(text: str = "Alfred Nobel invented dynamite in 1867."):
 
 def test_simple_llm_extractor_parses_json_triples_from_mock_llm():
     from _fakes import FakeLLMProvider
-    from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
+    from chimera_rag.defaults.extractor import SimpleLLMExtractor
 
     json_response = (
         '[{"subject": "Alfred Nobel", "predicate": "invented", "object": "dynamite"},'
@@ -37,7 +37,7 @@ def test_simple_llm_extractor_parses_json_triples_from_mock_llm():
 def test_simple_llm_extractor_handles_malformed_llm_output():
     """If the LLM returns garbage, we must not crash the ingest pipeline."""
     from _fakes import FakeLLMProvider
-    from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
+    from chimera_rag.defaults.extractor import SimpleLLMExtractor
 
     mock = FakeLLMProvider(default_response="absolutely not JSON")
     ext = SimpleLLMExtractor(llm=mock)
@@ -48,7 +48,7 @@ def test_simple_llm_extractor_handles_malformed_llm_output():
 def test_simple_llm_extractor_tolerates_fenced_json_blocks():
     """LLMs frequently wrap JSON in ```json ... ``` — strip and parse."""
     from _fakes import FakeLLMProvider
-    from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
+    from chimera_rag.defaults.extractor import SimpleLLMExtractor
 
     fenced = (
         "Sure, here are the triples:\n"
@@ -65,7 +65,7 @@ def test_simple_llm_extractor_tolerates_fenced_json_blocks():
 
 def test_simple_llm_extractor_respects_max_triples_per_chunk():
     from _fakes import FakeLLMProvider
-    from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
+    from chimera_rag.defaults.extractor import SimpleLLMExtractor
 
     # LLM returns 10 triples.
     json_response = "[" + ",".join(
@@ -80,6 +80,6 @@ def test_simple_llm_extractor_respects_max_triples_per_chunk():
 def test_simple_llm_extractor_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401 - trigger registration
     from chimera_rag.core.registry import get_registry
-    from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
+    from chimera_rag.defaults.extractor import SimpleLLMExtractor
 
     assert get_registry().get("extractor", "defaults.simple_llm") is SimpleLLMExtractor

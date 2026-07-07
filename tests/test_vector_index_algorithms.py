@@ -20,7 +20,7 @@ def _vecs(n: int, seed: int = 0) -> np.ndarray:
 # Flat index (baseline behaviour must stay intact)
 # ---------------------------------------------------------------------------
 def test_flat_ip_backward_compat():
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(dim=DIM, index_type="flat_ip")
     ids = [f"c{i}" for i in range(10)]
@@ -31,7 +31,7 @@ def test_flat_ip_backward_compat():
 
 
 def test_flat_l2_backward_compat():
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(dim=DIM, index_type="flat_l2")
     store.add(["a", "b", "c"], _vecs(3))
@@ -43,7 +43,7 @@ def test_flat_l2_backward_compat():
 # HNSW
 # ---------------------------------------------------------------------------
 def test_hnsw_index_creates_without_train():
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(
         dim=DIM,
@@ -60,7 +60,7 @@ def test_hnsw_index_creates_without_train():
 
 def test_hnsw_ef_search_applied_at_query_time():
     """Raising ef_search should not break results (correctness invariant)."""
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(
         dim=DIM, index_type="hnsw", metric="ip",
@@ -81,7 +81,7 @@ def test_hnsw_ef_search_applied_at_query_time():
 # IVF
 # ---------------------------------------------------------------------------
 def test_ivf_flat_index_trains_and_queries():
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(
         dim=DIM,
@@ -103,7 +103,7 @@ def test_ivf_flat_index_trains_and_queries():
 def test_ivf_flat_refuses_add_when_corpus_too_small():
     """IVF needs >= nlist training points; small corpus should raise clearly."""
     from chimera_rag.core.exceptions import ChimeraError
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(
         dim=DIM, index_type="ivf_flat", metric="ip",
@@ -152,7 +152,7 @@ def test_ivf_params_default_in_config():
 # Persistence round-trip for HNSW
 # ---------------------------------------------------------------------------
 def test_hnsw_persist_roundtrip(tmp_path):
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     store = FAISSVectorStore(dim=DIM, index_type="hnsw", metric="ip")
     ids = [f"c{i}" for i in range(30)]

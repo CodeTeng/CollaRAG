@@ -36,14 +36,14 @@ def _build_cfg(**overrides) -> EmbeddingConfig:
 
 def test_embedding_provider_is_instance_of_base_provider():
     from chimera_rag.interfaces.embedding_provider import BaseEmbeddingProvider
-    from chimera_rag.providers.embedding_provider import EmbeddingProvider
+    from chimera_rag.providers.embedding import EmbeddingProvider
 
     assert issubclass(EmbeddingProvider, BaseEmbeddingProvider)
 
 
 def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("TEST_API_KEY", raising=False)
-    from chimera_rag.providers.embedding_provider import EmbeddingProvider
+    from chimera_rag.providers.embedding import EmbeddingProvider
 
     with pytest.raises(ProviderError, match="TEST_API_KEY"):
         EmbeddingProvider(_build_cfg())
@@ -52,15 +52,15 @@ def test_missing_api_key_raises(monkeypatch):
 def test_encode_returns_correct_shape(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import embedding_provider
+    from chimera_rag.providers import embedding
 
     fake_client = MagicMock()
     fake_client.embeddings.create = MagicMock(
         return_value=_fake_embedding_response(1536, ["a", "b", "c"])
     )
 
-    with patch.object(embedding_provider, "_make_client", return_value=fake_client):
-        p = embedding_provider.EmbeddingProvider(_build_cfg())
+    with patch.object(embedding, "_make_client", return_value=fake_client):
+        p = embedding.EmbeddingProvider(_build_cfg())
         out = p.encode(["a", "b", "c"])
 
     assert out.shape == (3, 1536)
@@ -69,15 +69,15 @@ def test_encode_returns_correct_shape(monkeypatch):
 def test_encode_batches_large_input(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import embedding_provider
+    from chimera_rag.providers import embedding
 
     fake_client = MagicMock()
     fake_client.embeddings.create = MagicMock(
         side_effect=lambda model, input: _fake_embedding_response(64, input)
     )
 
-    with patch.object(embedding_provider, "_make_client", return_value=fake_client):
-        p = embedding_provider.EmbeddingProvider(_build_cfg(dim=64, batch_size=2))
+    with patch.object(embedding, "_make_client", return_value=fake_client):
+        p = embedding.EmbeddingProvider(_build_cfg(dim=64, batch_size=2))
         out = p.encode(["a", "b", "c", "d", "e"])
 
     assert out.shape == (5, 64)
@@ -88,15 +88,15 @@ def test_encode_batches_large_input(monkeypatch):
 def test_encode_normalizes(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import embedding_provider
+    from chimera_rag.providers import embedding
 
     fake_client = MagicMock()
     fake_client.embeddings.create = MagicMock(
         return_value=_fake_embedding_response(64, ["a"])
     )
 
-    with patch.object(embedding_provider, "_make_client", return_value=fake_client):
-        p = embedding_provider.EmbeddingProvider(_build_cfg(dim=64, normalize=True))
+    with patch.object(embedding, "_make_client", return_value=fake_client):
+        p = embedding.EmbeddingProvider(_build_cfg(dim=64, normalize=True))
         out = p.encode(["a"])
 
     norm = np.linalg.norm(out)
@@ -106,10 +106,10 @@ def test_encode_normalizes(monkeypatch):
 def test_encode_empty_returns_zero_rows(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import embedding_provider
+    from chimera_rag.providers import embedding
 
-    with patch.object(embedding_provider, "_make_client", return_value=MagicMock()):
-        p = embedding_provider.EmbeddingProvider(_build_cfg())
+    with patch.object(embedding, "_make_client", return_value=MagicMock()):
+        p = embedding.EmbeddingProvider(_build_cfg())
         out = p.encode([])
 
     assert out.shape == (0, 1536)
@@ -118,7 +118,7 @@ def test_encode_empty_returns_zero_rows(monkeypatch):
 def test_dim_mismatch_raises(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "sk-fake")
 
-    from chimera_rag.providers import embedding_provider
+    from chimera_rag.providers import embedding
 
     fake_client = MagicMock()
     # Server returns 768-dim, but config says 1536
@@ -126,7 +126,7 @@ def test_dim_mismatch_raises(monkeypatch):
         return_value=_fake_embedding_response(768, ["a"])
     )
 
-    with patch.object(embedding_provider, "_make_client", return_value=fake_client):
-        p = embedding_provider.EmbeddingProvider(_build_cfg(dim=1536))
+    with patch.object(embedding, "_make_client", return_value=fake_client):
+        p = embedding.EmbeddingProvider(_build_cfg(dim=1536))
         with pytest.raises(ProviderError, match="dim"):
             p.encode(["a"])

@@ -6,7 +6,7 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Chunk, Query, RetrievalResult
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.interfaces.retriever import BaseRetriever
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
@@ -54,6 +54,7 @@ class MultiAgentRetriever(BaseRetriever):
         import chimera_rag.plugins.intent_agent.agents  # noqa: F401
 
     def _build_tools(self, accumulator: ToolAccumulator) -> list:
+        from chimera_rag.plugins.intent_agent.tools.entity_tools import build_entity_tools
         from chimera_rag.plugins.intent_agent.tools.io_tools import build_io_tools
         from chimera_rag.plugins.intent_agent.tools.memory_tools import build_memory_tools
         from chimera_rag.plugins.intent_agent.tools.preprocess_tools import build_preprocess_tools
@@ -68,6 +69,9 @@ class MultiAgentRetriever(BaseRetriever):
             chunk_lookup=self.chunk_lookup,
             bm25_index=self.bm25_index,
             accumulator=accumulator,
+        ))
+        all_tools.extend(build_entity_tools(
+            llm=self.llm, graph_store=self.graph_store,
         ))
         all_tools.extend(build_preprocess_tools(
             llm=self.llm, session_memory=self.memory.session,

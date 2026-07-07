@@ -14,6 +14,7 @@ TOOL_MATRIX: dict[str, list[str]] = {
     ],
     "single_hop": [
         "vector_search", "bm25_search", "hybrid_search", "graph_neighbors",
+        "entity_extract", "entity_link",
         "assess_evidence", "rerank",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
@@ -21,6 +22,7 @@ TOOL_MATRIX: dict[str, list[str]] = {
     "multi_hop": [
         "vector_search", "bm25_search", "hybrid_search",
         "graph_neighbors", "graph_path_search", "graph_community_search",
+        "entity_extract", "relation_extract", "entity_link",
         "sub_query_decompose", "assess_evidence", "rerank",
         "read_session_context", "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
@@ -28,11 +30,13 @@ TOOL_MATRIX: dict[str, list[str]] = {
     "summarization": [
         "vector_search", "bm25_search", "hybrid_search",
         "graph_community_search", "rerank",
+        "entity_extract",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
     ],
     "other": [
         "hybrid_search", "web_search", "web_fetch",
+        "entity_extract",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
     ],

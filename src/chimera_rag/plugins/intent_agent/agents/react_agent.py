@@ -6,25 +6,12 @@ import logging
 import re
 
 from chimera_rag.core.types import Answer, Query
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.intent_agent.prompts import REACT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
-
-_SYSTEM_PROMPT = """You are a retrieval agent. You have access to these tools:
-{tool_descriptions}
-
-Use the following format:
-Thought: reason about what to do next
-Action: tool_name
-Action Input: {{"param": "value"}}
-... (repeat Thought/Action/Action Input as needed)
-Final Answer: your final answer based on gathered evidence
-
-Begin!
-
-Question: {query}"""
 
 _ACTION_RE = re.compile(r"Action:\s*(\w+)\s*\nAction Input:\s*(\{.*?\})", re.DOTALL)
 _FINAL_RE = re.compile(r"Final Answer:\s*(.*)", re.DOTALL)
@@ -39,7 +26,7 @@ class ReActAgent(BaseAgent):
         tool_map = {t.name: t for t in self.tools}
 
         tool_descs = "\n".join(f"- {t.name}: {t.description}" for t in self.tools)
-        conversation = _SYSTEM_PROMPT.format(tool_descriptions=tool_descs, query=query.text)
+        conversation = REACT_SYSTEM_PROMPT.format(tool_descriptions=tool_descs, query=query.text)
         tool_call_log: list[str] = []
 
         for iteration in range(max_iters):

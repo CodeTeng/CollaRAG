@@ -13,7 +13,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 def test_noop_pruner_returns_input_unchanged():
     from chimera_rag.core.types import Triple
-    from chimera_rag.defaults.noop_pruner import NoOpPruner
+    from chimera_rag.defaults.pruner import NoOpPruner
 
     triples = [Triple(subject="a", predicate="p", object="b")]
     out = NoOpPruner().prune(triples)
@@ -23,7 +23,7 @@ def test_noop_pruner_returns_input_unchanged():
 def test_noop_pruner_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
     from chimera_rag.core.registry import get_registry
-    from chimera_rag.defaults.noop_pruner import NoOpPruner
+    from chimera_rag.defaults.pruner import NoOpPruner
 
     assert get_registry().get("pruner", "defaults.noop") is NoOpPruner
 
@@ -33,7 +33,7 @@ def test_noop_pruner_registers_under_slot():
 # ---------------------------------------------------------------------------
 def test_rule_based_intent_classifier_always_returns_factual():
     from chimera_rag.core.types import Query
-    from chimera_rag.defaults.rule_intent_classifier import RuleBasedIntentClassifier
+    from chimera_rag.defaults.classifier import RuleBasedIntentClassifier
 
     c = RuleBasedIntentClassifier()
     for q in ["who invented dynamite?", "compare A and B", "walk me through ..."]:
@@ -44,7 +44,7 @@ def test_rule_based_intent_classifier_always_returns_factual():
 def test_rule_intent_classifier_registers_under_slot():
     import chimera_rag.defaults  # noqa: F401
     from chimera_rag.core.registry import get_registry
-    from chimera_rag.defaults.rule_intent_classifier import RuleBasedIntentClassifier
+    from chimera_rag.defaults.classifier import RuleBasedIntentClassifier
 
     assert (
         get_registry().get("intent_classifier", "defaults.rule")

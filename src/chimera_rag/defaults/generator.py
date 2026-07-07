@@ -10,7 +10,7 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Answer, Query, RetrievalResult
-from chimera_rag.defaults.llm_extractor import _run_async
+from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.generator import BaseAnswerGenerator
 from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 

@@ -7,6 +7,7 @@ import re
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Intent, Query
 from chimera_rag.interfaces.intent_classifier import BaseIntentClassifier
+from chimera_rag.plugins.intent_agent.prompts import CLASSIFY_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +33,6 @@ _SUMMARIZE_KW = re.compile(
     r"\b(summariz\w*|总结|概括|归纳|overview|synopsis|recap|key (findings|points|takeaways))\b",
     re.IGNORECASE,
 )
-
-_CLASSIFY_PROMPT = """Classify the following query into exactly one category.
-Categories:
-- single_hop: simple factual question answerable from one passage
-- multi_hop: requires reasoning across multiple facts, comparison, or exploration
-- summarization: asks for a summary, overview, or synthesis of information
-- other: does not fit any above category (e.g. weather, jokes, math)
-
-Query: {query}
-
-Respond with ONLY the category name, nothing else."""
 
 
 @register("intent_classifier", "intent_agent.tree")
@@ -76,9 +66,9 @@ class TreeIntentClassifier(BaseIntentClassifier):
         return bool(_GREETING_CONTAINS.match(text))
 
     def _llm_classify(self, text: str) -> str:
-        from chimera_rag.defaults.llm_extractor import _run_async
+        from chimera_rag.defaults.extractor import _run_async
 
-        prompt = _CLASSIFY_PROMPT.format(query=text)
+        prompt = CLASSIFY_PROMPT.format(query=text)
         try:
             raw = _run_async(self.llm.complete(prompt, max_tokens=20))
             label = raw.strip().lower().replace('"', "").replace("'", "")

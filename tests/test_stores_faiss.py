@@ -1,4 +1,4 @@
-"""Tests for :mod:`chimera_rag.stores.vector.faiss_store`."""
+"""Tests for :mod:`chimera_rag.stores.vector`."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _faiss_available():
 
 
 def test_faiss_store_add_and_search_returns_nearest_first(_faiss_available):
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     s = FAISSVectorStore(dim=4, index_type="flat_ip")
     vectors = np.array(
@@ -35,7 +35,7 @@ def test_faiss_store_add_and_search_returns_nearest_first(_faiss_available):
 
 
 def test_faiss_store_search_top_k_bounded_by_index_size(_faiss_available):
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     s = FAISSVectorStore(dim=4, index_type="flat_ip")
     s.add(["a", "b"], np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32))
@@ -44,7 +44,7 @@ def test_faiss_store_search_top_k_bounded_by_index_size(_faiss_available):
 
 
 def test_faiss_store_persist_and_load_round_trip(tmp_path: Path, _faiss_available):
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     s1 = FAISSVectorStore(dim=4, index_type="flat_ip")
     s1.add(
@@ -64,7 +64,7 @@ def test_faiss_store_persist_and_load_round_trip(tmp_path: Path, _faiss_availabl
 
 
 def test_faiss_store_rejects_mismatched_ids_and_vector_count(_faiss_available):
-    from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
+    from chimera_rag.stores.vector import FAISSVectorStore
 
     s = FAISSVectorStore(dim=4, index_type="flat_ip")
     with pytest.raises(ValueError):

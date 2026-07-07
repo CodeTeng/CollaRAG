@@ -26,7 +26,7 @@ import logging
 
 from chimera_rag.core.registry import register
 from chimera_rag.core.types import Chunk, Triple
-from chimera_rag.defaults.llm_extractor import DEFAULT_PROMPT, SimpleLLMExtractor
+from chimera_rag.defaults.extractor import DEFAULT_PROMPT, SimpleLLMExtractor
 from chimera_rag.interfaces.extractor import BaseTripleExtractor
 from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 
