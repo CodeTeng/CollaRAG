@@ -167,7 +167,47 @@ class EvalResult(BaseModel):
     ingest: dict[str, Any] | None = None
 
 
+# ---------------------------------------------------------------------------
+# Multi-Agent architecture types (innovation 2 refactor)
+# ---------------------------------------------------------------------------
+MultiAgentIntentLabel = Literal[
+    "greeting",
+    "single_hop",
+    "multi_hop",
+    "summarization",
+    "other",
+]
+
+
+class PreprocessResult(BaseModel):
+    """Output of the Preprocessor Agent."""
+
+    rewritten_query: str
+    original_query: str
+    is_followup: bool = False
+    entities_mentioned: list[str] = Field(default_factory=list)
+    language: str = "en"
+
+
+class AgentExperienceEntry(BaseModel):
+    """One distilled retrieval experience, bucketed by agent + intent."""
+
+    agent_type: str
+    intent: str
+    query_text: str
+    tool_sequence: list[str] = Field(default_factory=list)
+    reflection_count: int = Field(default=0, ge=0)
+    final_quality: float = Field(default=0.0, ge=0.0, le=1.0)
+    outcome: Literal["success", "lesson"] = "success"
+    lesson: str | None = None
+    answer_text: str | None = None
+    evidence_chunk_ids: list[str] = Field(default_factory=list)
+    hit_count: int = Field(default=0, ge=0)
+    created_at: str = ""
+
+
 __all__ = [
+    "AgentExperienceEntry",
     "Answer",
     "Chunk",
     "Document",
@@ -175,6 +215,8 @@ __all__ = [
     "EvalResult",
     "Intent",
     "IntentLabel",
+    "MultiAgentIntentLabel",
+    "PreprocessResult",
     "QAExample",
     "QualityFeedback",
     "Query",
