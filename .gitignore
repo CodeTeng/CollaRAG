@@ -120,3 +120,9 @@ texput.log
 .ipynb_checkpoints/
 .certs/
 data/musique/_musique_release.zip
+
+# ---------- AI / Agent 工具 ----------
+.aone_copilot/
+.chimera_memory/
+.codegraph/
+.superpowers/
