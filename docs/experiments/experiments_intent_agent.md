@@ -126,7 +126,7 @@ uv run python eval.py \
 
 **目的**：拆解多Agent架构各组件的独立贡献。
 
-**对比方法（对应设计文档 `docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md` §11 的消融表）**：
+**对比方法（对应设计文档 `docs/innovation-2/design.md` §11 的消融表）**：
 
 | 实验组 | 做法 | 验证目标 |
 |---|---|---|
@@ -243,4 +243,4 @@ baseline 框架**不在本仓库内实现**，建议二选一：
 1. **消融实验的 yaml 化**：把 §5 表格中的 8 个消融变体（w/o Preprocess/TreeIntent/Reflect/Memory/SharedMem/BM25/Graph/MapReduce）落地为 `configs/` 下可直接跑的 yaml + 对应的代码开关（类似旧版 `hooks.*.enabled` 的做法），而不是要求临时改代码。
 2. **Map-Reduce Agent 专项实验**：单独评测归纳总结类查询（需要专门构造或筛选"总结/综述"类 QA 数据，现有 HotpotQA/2Wiki/MuSiQue 均为事实问答，不含摘要类问题）。
 3. **WebSearch Agent 专项实验**：单独评测超出知识库范围的查询（需要构造知识库之外的问题集，现有多跳数据集不适用）。
-4. **双层记忆的飞轮效应曲线**（对标旧版 `docs/result/消融实验.md` 中的经验记忆增长曲线实验），验证新架构 `AgentPrivateMemory` 是否有同等的跨查询学习效应。
+4. **双层记忆的飞轮效应曲线**（对标旧版 `docs/experiments/ablation.md` 中的经验记忆增长曲线实验），验证新架构 `AgentPrivateMemory` 是否有同等的跨查询学习效应。

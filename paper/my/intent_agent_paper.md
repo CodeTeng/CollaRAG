@@ -311,7 +311,7 @@ START → memory → reasoning → decision
 
 ### 4.2 主实验结果
 
-> **TODO [表 1]**：插入**主实验结果表**——行方向为方法（按 LLM-only / Text-based / Graph-based / Hybrid / Proposed 分组），列方向为 8 个指标（2Wiki EM、2Wiki F1、HotpotQA EM、HotpotQA F1、MuSiQue-Ans EM、MuSiQue-Ans F1、MuSiQue-Full EM、MuSiQue-Full F1）。每个骨干模型（Gemma4-12B + Qwen3-8B 合并、Qwen3-32B 单独）各一张表，或合并为一张大表用子列区分模型。IntentAgent 行的数值待实验完成后填入。已有的 baseline 数据参见 docs/result/主实验.md。最优值加粗，次优值加下划线。
+> **TODO [表 1]**：插入**主实验结果表**——行方向为方法（按 LLM-only / Text-based / Graph-based / Hybrid / Proposed 分组），列方向为 8 个指标（2Wiki EM、2Wiki F1、HotpotQA EM、HotpotQA F1、MuSiQue-Ans EM、MuSiQue-Ans F1、MuSiQue-Full EM、MuSiQue-Full F1）。每个骨干模型（Gemma4-12B + Qwen3-8B 合并、Qwen3-32B 单独）各一张表，或合并为一张大表用子列区分模型。IntentAgent 行的数值待实验完成后填入。已有的 baseline 数据参见 docs/experiments/main-results.md。最优值加粗，次优值加下划线。
 
 表 1 报告了各方法在 Gemma4-12B 和 Qwen3-8B 骨干模型下的主实验结果。
 

@@ -245,8 +245,8 @@ QAExample / EvalResult                                            ← 评测
 
 ## 10. 相关文档
 
-- `docs/innovation_1_adagraph.md` — 创新点一的 3 个子模块实装细节；
-- `docs/innovation_intent_agent.md` — 创新点二旧版架构文档（历史参考）；
-- `docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md` — 创新点二多Agent架构设计文档；
-- `docs/experiment_guide.md` — 实验指南；
+- `docs/innovation-1/adagraph.md` — 创新点一的 3 个子模块实装细节；
+- `docs/innovation-2/intent-agent.md` — 创新点二的多Agent架构实装细节；
+- `docs/innovation-2/design.md` — 创新点二多Agent架构设计文档；
+- `docs/experiments/experiment-guide.md` — 实验指南；
 - `README.md` — 仓库根目录的用户级入门文档。

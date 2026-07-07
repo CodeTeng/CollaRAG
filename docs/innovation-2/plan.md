@@ -3327,7 +3327,7 @@ Expected: All PASS — no broken imports, no regressions
 
 - [ ] **Step 6: Update architecture_overview.md**
 
-Add a new §9 section to `docs/architecture_overview.md` describing the multi-agent architecture (replace the old single-retriever description). Keep the update brief — reference the design spec at `docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md` for full details.
+Add a new §9 section to `docs/architecture_overview.md` describing the multi-agent architecture (replace the old single-retriever description). Keep the update brief — reference the design spec at `docs/innovation-2/design.md` for full details.
 
 - [ ] **Step 7: Commit**
 

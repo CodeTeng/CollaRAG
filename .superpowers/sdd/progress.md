@@ -1,6 +1,6 @@
 # Multi-Agent Architecture — SDD Progress Ledger
 
-Plan: `docs/superpowers/plans/2026-07-07-multi-agent-architecture.md`
+Plan: `docs/innovation-2/plan.md`
 Branch: `feat/multi-agent-architecture`
 Started: 2026-07-07
 

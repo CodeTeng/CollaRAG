@@ -72,7 +72,7 @@ uv run python eval.py \
 
 ### 5. 真实数据集实验（HotpotQA / 2Wiki / MuSiQue）
 
-详见 **[docs/experiment_guide.md](docs/experiment_guide.md)**，核心三步：
+详见 **[docs/experiments/experiment-guide.md](docs/experiments/experiment-guide.md)**，核心三步：
 
 ```bash
 uv run python main.py ingest --config configs/deepseek_intent_only.yaml --dataset musique --limit 500 --rebuild
@@ -94,7 +94,7 @@ uv run python eval.py --predictions output/musique/deepseek_intent_only --metric
 | 单层 Extractor | 4 层 Extractor | L1 显式 / L2 隐式 / L3 模式 / L4 跨句 |
 | 无裁剪 Pruner | 双重冗余 Pruner | 相似性 + 传递性双重剪枝 |
 
-详见 [docs/innovation_1_adagraph.md](docs/innovation_1_adagraph.md)
+详见 [docs/innovation-1/adagraph.md](docs/innovation-1/adagraph.md)
 
 ### 创新点 2 - IntentAgent 多Agent架构（作用于查询阶段）
 
@@ -124,7 +124,7 @@ query → Preprocessor Agent → Tree-Intent Classifier
 - **双层记忆**：SharedMemory（QA 缓存 + 路由统计 + 实体别名）+ AgentPrivateMemory（按 Agent × 意图分桶的 JSONL 经验存储）
 - **设计模式**：Strategy / Factory / Builder / Template Method / Facade
 
-详见 [docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md](docs/superpowers/specs/2026-07-07-multi-agent-architecture-design.md)
+详见 [docs/innovation-2/design.md](docs/innovation-2/design.md)
 
 ---
 
@@ -231,11 +231,11 @@ uv run python main.py serve --config configs/deepseek_full.yaml --dataset mock_w
 
 | 文档 | 说明 |
 |---|---|
-| [docs/experiment_guide.md](docs/experiment_guide.md) | **实验指南**：三阶段工作流、数据集格式、操作手册 |
+| [docs/experiments/experiment-guide.md](docs/experiments/experiment-guide.md) | **实验指南**：三阶段工作流、数据集格式、操作手册 |
 | [docs/architecture_overview.md](docs/architecture_overview.md) | 架构：注册表、插槽、依赖注入、管线数据流 |
-| [docs/innovation_1_adagraph.md](docs/innovation_1_adagraph.md) | AdaGraph 3 个子模块实装细节 |
-| [docs/innovation_intent_agent.md](docs/innovation_intent_agent.md) | IntentAgent 旧版架构文档（历史参考） |
-| [docs/superpowers/specs/](docs/superpowers/specs/) | 多Agent架构设计文档 |
+| [docs/innovation-1/adagraph.md](docs/innovation-1/adagraph.md) | AdaGraph 3 个子模块实装细节 |
+| [docs/innovation-2/intent-agent.md](docs/innovation-2/intent-agent.md) | IntentAgent 多Agent架构实装细节 |
+| [docs/innovation-2/design.md](docs/innovation-2/design.md) | 多Agent架构设计文档 |
 
 ---
 

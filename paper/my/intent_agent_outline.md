@@ -128,7 +128,7 @@
 3. **检索经验零积累**：每次检索从零开始，相似查询的成功路径无法复用 → 需要跨会话经验记忆
 
 **证据映射**：
-- `docs/innovation_intent_agent.md` §B1 三大局限分析表：意图离散单标签 / 策略一锤子买卖 / 反思仅观测
+- `docs/innovation-2/intent-agent.md` §B1 三大局限分析表：意图离散单标签 / 策略一锤子买卖 / 反思仅观测
 - CSV 数据中 comparative 类查询 EM 全为 0.0（如 mock-004/007/014/033/045），F1 在 0.18-0.57 之间
 
 ##### 1.3 核心贡献（约 0.3 页）
@@ -206,7 +206,7 @@
 
 **证据映射**：
 - `docs/architecture_overview.md` §2-4：分层架构 + 注册表机制
-- `docs/innovation_intent_agent.md` §B3：三种检索器形态对比表
+- `docs/innovation-2/intent-agent.md` §B3：三种检索器形态对比表
 - `configs/*.yaml`：`query.retriever.active` 一行切换
 
 **图 1**（系统总览图）：展示三阶段渐进关系 + 与 QueryPipeline 的集成方式
@@ -222,7 +222,7 @@ Memory(会话记忆) → Reasoning(意图分类+推理计划)
     → Decision(策略选择) → Execution(策略执行+Hook)
 ```
 
-**证据映射**：`docs/innovation_intent_agent.md` §A2 四阶段总览
+**证据映射**：`docs/innovation-2/intent-agent.md` §A2 四阶段总览
 
 ###### 3.3.2 意图分类体系
 
@@ -269,7 +269,7 @@ Memory(会话记忆) → Reasoning(意图分类+推理计划)
 | 策略一锤子买卖 | 选定策略后单轮执行 | 质量差时无补救机会 |
 | 反思仅观测 | `reflection_quality` 仅写 metadata | 反馈循环未真正驱动二次检索 |
 
-**证据映射**：`docs/innovation_intent_agent.md` §B1 三大局限表
+**证据映射**：`docs/innovation-2/intent-agent.md` §B1 三大局限表
 
 ###### 3.4.2 工具层：原子能力封装
 
@@ -297,7 +297,7 @@ Memory(会话记忆) → Reasoning(意图分类+推理计划)
 **证据映射**：
 - `plugins/intent_agent/langgraph/graph.py`：状态图定义
 - `plugins/intent_agent/langgraph/context.py`：ToolContext 实现
-- `docs/innovation_intent_agent.md` §B5 完整 Mermaid 时序图
+- `docs/innovation-2/intent-agent.md` §B5 完整 Mermaid 时序图
 
 ###### 3.4.4 反思回路
 
@@ -316,7 +316,7 @@ Memory(会话记忆) → Reasoning(意图分类+推理计划)
 
 ###### 3.5.1 动机："一石二鸟"
 
-- 问题一：动态版中意图分类被"架空"为可有可无的提示（`docs/innovation_intent_agent.md` §C8）
+- 问题一：动态版中意图分类被"架空"为可有可无的提示（`docs/innovation-2/intent-agent.md` §C8）
 - 问题二：每次检索从零试错，无经验积累
 - 解法：以意图标签为经验库索引键 → 既提供经验召回机制，又赋予意图分类实质作用
 

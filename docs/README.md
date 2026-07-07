@@ -7,21 +7,28 @@
 | 文件 | 用途 |
 |------|------|
 | `architecture_overview.md` | **架构总览**：分层、接口插槽、注册表机制、`ChimeraRAG` 门面装配流程、多Agent内部架构、四种部署组合 |
-| `innovation_1_adagraph.md` | **创新点一：AdaGraph**。作用于知识构建阶段。DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner |
-| `innovation_intent_agent.md` | **创新点二旧版文档（历史参考）**。原 M-R-D-E 四阶段 + 6 策略 + LangGraph 动态编排 + 经验记忆增强 |
-| `experiment_guide.md` | **实验指南**：三阶段工作流（ingest → infer → eval）、数据集格式、操作手册 |
 | `plan.md` | 项目最初的实施计划 |
-| `experiments/` | 实验设计文档目录 |
-| `old/` | 归档目录：旧版创新点二的原始文档 |
-| `superpowers/specs/` | **多Agent架构设计文档**：2026-07-07 版本的完整设计（5 Agent + 19 工具 + 双层记忆） |
-| `superpowers/plans/` | 多Agent架构实现计划 |
+| `innovation-1/` | **创新点一：AdaGraph** 文档 |
+| `innovation-1/adagraph.md` | AdaGraph 实装细节：DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner |
+| `innovation-2/` | **创新点二：IntentAgent** 文档 |
+| `innovation-2/intent-agent.md` | IntentAgent 多Agent架构实装细节 |
+| `innovation-2/design.md` | 多Agent架构设计文档（5 Agent + 19 工具 + 双层记忆） |
+| `innovation-2/plan.md` | 多Agent架构实现计划 |
+| `experiments/` | **实验相关** 文档 |
+| `experiments/experiment-guide.md` | 实验指南：三阶段工作流（ingest → infer → eval）、数据集格式、操作手册 |
+| `experiments/experiments_intent_agent.md` | IntentAgent 实验设计文档 |
+| `experiments/main-results.md` | 主实验结果 |
+| `experiments/ablation.md` | 消融实验与进一步分析 |
+| `experiments/performance.md` | 性能优势分析 |
+| `experiments/case-study.md` | 案例研究 |
+| `experiments/summary.md` | 实验整理汇总 |
 
 ## 阅读顺序
 
 1. **`architecture_overview.md`** — 先建立"注册表 + 插槽 + yaml 开关"这套骨架的心智模型，以及多Agent内部架构；
-2. **`innovation_1_adagraph.md`** — 深入创新点一的三个子模块；
-3. **`superpowers/specs/2026-07-07-multi-agent-architecture-design.md`** — 创新点二的多Agent架构完整设计；
-4. **`experiment_guide.md`** — 动手做实验前读。
+2. **`innovation-1/adagraph.md`** — 深入创新点一的三个子模块；
+3. **`innovation-2/design.md`** — 创新点二的多Agent架构完整设计；
+4. **`experiments/experiment-guide.md`** — 动手做实验前读。
 
 ## 注册表插槽速查
 
