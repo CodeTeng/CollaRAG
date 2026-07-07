@@ -45,8 +45,9 @@
 | `intent_classifier.py` | `intent_classifier` | `defaults.rule` | — | `intent_agent.tree` |
 | `retriever.py` | `retriever` | `defaults.direct` | — | `intent_agent.multi_agent` |
 | `generator.py` | `generator` | `defaults.prompt` | — | — |
-| `llm_provider.py` | `llm_provider` | `mock / openai / deepseek / ollama` | — | — |
-| `embedding_provider.py` | `embedding_provider` | `mock / openai / ollama / sentence_transformer` | — | — |
+| `llm_provider.py` | `llm_provider` | OpenAI-compatible (single client) | — | — |
+| `embedding_provider.py` | `embedding_provider` | OpenAI-compatible (single client) | — | — |
+| `rerank_provider.py` | `rerank_provider` | OpenAI-compatible `/rerank` endpoint | — | — |
 | `graph_store.py` | `graph_store` | `networkx` | — | — |
 | `vector_store.py` | `vector_store` | `faiss` | — | — |
 | `base_agent.py` | — | — | — | `BaseAgent` ABC + `AgentContext` |

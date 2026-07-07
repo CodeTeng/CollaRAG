@@ -68,10 +68,15 @@ class ChimeraRAG:
         cfg = self.config
 
         # Providers.
-        from chimera_rag.providers import build_embedding_provider, build_llm_provider
+        from chimera_rag.providers import (
+            build_embedding_provider,
+            build_llm_provider,
+            build_rerank_provider,
+        )
 
         self.llm = build_llm_provider(cfg.llm)
         self.embedder = build_embedding_provider(cfg.embedding)
+        self.reranker = build_rerank_provider(cfg.rerank)
 
         # Stores.
         self.graph_store, self.vector_store = self._build_stores()
@@ -192,7 +197,7 @@ class ChimeraRAG:
             "chunker": {"active": cfg.ingestion.chunker.active, "params": cfg.ingestion.chunker.params},
             "extractor": {"active": cfg.ingestion.extractor.active, "params": cfg.ingestion.extractor.params},
             "pruner": {"active": cfg.ingestion.pruner.active, "params": cfg.ingestion.pruner.params},
-            "embedding": {"provider": cfg.embedding.provider, "model": cfg.embedding.model, "dim": cfg.embedding.dim},
+            "embedding": {"model": cfg.embedding.model, "dim": cfg.embedding.dim},
         }
         blob = _json.dumps(material, sort_keys=True, default=str)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
@@ -431,9 +436,6 @@ class ChimeraRAG:
         return cls(**call_params)
 
     def _instantiate_retriever(self, cls: type, params: dict) -> BaseRetriever:
-        import inspect
-
-        sig = inspect.signature(cls.__init__)
         call_params = self._filter_params(cls, params)
         # top_k is handled by QueryPipeline.
         call_params.pop("top_k", None)
@@ -441,7 +443,6 @@ class ChimeraRAG:
         # Classic retrievers (DirectRetriever) want vector_store + graph_store + embedder
         # + chunk_lookup. Smart retrievers (IntentAgentRetriever) want a base_retriever
         # + classifier + optional hooks. We inspect the ctor and adapt.
-        param_names = set(sig.parameters.keys())
 
         # Multi-agent retriever — wires the full multi-agent orchestrator.
         if cls.__name__ == "MultiAgentRetriever":
@@ -451,6 +452,7 @@ class ChimeraRAG:
                 "graph_store": self.graph_store,
                 "embedder": self.embedder,
                 "chunk_lookup": self.state.chunk_lookup,
+                "reranker": self.reranker,
             }
             ma_cfg = self.config.plugins.intent_agent.multi_agent
             if ma_cfg.get("memory", {}).get("shared", {}).get("path"):

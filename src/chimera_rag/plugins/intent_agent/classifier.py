@@ -73,9 +73,7 @@ class TreeIntentClassifier(BaseIntentClassifier):
     def _is_greeting(text: str) -> bool:
         if _GREETING_PATTERNS.match(text):
             return True
-        if _GREETING_CONTAINS.match(text):
-            return True
-        return False
+        return bool(_GREETING_CONTAINS.match(text))
 
     def _llm_classify(self, text: str) -> str:
         from chimera_rag.defaults.llm_extractor import _run_async

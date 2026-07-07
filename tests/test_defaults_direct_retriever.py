@@ -5,9 +5,9 @@ from __future__ import annotations
 
 def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
 
+    from _fakes import FakeEmbeddingProvider
     from chimera_rag.core.types import Chunk, Query
     from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.providers.embedding.mock_embedding import MockEmbeddingProvider
     from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
     from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
 
@@ -17,7 +17,7 @@ def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
         Chunk(chunk_id="c1", doc_id="d", index=1, text="Einstein formulated relativity"),
         Chunk(chunk_id="c2", doc_id="d", index=2, text="Curie discovered radium"),
     ]
-    embedder = MockEmbeddingProvider(dim=16, normalize=True)
+    embedder = FakeEmbeddingProvider(dim=16, normalize=True)
     texts = [c.text for c in chunks]
     vecs = embedder.encode(texts)
     vs = FAISSVectorStore(dim=16, index_type="flat_ip")
@@ -42,16 +42,16 @@ def test_direct_retriever_returns_top_k_chunks_by_vector_similarity():
 
 def test_direct_retriever_pulls_graph_neighbors_when_hops_positive():
 
+    from _fakes import FakeEmbeddingProvider
     from chimera_rag.core.types import Chunk, Query, Triple
     from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.providers.embedding.mock_embedding import MockEmbeddingProvider
     from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
     from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
 
     chunks = [
         Chunk(chunk_id="c0", doc_id="d", index=0, text="Alfred Nobel invented dynamite"),
     ]
-    embedder = MockEmbeddingProvider(dim=16, normalize=True)
+    embedder = FakeEmbeddingProvider(dim=16, normalize=True)
     vs = FAISSVectorStore(dim=16, index_type="flat_ip")
     vs.add(["c0"], embedder.encode([chunks[0].text]))
 
@@ -101,8 +101,8 @@ def test_direct_retriever_shares_chunk_lookup_reference_when_empty():
     Callers (the top-level Pipeline) pass an initially-empty dict and later
     fill it during ingest. The retriever must hold the same reference.
     """
+    from _fakes import FakeEmbeddingProvider
     from chimera_rag.defaults.direct_retriever import DirectRetriever
-    from chimera_rag.providers.embedding.mock_embedding import MockEmbeddingProvider
     from chimera_rag.stores.graph.networkx_store import NetworkXGraphStore
     from chimera_rag.stores.vector.faiss_store import FAISSVectorStore
 
@@ -110,7 +110,7 @@ def test_direct_retriever_shares_chunk_lookup_reference_when_empty():
     r = DirectRetriever(
         vector_store=FAISSVectorStore(dim=8),
         graph_store=NetworkXGraphStore(),
-        embedder=MockEmbeddingProvider(dim=8, normalize=True),
+        embedder=FakeEmbeddingProvider(dim=8, normalize=True),
         chunk_lookup=shared,
     )
     assert r.chunk_lookup is shared

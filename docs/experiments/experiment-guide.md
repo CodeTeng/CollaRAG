@@ -91,10 +91,9 @@ if crag.stats()["chunks"] == 0:
 # 1) 安装依赖
 uv sync --all-extras --dev
 
-# 2) 配置 .env（本地 ollama 场景）
-LLM_API_KEY=ollama
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_MODEL=qwen3:8b
+# 2) 配置 .env（只需 API Key）
+# 模型名、base_url 等全部写在 config.yaml 的 llm/embedding/rerank 段中
+LLM_API_KEY=ollama  # ollama 不校验 key，填任意占位字符串即可
 
 # 3) 启动 ollama 4 路并发（建图加速）
 bash scripts/ollama_restart_parallel.sh
@@ -158,10 +157,9 @@ done
 ### 方式 C：DeepSeek 云端实验
 
 ```bash
-# .env 改为：
+# .env 只需改：
 # LLM_API_KEY=sk-xxxxxxxx
-# LLM_BASE_URL=https://api.deepseek.com
-# LLM_MODEL=deepseek-chat
+# 模型名、base_url 等全部在 config.yaml 中配置（configs/deepseek_intent_only.yaml 已预设好）
 
 for ds in hotpotqa two_wiki musique; do
   uv run python main.py ingest --config configs/deepseek_intent_only.yaml --dataset $ds --limit 500 --rebuild

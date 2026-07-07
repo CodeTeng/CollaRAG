@@ -135,7 +135,7 @@ class RagasEvaluator:
             from ragas import EvaluationDataset
         except ImportError as e:  # pragma: no cover - optional dep path
             raise ProviderError(
-                "ragas not installed; run `uv sync --extra ragas` ({})".format(e)
+                "ragas not installed; run `uv sync --extra ragas` ({})"f"{e}"
             ) from e
 
         return EvaluationDataset.from_list(rows_to_samples(rows))
@@ -146,7 +146,7 @@ class RagasEvaluator:
             from ragas import metrics as ragas_metrics
         except ImportError as e:  # pragma: no cover - optional dep path
             raise ProviderError(
-                "ragas not installed; run `uv sync --extra ragas` ({})".format(e)
+                "ragas not installed; run `uv sync --extra ragas` ({})"f"{e}"
             ) from e
 
         resolved: list[Any] = []
@@ -222,7 +222,7 @@ class RagasEvaluator:
             from ragas.embeddings import LangchainEmbeddingsWrapper
         except ImportError as e:  # pragma: no cover - optional dep path
             raise ProviderError(
-                "ragas not installed; run `uv sync --extra ragas` ({})".format(e)
+                "ragas not installed; run `uv sync --extra ragas` ({})"f"{e}"
             ) from e
 
         cfg = getattr(self.config, "embedding", None)

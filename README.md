@@ -39,24 +39,33 @@ uv run pytest -q    # 303 passed
 
 ### 3. 配 LLM
 
-在仓库根目录建 `.env`（三选一）：
+在仓库根目录建 `.env`（只需一行 API Key）：
 
 ```bash
-# DeepSeek（云端）
+# 所有 LLM / Embedding / Rerank 共用一个 key（默认 LLM_API_KEY）
 LLM_API_KEY=sk-xxxxxxxx
-LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-chat
-
-# Ollama（本地）
-LLM_API_KEY=ollama
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_MODEL=qwen3:8b
-
-# OpenAI
-LLM_API_KEY=sk-xxxxxxxx
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-4o-mini
 ```
+
+模型名、base_url 等**全部写在 `config.yaml` 中**，`.env` 只放 secret。示例：
+
+```yaml
+# configs/deepseek_vanilla.yaml
+llm:
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+
+embedding:
+  model: text-embedding-3-small
+  base_url: https://api.openai.com/v1
+  dim: 1536
+
+rerank:
+  enabled: false
+  # model: bge-reranker-v2-m3
+  # base_url: http://localhost:9997/v1
+```
+
+所有 provider 走 OpenAI 兼容协议（`/v1/chat/completions`、`/v1/embeddings`、`/rerank`），同一套客户端代码适配 DeepSeek / OpenAI / Ollama / vLLM / SiliconFlow 等任意兼容端点。
 
 ### 4. 端到端 demo
 
@@ -188,7 +197,7 @@ chimera-rag/
 │   ├── core/                     # types / config / registry / pipeline
 │   ├── interfaces/               # ABC 接口层
 │   ├── defaults/                 # vanilla 实现
-│   ├── providers/                # LLM/Embedding: openai/deepseek/ollama/st/mock
+│   ├── providers/                # LLM/Embedding/Rerank: OpenAI-compatible 客户端
 │   ├── stores/                   # NetworkX + FAISS
 │   ├── plugins/
 │   │   ├── adagraph/             # 创新点 1：自适应图谱构建
@@ -203,7 +212,7 @@ chimera-rag/
 │   ├── evaluation/               # 推理运行器 + 打分器
 │   └── web/                      # FastAPI + React 静态
 │
-└── tests/                        # 303 个测试
+└── tests/                        # 280+ 测试
 ```
 
 ---

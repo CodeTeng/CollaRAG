@@ -1,6 +1,5 @@
 """Tests for TreeIntentClassifier."""
-import pytest
-from chimera_rag.core.types import Intent, Query
+from chimera_rag.core.types import Query
 from chimera_rag.plugins.intent_agent.classifier import TreeIntentClassifier
 
 

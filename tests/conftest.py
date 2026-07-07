@@ -1,9 +1,12 @@
 """Shared pytest fixtures.
 
-Most tests want a zero-cost Mock-based config just to build a ChimeraRAG
-instance. We ship 4 canonical mock configs here as fixtures so we don't
-need to keep ``configs/mock_*.yaml`` around in the repo (those were
-removed to keep ``configs/`` focused on the real DeepSeek setup).
+Most tests want a zero-cost config just to build a ChimeraRAG
+instance. We provide FakeLLMProvider / FakeEmbeddingProvider (from
+tests/_fakes.py) and monkeypatch them into chimera_rag.providers so
+all tests are offline.
+
+We ship 4 canonical configs here as fixtures so we don't need to keep
+``configs/mock_*.yaml`` around in the repo.
 """
 
 from __future__ import annotations
@@ -12,20 +15,49 @@ from pathlib import Path
 
 import pytest
 
+from _fakes import FakeEmbeddingProvider, FakeLLMProvider
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+# ---------------------------------------------------------------------------
+# Monkeypatch the provider factories so ALL tests are offline
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _fake_providers(monkeypatch):
+    """Replace the real provider factories with fake doubles.
+
+    The config yaml still declares model/dim/... but those values are
+    forwarded to the fakes so the config schema is still exercised.
+    """
+    import chimera_rag.providers
+
+    def _fake_build_llm(cfg):
+        return FakeLLMProvider()
+
+    def _fake_build_embedding(cfg):
+        return FakeEmbeddingProvider(
+            dim=getattr(cfg, "dim", 64),
+            normalize=getattr(cfg, "normalize", True),
+        )
+
+    def _fake_build_rerank(cfg):
+        return None
+
+    monkeypatch.setattr(chimera_rag.providers, "build_llm_provider", _fake_build_llm)
+    monkeypatch.setattr(chimera_rag.providers, "build_embedding_provider", _fake_build_embedding)
+    monkeypatch.setattr(chimera_rag.providers, "build_rerank_provider", _fake_build_rerank)
+
+
+# ---------------------------------------------------------------------------
+# Config YAML builder (uses the new schema — no "provider" field)
+# ---------------------------------------------------------------------------
 def _mock_config_yaml(
     *,
     workspace: str,
     adagraph: bool,
     intent_agent: bool,
 ) -> str:
-    """Build a Mock-provider config YAML string matching the plugin combo.
-
-    Produced YAML uses only left-aligned top-level keys; nested structures
-    use flow style ``{}`` to stay terse and unambiguous.
-    """
     sample_path = REPO_ROOT / "examples" / "data" / "sample.txt"
 
     if adagraph:
@@ -93,20 +125,20 @@ def _mock_config_yaml(
         "logging: { level: WARNING, format: plain, file: null }",
         "",
         "llm:",
-        "  provider: mock",
-        "  model: mock-llm",
+        "  model: fake-llm",
         "  temperature: 0.1",
         "  max_tokens: 512",
         "  timeout: 30",
         "  retry: { max_attempts: 1, initial_wait: 0.01, max_wait: 0.05 }",
         "",
         "embedding:",
-        "  provider: mock",
-        "  model: mock-embedding",
+        "  model: fake-embedding",
         "  dim: 64",
         "  batch_size: 32",
         "  normalize: true",
-        "  device: cpu",
+        "",
+        "rerank:",
+        "  enabled: false",
         "",
         "storage:",
         "  graph:",

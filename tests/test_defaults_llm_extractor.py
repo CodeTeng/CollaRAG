@@ -13,14 +13,14 @@ def _make_chunk(text: str = "Alfred Nobel invented dynamite in 1867."):
 
 
 def test_simple_llm_extractor_parses_json_triples_from_mock_llm():
+    from _fakes import FakeLLMProvider
     from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
     json_response = (
         '[{"subject": "Alfred Nobel", "predicate": "invented", "object": "dynamite"},'
         ' {"subject": "dynamite", "predicate": "invented_in", "object": "1867"}]'
     )
-    mock = MockLLMProvider(default_response=json_response)
+    mock = FakeLLMProvider(default_response=json_response)
     ext = SimpleLLMExtractor(llm=mock)
 
     triples = ext.extract(_make_chunk())
@@ -36,10 +36,10 @@ def test_simple_llm_extractor_parses_json_triples_from_mock_llm():
 
 def test_simple_llm_extractor_handles_malformed_llm_output():
     """If the LLM returns garbage, we must not crash the ingest pipeline."""
+    from _fakes import FakeLLMProvider
     from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    mock = MockLLMProvider(default_response="absolutely not JSON")
+    mock = FakeLLMProvider(default_response="absolutely not JSON")
     ext = SimpleLLMExtractor(llm=mock)
     triples = ext.extract(_make_chunk())
     assert triples == []
@@ -47,8 +47,8 @@ def test_simple_llm_extractor_handles_malformed_llm_output():
 
 def test_simple_llm_extractor_tolerates_fenced_json_blocks():
     """LLMs frequently wrap JSON in ```json ... ``` — strip and parse."""
+    from _fakes import FakeLLMProvider
     from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
     fenced = (
         "Sure, here are the triples:\n"
@@ -56,7 +56,7 @@ def test_simple_llm_extractor_tolerates_fenced_json_blocks():
         '[{"subject": "a", "predicate": "p", "object": "b"}]\n'
         '```'
     )
-    mock = MockLLMProvider(default_response=fenced)
+    mock = FakeLLMProvider(default_response=fenced)
     ext = SimpleLLMExtractor(llm=mock)
     triples = ext.extract(_make_chunk())
     assert len(triples) == 1
@@ -64,14 +64,14 @@ def test_simple_llm_extractor_tolerates_fenced_json_blocks():
 
 
 def test_simple_llm_extractor_respects_max_triples_per_chunk():
+    from _fakes import FakeLLMProvider
     from chimera_rag.defaults.llm_extractor import SimpleLLMExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
     # LLM returns 10 triples.
     json_response = "[" + ",".join(
         f'{{"subject": "s{i}", "predicate": "p", "object": "o{i}"}}' for i in range(10)
     ) + "]"
-    mock = MockLLMProvider(default_response=json_response)
+    mock = FakeLLMProvider(default_response=json_response)
     ext = SimpleLLMExtractor(llm=mock, max_triples_per_chunk=3)
     triples = ext.extract(_make_chunk())
     assert len(triples) == 3

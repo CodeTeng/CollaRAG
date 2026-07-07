@@ -20,20 +20,28 @@ logging:
   file: null
 
 llm:
-  provider: deepseek
-  # model / api_key / base_url 来自 .env（LLM_MODEL / LLM_API_KEY / LLM_BASE_URL）
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+  # api_key_env 默认 LLM_API_KEY，.env 中填写 DeepSeek 的 API Key
   temperature: 0.1
   max_tokens: 512
   timeout: 60
   retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
 
 embedding:
-  provider: sentence_transformer
-  model: ./models/sentence-transformers_all-MiniLM-L6-v2
-  dim: 384
+  model: text-embedding-3-small
+  base_url: https://api.openai.com/v1
+  dim: 1536
   batch_size: 32
   normalize: true
-  device: cpu                   # cpu / cuda / mps / auto
+  # api_key_env 默认 LLM_API_KEY；若用 OpenAI 为 embedding 单独申请 key，
+  # 可设 api_key_env: EMBEDDING_API_KEY（并在 .env 中填写）
+  # 若不想用 OpenAI，可改为任意兼容的 /v1/embeddings 端点，例如：
+  #   base_url: http://localhost:11434/v1
+  #   model: nomic-embed-text
+
+rerank:
+  enabled: false
 
 storage:
   graph:

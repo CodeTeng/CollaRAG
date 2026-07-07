@@ -5,7 +5,7 @@ import hashlib
 import logging
 
 from chimera_rag.core.registry import register
-from chimera_rag.core.types import Answer, Chunk, Query, RetrievalResult
+from chimera_rag.core.types import Chunk, Query, RetrievalResult
 from chimera_rag.defaults.llm_extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.interfaces.retriever import BaseRetriever
@@ -90,7 +90,9 @@ class MultiAgentRetriever(BaseRetriever):
 
     @staticmethod
     def _default_reflector():
-        from chimera_rag.plugins.intent_agent.tools.quality_evaluator import HeuristicQualityEvaluator
+        from chimera_rag.plugins.intent_agent.tools.quality_evaluator import (
+            HeuristicQualityEvaluator,
+        )
         return HeuristicQualityEvaluator()
 
     def retrieve(self, query: Query, top_k: int = 5) -> RetrievalResult:

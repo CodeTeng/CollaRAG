@@ -1,5 +1,6 @@
 """Tests for multi-agent type extensions."""
 import pytest
+
 from chimera_rag.core.types import (
     AgentExperienceEntry,
     MultiAgentIntentLabel,
@@ -60,7 +61,7 @@ def test_agent_experience_entry_lesson():
 
 
 def test_agent_experience_entry_quality_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         AgentExperienceEntry(
             agent_type="react",
             intent="multi_hop",

@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -33,6 +35,7 @@ def test_main_help_lists_all_subcommands():
     assert "benchmark" not in out
 
 
+@pytest.mark.integration
 def test_main_ingest_runs_end_to_end_with_vanilla_config(
     mock_vanilla_yaml: str, tmp_path: Path
 ):

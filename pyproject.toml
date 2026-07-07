@@ -62,18 +62,6 @@ ragas = [
 chunk = [
     "langchain-text-splitters>=0.3",
 ]
-# 本地 sentence-transformers embedding
-# torch pinned to <2.3 to stay compatible with macOS x86_64 (Intel Mac) wheels.
-st = [
-    "sentence-transformers>=2.5,<3.0",
-    "torch>=2.0,<2.3",
-]
-# Cross-encoder 重排序模型（创新点 2 hooks.reranking）
-# 复用 st 的 sentence-transformers + torch，但作为独立 extra 以便按需安装。
-reranker = [
-    "sentence-transformers>=2.5,<3.0",
-    "torch>=2.0,<2.3",
-]
 # Neo4j 图后端
 neo4j = [
     "neo4j>=5.18",
@@ -130,7 +118,7 @@ dev = [
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers -m \"not integration\""
 asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

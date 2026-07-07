@@ -1,60 +1,88 @@
-"""Tests for the provider factories that read ``AppConfig`` and return
-concrete :class:`BaseLLMProvider` / :class:`BaseEmbeddingProvider` instances.
+"""Tests for the provider factories and concrete providers.
+
+Since the autouse conftest fixture monkeypatches the factories, these tests
+import the concrete provider classes directly.
 """
 
 from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 
 # ---------------------------------------------------------------------------
-# LLM factory
+# LLM provider
 # ---------------------------------------------------------------------------
-def test_build_llm_provider_from_config_mock_branch():
+def test_llm_provider_instantiation(monkeypatch):
+    monkeypatch.setenv("FAKE_KEY", "sk-test")
     from chimera_rag.core.config import LLMConfig
-    from chimera_rag.providers import build_llm_provider
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
+    from chimera_rag.providers.llm_provider import LLMProvider
 
-    cfg = LLMConfig(provider="mock", model="mock-llm")
-    provider = build_llm_provider(cfg)
-    assert isinstance(provider, MockLLMProvider)
+    with patch(
+        "chimera_rag.providers.llm_provider._make_async_client",
+        return_value=MagicMock(),
+    ):
+        cfg = LLMConfig(model="test-model", api_key_env="FAKE_KEY")
+        provider = LLMProvider(cfg)
+        assert isinstance(provider, LLMProvider)
 
 
-def test_build_llm_provider_raises_for_unknown_provider_name():
+def test_llm_provider_raises_when_api_key_missing(monkeypatch):
+    from chimera_rag.core.config import LLMConfig
     from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers import build_llm_provider
+    from chimera_rag.providers.llm_provider import LLMProvider
 
-    class _Cfg:
-        provider = "martian"
-        model = "x"
-
-    with pytest.raises(ProviderError, match="unknown|unsupported"):
-        build_llm_provider(_Cfg())
+    monkeypatch.delenv("FAKE_KEY", raising=False)
+    cfg = LLMConfig(model="test-model", api_key_env="FAKE_KEY")
+    with pytest.raises(ProviderError, match="FAKE_KEY"):
+        LLMProvider(cfg)
 
 
 # ---------------------------------------------------------------------------
-# Embedding factory
+# Embedding provider
 # ---------------------------------------------------------------------------
-def test_build_embedding_provider_from_config_mock_branch():
+def test_embedding_provider_instantiation(monkeypatch):
+    monkeypatch.setenv("FAKE_KEY", "sk-test")
     from chimera_rag.core.config import EmbeddingConfig
-    from chimera_rag.providers import build_embedding_provider
-    from chimera_rag.providers.embedding.mock_embedding import MockEmbeddingProvider
+    from chimera_rag.providers.embedding_provider import EmbeddingProvider
 
-    cfg = EmbeddingConfig(provider="mock", model="mock-embedding", dim=32, normalize=True)
-    provider = build_embedding_provider(cfg)
-    assert isinstance(provider, MockEmbeddingProvider)
-    assert provider.dim == 32
+    with patch(
+        "chimera_rag.providers.embedding_provider._make_client",
+        return_value=MagicMock(),
+    ):
+        cfg = EmbeddingConfig(
+            model="test-emb", dim=1536, api_key_env="FAKE_KEY",
+        )
+        provider = EmbeddingProvider(cfg)
+        assert isinstance(provider, EmbeddingProvider)
+        assert provider.dim == 1536
 
 
-def test_build_embedding_provider_raises_for_unknown_provider_name():
-    from chimera_rag.core.exceptions import ProviderError
-    from chimera_rag.providers import build_embedding_provider
+# ---------------------------------------------------------------------------
+# Rerank provider
+# ---------------------------------------------------------------------------
+def test_rerank_provider_returns_none_when_disabled():
+    from chimera_rag.core.config import RerankConfig
+    from chimera_rag.providers import build_rerank_provider
 
-    class _Cfg:
-        provider = "telegraph"
-        model = "x"
-        dim = 8
-        normalize = True
+    cfg = RerankConfig(enabled=False)
+    assert build_rerank_provider(cfg) is None
 
-    with pytest.raises(ProviderError, match="unknown|unsupported"):
-        build_embedding_provider(_Cfg())
+
+def test_rerank_provider_instantiation():
+    from chimera_rag.core.config import RerankConfig
+    from chimera_rag.providers.rerank_provider import RerankProvider
+
+    cfg = RerankConfig(
+        enabled=True,
+        model="bge-reranker-v2-m3",
+        base_url="http://localhost:9997/v1",
+        api_key_env="FAKE_KEY",
+    )
+    with patch(
+        "chimera_rag.providers.rerank_provider.os.getenv",
+        return_value="fake-api-key",
+    ):
+        provider = RerankProvider(cfg)
+        assert isinstance(provider, RerankProvider)

@@ -1,5 +1,6 @@
 """Tests for SharedMemory."""
 import tempfile
+
 from chimera_rag.plugins.intent_agent.memory.shared_memory import SharedMemory
 
 

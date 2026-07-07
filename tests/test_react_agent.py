@@ -1,8 +1,8 @@
 """Tests for ReActAgent."""
+
 from chimera_rag.core.types import Query
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.plugins.intent_agent.agents.react_agent import ReActAgent
-from langchain_core.tools import StructuredTool
 
 
 def test_react_agent_creates():

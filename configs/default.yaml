@@ -35,10 +35,9 @@ logging:
 # 连接凭据优先从 .env 读（LLM_API_KEY / LLM_BASE_URL / LLM_MODEL），本段只填
 # provider + 业务参数（温度、超时、重试等）。
 llm:
-  provider: mock           # mock / openai / deepseek / ollama
-  model: mock-llm          # 可留空，由 .env 的 LLM_MODEL 接管（或 provider 默认模型）
-  api_key_env: OPENAI_API_KEY    # 兼容老格式：指定从哪个环境变量读 api_key
-  base_url_env: OPENAI_BASE_URL
+  model: deepseek-chat         # OpenAI-compatible 模型名，必填
+  base_url: null               # null = 使用 OpenAI 默认地址；DeepSeek 填 https://api.deepseek.com
+  api_key_env: LLM_API_KEY     # 从 .env 中读取 API Key 的环境变量名
   temperature: 0.1
   max_tokens: 1024
   timeout: 30
@@ -48,15 +47,30 @@ llm:
     max_wait: 10.0
 
 # --------------------------------------------------------------------------
-# Embedding 提供者
+# Embedding 提供者（OpenAI 兼容 /v1/embeddings 端点）
 # --------------------------------------------------------------------------
 embedding:
-  provider: mock           # mock / openai / ollama / sentence_transformer
-  model: mock-embedding
-  dim: 64                  # 必须与模型维度匹配（ST 实际加载时会核对）
-  batch_size: 32           # 批量编码大小
-  normalize: true          # L2 归一化，配合 IP metric 等价于余弦相似度
-  device: cpu              # cpu / cuda / mps / auto（仅对 sentence_transformer 生效）
+  model: text-embedding-3-small
+  base_url: https://api.openai.com/v1
+  dim: 1536
+  batch_size: 32
+  normalize: true
+  api_key_env: LLM_API_KEY     # 默认与 LLM 共用 key；可单独设置
+
+# --------------------------------------------------------------------------
+# Rerank 提供者（可选，OpenAI 兼容 /rerank 端点）
+# --------------------------------------------------------------------------
+rerank:
+  enabled: false               # 设为 true 启用跨编码器重排序
+  model: bge-reranker-v2-m3
+  base_url: http://localhost:9997/v1
+  api_key_env: LLM_API_KEY
+  top_n: 5
+  timeout: 30.0
+  retry:
+    max_attempts: 3
+    initial_wait: 1.0
+    max_wait: 10.0
 
 # --------------------------------------------------------------------------
 # 存储层

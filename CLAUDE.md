@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 uv sync --all-extras --dev          # Install all dependencies
-uv run pytest -q                    # Run all tests (mock providers, no API keys needed)
+uv run pytest -q                    # Run all tests (fake providers, no API keys needed)
 uv run pytest tests/test_core_config.py -q                     # Run a single test file
 uv run pytest tests/test_core_config.py::test_load_missing_file -q  # Run a single test
 uv run ruff check .                 # Lint
@@ -93,14 +93,16 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
 
 ### Configuration
 
-Single YAML config with 10 top-level domains: `app`, `logging`, `llm`, `embedding`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Four config variants in `configs/`:
+Single YAML config with 11 top-level domains: `app`, `logging`, `llm`, `embedding`, `rerank`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Six config variants in `configs/`:
 
 | Config | AdaGraph | IntentAgent |
 |---|:---:|:---:|
+| `default.yaml` | — | — |
 | `deepseek_vanilla.yaml` | off | off |
 | `deepseek_adagraph_only.yaml` | on | off |
 | `deepseek_intent_only.yaml` | off | on |
 | `deepseek_full.yaml` | on | on |
+| `ollama_intent_only.yaml` | off | on |
 
 Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.
 
@@ -144,4 +146,7 @@ FastAPI at `src/chimera_rag/web/` — 7 route modules. React frontend at `web-ui
 
 ### Testing
 
-All tests use `MockLLMProvider` + `MockEmbeddingProvider` — no real API keys needed. Tests cover: registry, config, types, pipeline end-to-end (vanilla/AdaGraph/IntentAgent/full), individual defaults, agents, tools, memory, stores, datasets, and evaluation.
+All tests use `FakeLLMProvider` + `FakeEmbeddingProvider` (test-only doubles in
+`tests/conftest.py`) — no real API keys needed. Tests cover: registry, config,
+types, pipeline end-to-end (vanilla/AdaGraph/IntentAgent/full), individual
+defaults, agents, tools, memory, stores, datasets, and evaluation.

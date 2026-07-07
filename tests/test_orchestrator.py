@@ -1,5 +1,6 @@
 """Tests for MultiAgentRetriever orchestrator."""
 import numpy as np
+
 from chimera_rag.core.types import Chunk, Query, RetrievalResult
 
 

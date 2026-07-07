@@ -1,7 +1,8 @@
 """Tests for BaseAgent ABC and AgentContext."""
 import pytest
-from chimera_rag.interfaces.base_agent import BaseAgent, AgentContext
+
 from chimera_rag.core.types import Answer, Query
+from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 
 
 class DummyAgent(BaseAgent):

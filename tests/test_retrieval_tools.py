@@ -1,5 +1,6 @@
 """Tests for retrieval tools (vector, bm25, hybrid, graph)."""
 import numpy as np
+
 from chimera_rag.core.types import Chunk, Triple
 from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
     BM25Index,

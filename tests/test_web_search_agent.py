@@ -1,8 +1,9 @@
 """Tests for WebSearchAgent."""
+from langchain_core.tools import StructuredTool
+
 from chimera_rag.core.types import Query
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.plugins.intent_agent.agents.web_search import WebSearchAgent
-from langchain_core.tools import StructuredTool
 
 
 def _mock_web_search():

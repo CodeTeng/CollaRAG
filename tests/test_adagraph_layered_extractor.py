@@ -22,21 +22,21 @@ def _make_chunk(text: str = "Alfred Nobel invented dynamite."):
 
 
 def test_layered_extractor_implements_abc():
+    from _fakes import FakeLLMProvider
     from chimera_rag.interfaces.extractor import BaseTripleExtractor
     from chimera_rag.plugins.adagraph.layered_extractor import LayeredTripleExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
     assert isinstance(
-        LayeredTripleExtractor(llm=MockLLMProvider()),
+        LayeredTripleExtractor(llm=FakeLLMProvider()),
         BaseTripleExtractor,
     )
 
 
 def test_layered_extractor_l1_returns_explicit_triples_with_layer_tag():
+    from _fakes import FakeLLMProvider
     from chimera_rag.plugins.adagraph.layered_extractor import LayeredTripleExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    mock = MockLLMProvider(
+    mock = FakeLLMProvider(
         default_response='[{"subject": "Alfred Nobel", "predicate": "invented", "object": "dynamite"}]'
     )
     ext = LayeredTripleExtractor(llm=mock, layers_enabled=["L1"])
@@ -47,20 +47,20 @@ def test_layered_extractor_l1_returns_explicit_triples_with_layer_tag():
 
 def test_layered_extractor_unimplemented_layers_return_empty():
     """L2 / L3 / L4 are reserved; enabling them must not crash, yields []."""
+    from _fakes import FakeLLMProvider
     from chimera_rag.plugins.adagraph.layered_extractor import LayeredTripleExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    mock = MockLLMProvider(default_response="[]")
+    mock = FakeLLMProvider(default_response="[]")
     ext = LayeredTripleExtractor(llm=mock, layers_enabled=["L2", "L3", "L4"])
     triples = ext.extract(_make_chunk())
     assert triples == []
 
 
 def test_layered_extractor_default_layers_enabled_is_l1_only():
+    from _fakes import FakeLLMProvider
     from chimera_rag.plugins.adagraph.layered_extractor import LayeredTripleExtractor
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    ext = LayeredTripleExtractor(llm=MockLLMProvider())
+    ext = LayeredTripleExtractor(llm=FakeLLMProvider())
     assert ext.layers_enabled == ["L1"]
 
 

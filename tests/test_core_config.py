@@ -20,19 +20,20 @@ app:
 logging: { level: INFO, format: rich, file: null }
 
 llm:
-  provider: mock
-  model: mock-llm
+  model: test-llm
   temperature: 0.1
   max_tokens: 256
   timeout: 10
   retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 10.0 }
 
 embedding:
-  provider: mock
-  model: mock-embedding
+  model: test-embedding
   dim: 16
   batch_size: 8
   normalize: true
+
+rerank:
+  enabled: false
 
 storage:
   graph:
@@ -85,7 +86,7 @@ def test_load_config_returns_app_config_with_populated_sections(tmp_config):
     cfg = load_config(tmp_config)
     assert isinstance(cfg, AppConfig)
     assert cfg.app.name == "chimera-rag"
-    assert cfg.llm.provider == "mock"
+    assert cfg.llm.model == "test-llm"
     assert cfg.embedding.dim == 16
     assert cfg.storage.vector.top_k == 5
     assert cfg.ingestion.chunker.active == "defaults.fixed"
@@ -123,7 +124,7 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
     bad = tmp_path / "partial.yaml"
     # Remove the whole llm section on purpose.
     bad.write_text(MINIMAL_YAML.replace(
-        "llm:\n  provider: mock\n  model: mock-llm\n  temperature: 0.1\n  max_tokens: 256\n  timeout: 10\n  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 10.0 }\n",
+        "llm:\n  model: test-llm\n  temperature: 0.1\n  max_tokens: 256\n  timeout: 10\n  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 10.0 }\n",
         "",
     ))
 

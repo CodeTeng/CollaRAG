@@ -44,31 +44,46 @@ class RetryConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    provider: Literal["mock", "openai", "deepseek", "ollama"]
-    # model can be empty if LLM_MODEL env var is supplied (see providers/llm/openai_provider.py).
-    model: str = ""
-    api_key_env: str | None = None
-    base_url_env: str | None = None
+    # OpenAI-compatible endpoint. All model/connection knobs live here;
+    # .env only supplies the API key (via api_key_env, default LLM_API_KEY).
+    model: str
+    base_url: str | None = None
+    api_key_env: str = "LLM_API_KEY"
     temperature: float = 0.1
     max_tokens: int = 1024
     timeout: float = 30.0
     retry: RetryConfig = Field(default_factory=RetryConfig)
     # Disable "thinking" / chain-of-thought output for reasoning models that
     # emit it by default (e.g. Qwen3 via ollama). When True the provider
-    # prepends a `/no_think` system instruction. Default False -> no effect on
-    # OpenAI / DeepSeek and other non-thinking models.
+    # routes through ollama's native /api/chat with think:false.
     disable_thinking: bool = False
 
 
 class EmbeddingConfig(BaseModel):
-    provider: Literal["mock", "openai", "ollama", "sentence_transformer"]
+    # OpenAI-compatible embeddings endpoint. model/connection live here;
+    # .env only supplies the API key.
     model: str
     dim: int
+    base_url: str | None = None
+    api_key_env: str = "LLM_API_KEY"
     batch_size: int = 32
     normalize: bool = True
-    # Device for local embeddings (sentence-transformers). "auto" picks
-    # CUDA when available, else CPU. Ignored by mock/remote providers.
-    device: Literal["cpu", "cuda", "mps", "auto"] | str = "cpu"
+
+
+class RerankConfig(BaseModel):
+    """Cross-encoder reranking via an OpenAI-compatible rerank endpoint.
+
+    Optional — set ``enabled: true`` to activate.  The provider calls
+    ``POST /rerank`` with ``{"model", "query", "documents", "top_n"}``
+    (the de-facto contract used by vLLM / Xinference / SiliconFlow / Jina).
+    """
+    enabled: bool = False
+    model: str = ""
+    base_url: str | None = None
+    api_key_env: str = "LLM_API_KEY"
+    top_n: int = 5
+    timeout: float = 30.0
+    retry: RetryConfig = Field(default_factory=RetryConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +252,7 @@ class AppConfig(BaseModel):
     logging: LoggingConfig
     llm: LLMConfig
     embedding: EmbeddingConfig
+    rerank: RerankConfig = Field(default_factory=RerankConfig)
     storage: StorageConfig
     datasets: dict[str, DatasetConfig] = Field(default_factory=dict)
     ingestion: IngestionConfig
@@ -289,6 +305,7 @@ __all__ = [
     "LoggingConfig",
     "PluginsConfig",
     "QueryConfig",
+    "RerankConfig",
     "RetryConfig",
     "SlotConfig",
     "StorageConfig",

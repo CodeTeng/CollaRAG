@@ -1,5 +1,6 @@
 """Tests for AgentPrivateMemory."""
 import tempfile
+
 from chimera_rag.plugins.intent_agent.memory.agent_memory import AgentPrivateMemory
 
 

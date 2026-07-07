@@ -1,6 +1,6 @@
 """End-to-end test: ChimeraRAG with multi-agent retriever (MockProvider)."""
 from chimera_rag import ChimeraRAG
-from chimera_rag.core.types import Document, Query
+from chimera_rag.core.types import Document
 
 
 def test_multi_agent_ingest_and_query(tmp_path):

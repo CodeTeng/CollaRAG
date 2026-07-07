@@ -1,10 +1,11 @@
 """Tests for AgentFactory and ToolSetBuilder."""
+from langchain_core.tools import StructuredTool
+
 from chimera_rag.plugins.intent_agent.agent_factory import (
     TOOL_MATRIX,
     AgentFactory,
     ToolSetBuilder,
 )
-from langchain_core.tools import StructuredTool
 
 
 def _dummy_tool(name: str) -> StructuredTool:
@@ -35,8 +36,8 @@ def test_tool_set_builder_unknown_agent():
 
 
 def test_agent_factory_register_and_create():
-    from chimera_rag.interfaces.base_agent import BaseAgent, AgentContext
     from chimera_rag.core.types import Answer, Query
+    from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
 
     @AgentFactory.register("_test_intent")
     class TestAgent(BaseAgent):

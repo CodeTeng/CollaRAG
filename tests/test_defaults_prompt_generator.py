@@ -4,11 +4,11 @@ from __future__ import annotations
 
 
 def test_prompt_generator_uses_retrieval_as_context_and_returns_answer():
+    from _fakes import FakeLLMProvider
     from chimera_rag.core.types import Chunk, Query, RetrievalResult
     from chimera_rag.defaults.prompt_generator import PromptBasedGenerator
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    mock = MockLLMProvider(
+    mock = FakeLLMProvider(
         rules=[("invented", "Alfred Nobel invented dynamite.")],
         default_response="unknown",
     )
@@ -25,11 +25,11 @@ def test_prompt_generator_uses_retrieval_as_context_and_returns_answer():
 
 
 def test_prompt_generator_handles_empty_retrieval_gracefully():
+    from _fakes import FakeLLMProvider
     from chimera_rag.core.types import Query, RetrievalResult
     from chimera_rag.defaults.prompt_generator import PromptBasedGenerator
-    from chimera_rag.providers.llm.mock_provider import MockLLMProvider
 
-    mock = MockLLMProvider(default_response="I do not know.")
+    mock = FakeLLMProvider(default_response="I do not know.")
     g = PromptBasedGenerator(llm=mock)
     ans = g.generate(Query(text="?"), RetrievalResult())
     assert isinstance(ans.text, str) and len(ans.text) > 0

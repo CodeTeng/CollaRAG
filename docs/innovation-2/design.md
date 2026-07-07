@@ -80,7 +80,7 @@
 | BM25 检索 | **rank-bm25 ≥0.2** | 零依赖纯 Python，够用于学术实验；不需要 Elasticsearch 等外部服务 |
 | 联网搜索 | **duckduckgo-search ≥7.0** 或 **SerpAPI** | DDG 免费无 key；SerpAPI 质量更高但需 key，作为可选后端 |
 | ReAct 协议解析 | 自研（复用现有 `llm_adapter.py` 的解析器） | 现有解析器已能处理 Thought/Action/Observation 格式，不依赖特定 LLM 的 function calling |
-| Cross-Encoder 重排序 | **sentence-transformers**（已在 `[reranker]` extra） | 已实装，所有 Agent 共享 |
+| Cross-Encoder 重排序 | **OpenAI-compatible `/rerank` 端点**（vLLM / Xinference / SiliconFlow / Jina） | 已实装，通过 `config.rerank.enabled: true` 开启 |
 
 **不选 CrewAI/AutoGen 的理由**：它们强假设多 Agent 之间需要"对话协商"，而本方案是"一次性分派到专职 Agent"，不存在 Agent 间对话，LangGraph 的 StateGraph 更匹配这种确定性编排拓扑。
 

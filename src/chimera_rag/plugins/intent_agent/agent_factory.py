@@ -1,7 +1,7 @@
 """AgentFactory (Factory pattern) + ToolSetBuilder (Builder pattern)."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from langchain_core.tools import StructuredTool
 
@@ -47,7 +47,7 @@ class ToolSetBuilder:
 
 
 class AgentFactory:
-    _registry: dict[str, type[BaseAgent]] = {}
+    _registry: ClassVar[dict[str, type[BaseAgent]]] = {}
 
     @classmethod
     def register(cls, intent: str):
@@ -66,4 +66,4 @@ class AgentFactory:
         return agent_cls(agent_type=intent, tools=tools, config=config)
 
 
-__all__ = ["AgentFactory", "TOOL_MATRIX", "ToolSetBuilder"]
+__all__ = ["TOOL_MATRIX", "AgentFactory", "ToolSetBuilder"]

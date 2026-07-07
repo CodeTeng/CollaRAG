@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -31,6 +33,7 @@ def _inject_eval_dataset(cfg_path: str, ds_path: Path, out_dir: Path) -> None:
     Path(cfg_path).write_text("\n".join(out))
 
 
+@pytest.mark.integration
 def test_main_infer_writes_predictions_and_meta(
     mock_vanilla_yaml: str, tmp_path: Path
 ):
@@ -83,6 +86,7 @@ def test_main_infer_writes_predictions_and_meta(
     assert "started_at" in meta and "finished_at" in meta
 
 
+@pytest.mark.integration
 def test_main_infer_explicit_out_dir(mock_vanilla_yaml: str, tmp_path: Path):
     ds_path = tmp_path / "qa.jsonl"
     ds_path.write_text(json.dumps({"qid": "q1", "question": "Q?", "answer": "A"}))
