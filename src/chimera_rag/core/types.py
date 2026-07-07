@@ -21,6 +21,14 @@ IntentLabel = Literal[
     "follow_up",
 ]
 
+MultiAgentIntentLabel = Literal[
+    "greeting",
+    "single_hop",
+    "multi_hop",
+    "summarization",
+    "other",
+]
+
 
 # ---------------------------------------------------------------------------
 # Corpus: Document / Chunk
@@ -87,9 +95,9 @@ class Query(BaseModel):
 
 
 class Intent(BaseModel):
-    """Classifier output; label taken from the 6-way IntentLabel union."""
+    """Classifier output; label from IntentLabel or MultiAgentIntentLabel."""
 
-    label: IntentLabel
+    label: IntentLabel | MultiAgentIntentLabel
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str | None = None
 
@@ -134,7 +142,7 @@ class Answer(BaseModel):
 
     text: str
     evidence_chunk_ids: list[str] = Field(default_factory=list)
-    intent_label: IntentLabel | None = None
+    intent_label: IntentLabel | MultiAgentIntentLabel | None = None
     strategy_name: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     trace: dict[str, Any] = Field(default_factory=dict)
@@ -170,13 +178,6 @@ class EvalResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Multi-Agent architecture types (innovation 2 refactor)
 # ---------------------------------------------------------------------------
-MultiAgentIntentLabel = Literal[
-    "greeting",
-    "single_hop",
-    "multi_hop",
-    "summarization",
-    "other",
-]
 
 
 class PreprocessResult(BaseModel):
