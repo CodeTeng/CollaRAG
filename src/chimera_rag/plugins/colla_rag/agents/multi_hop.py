@@ -28,8 +28,8 @@ class MultiHopAgent(BaseAgent):
         llm = self.config.get("llm")
         quality_threshold = self.config.get("quality_threshold", 0.6)
         max_plan_steps = self.config.get("max_plan_steps", 5)
-        max_step_iterations = self.config.get("max_step_iterations", 2)
-        reflect_retries = self.config.get("reflect_retries", 1)
+        max_step_iterations = self.config.get("max_step_iterations", 3)
+        reflect_retries = self.config.get("reflect_retries", 2)
         tool_map = {t.name: t for t in self.tools}
         tool_descs = "\n".join(f"- {t.name}: {t.description}" for t in self.tools)
         tool_call_log: list[str] = []

@@ -81,7 +81,7 @@ uv run python eval.py \
 
 ### 5. 真实数据集实验（HotpotQA / 2Wiki / MuSiQue）
 
-详见 **[docs/experiments/experiment-guide.md](docs/experiments/experiment-guide.md)**，核心三步：
+详见 **[docs/experiments/](docs/experiments/)**，核心三步：
 
 ```bash
 uv run python main.py ingest --config configs/deepseek_colla_rag_only.yaml --dataset musique --limit 500 --rebuild
@@ -242,7 +242,7 @@ uv run python main.py serve --config configs/deepseek_full.yaml --dataset mock_w
 
 | 文档 | 说明 |
 |---|---|
-| [docs/experiments/experiment-guide.md](docs/experiments/experiment-guide.md) | **实验指南**：三阶段工作流、数据集格式、操作手册 |
+| [docs/experiments/](docs/experiments/) | **实验文档**：实验结果与实验设计 |
 | [docs/architecture_overview.md](docs/architecture_overview.md) | 架构：注册表、插槽、依赖注入、管线数据流 |
 | [docs/innovation-1/adagraph.md](docs/innovation-1/adagraph.md) | AdaGraph 3 个子模块实装细节 |
 | [docs/innovation-2/colla-rag.md](docs/innovation-2/colla-rag.md) | CollaRAG 多Agent架构实装细节 |

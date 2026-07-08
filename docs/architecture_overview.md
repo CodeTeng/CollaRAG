@@ -253,5 +253,5 @@ QAExample / EvalResult                                            ← 评测
 - `docs/innovation-1/adagraph.md` — 创新点一的 3 个子模块实装细节；
 - `docs/innovation-2/colla-rag.md` — 创新点二的多Agent架构实装细节；
 - `docs/innovation-2/design.md` — 创新点二多Agent架构设计文档；
-- `docs/experiments/experiment-guide.md` — 实验指南；
+- `docs/experiments/` — 实验结果与实验设计文档；
 - `README.md` — 仓库根目录的用户级入门文档。

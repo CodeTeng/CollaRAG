@@ -245,7 +245,7 @@ Phase 3: Reflect（反思综合）
 
 **Execute 阶段**：对每个步骤运行迷你 ReAct 循环，使用 `STEP_REACT_PROMPT`。每步通过正则解析 `Action: tool_name\nAction Input: {json}` 调用工具，解析 `Step Result: ...` 收集本步结果。前序步骤的结果作为上下文注入后续步骤。
 
-**Reflect 阶段**：所有步骤执行完毕后，调用 `assess_evidence` 评估整体证据质量。若 `quality < quality_threshold`（默认 0.6）且剩余反思预算（`reflect_retries`，默认 1），使用 `REFLECT_PROMPT` 生成反思文本，识别信息缺口，再执行一轮补充检索。最终用 `SYNTHESIZE_PROMPT` 综合所有证据生成最终答案。
+**Reflect 阶段**：所有步骤执行完毕后，调用 `assess_evidence` 评估整体证据质量。若 `quality < quality_threshold`（默认 0.6）且剩余反思预算（`reflect_retries`，默认 2），使用 `REFLECT_PROMPT` 生成反思文本，识别信息缺口，再执行一轮补充检索。最终用 `SYNTHESIZE_PROMPT` 综合所有证据生成最终答案。
 
 **trace 记录**：`plan`（执行计划）、`step_results`（每步结果）、`iterations`（总工具调用数）、`tool_call_log`（工具调用序列）、`reflect_count`（反思次数）、`quality`（最终质量分数）。
 
@@ -255,7 +255,7 @@ Phase 3: Reflect（反思综合）
 |---|---|---|
 | 结构 | 平铺 Thought→Action→Observation 循环 | 三阶段：Plan → Execute → Reflect |
 | 规划 | 无显式规划，LLM 隐式决策 | 显式 JSON 步骤列表 |
-| 执行 | 全局单循环，max_iterations=3 | 每步独立迷你循环，max_step_iterations=2 |
+| 执行 | 全局单循环，max_iterations=3 | 每步独立迷你循环，max_step_iterations=3 |
 | 反思 | 循环内 assess_evidence 提示 | 独立反思阶段，可补充执行 |
 | 综合 | 循环内直接 Final Answer | 独立 Synthesize 阶段，综合所有步骤证据 |
 
@@ -625,5 +625,5 @@ CollaRAG **只读** `PipelineState.graph_store / vector_store / chunk_lookup`—
 - [`architecture_overview.md`](../architecture_overview.md) — 架构总览：注册表、插槽、依赖注入
 - [`design.md`](design.md) — 多Agent架构设计文档（含消融实验设计）
 - [`../innovation-1/adagraph.md`](../innovation-1/adagraph.md) — 创新点一：AdaGraph 自适应图谱构建
-- [`../experiments/experiment-guide.md`](../experiments/experiment-guide.md) — 实验指南
+- [`../experiments/`](../experiments/) — 实验结果与实验设计文档
 - [`../experiments/`](../experiments/) — 实验结果
