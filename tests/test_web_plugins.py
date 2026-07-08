@@ -32,7 +32,7 @@ def test_plugins_list_returns_status_for_both_innovations(client):
     assert r.status_code == 200
     data = r.json()
     names = {p["name"] for p in data["plugins"]}
-    assert names == {"adagraph", "intent_agent"}
+    assert names == {"adagraph", "colla_rag"}
     # Initially both disabled under mock_vanilla.yaml.
     for p in data["plugins"]:
         assert p["enabled"] is False

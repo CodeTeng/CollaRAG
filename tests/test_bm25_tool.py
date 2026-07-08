@@ -1,6 +1,6 @@
 """Tests for BM25Index wrapper and ToolAccumulator."""
 from chimera_rag.core.types import Chunk
-from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
+from chimera_rag.plugins.colla_rag.tools.retrieval_tools import (
     BM25Index,
     ToolAccumulator,
 )

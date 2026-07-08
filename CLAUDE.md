@@ -38,8 +38,8 @@ uv run python main.py serve --config <cfg>
 ### Evaluation (two-stage)
 
 ```bash
-uv run python main.py infer --config configs/deepseek_intent_only.yaml --dataset hotpotqa --limit 10
-uv run python eval.py --predictions_dir output/hotpotqa/deepseek_intent_only
+uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset hotpotqa --limit 10
+uv run python eval.py --predictions_dir output/hotpotqa/deepseek_colla_rag_only
 ```
 
 ## Architecture
@@ -55,7 +55,7 @@ Chimera-RAG is a pluggable knowledge-graph RAG framework with two optional resea
 | Core | `core/` | `types.py`, `config.py`, `registry.py`, `pipeline.py`, `logging.py`, `exceptions.py`, `env_loader.py` |
 | Interfaces | `interfaces/` | ABCs — all slot abstractions (`BaseChunker`, `BaseRetriever`, `BaseIntentClassifier`, `BaseAgent`, etc.) |
 | Defaults | `defaults/` | Vanilla implementations registered as `defaults.*` — the "bare KG-RAG" baseline |
-| Plugins | `plugins/adagraph/` + `plugins/intent_agent/` | Two innovations, registered as `<plugin>.*` |
+| Plugins | `plugins/adagraph/` + `plugins/colla_rag/` | Two innovations, registered as `<plugin>.*` |
 
 **Critical rule**: `core/` never imports from `defaults/` or `plugins/`. The dependency direction is one-way: core → interfaces, defaults/plugins → interfaces + core.
 
@@ -73,17 +73,17 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
 
 1. **AdaGraph** — occupies 3 ingestion slots: `chunker` (adaptive size based on complexity/density), `extractor` (4-layer extraction L1-L4), `pruner` (similarity + transitive redundancy removal)
 
-2. **IntentAgent (Multi-Agent Architecture)** — occupies 2 query slots (`intent_classifier` as `intent_agent.tree`, `retriever` as `intent_agent.multi_agent`). Inside the `MultiAgentRetriever` facade:
+2. **CollaRAG (Multi-Agent Architecture)** — occupies 2 query slots (`intent_classifier` as `colla_rag.tree`, `retriever` as `colla_rag.multi_agent`). Inside the `MultiAgentRetriever` facade:
    - **Preprocessor Agent**: query rewriting, coreference resolution, follow-up merging
    - **Tree-Intent Classifier**: Level-1 greeting filter → Level-2 LLM + rule-fallback classification into `greeting | single_hop | multi_hop | summarization | other`
-   - **Native RAG Agent**: single-round hybrid retrieval for simple factual queries
-   - **ReAct Agent**: multi-step reasoning with tool selection + reflection loop for multi-hop/comparative/exploratory queries
-   - **Map-Reduce Agent**: retrieve → map (per-chunk LLM summary) → reduce (final synthesis) for summarization queries
-   - **WebSearch + LLM Agent**: DuckDuckGo search + optional local knowledge for out-of-scope queries
+   - **SingleHop Agent**: single-round hybrid retrieval for simple factual queries
+   - **MultiHop Agent**: Plan-Execute-Reflect architecture — LLM generates step plan, each step runs mini ReAct loop, then reflect + synthesize for multi-hop/comparative/exploratory queries
+   - **Summarization Agent**: retrieve → map (per-chunk LLM summary) → reduce (final synthesis) for summarization queries
+   - **Other Agent**: DuckDuckGo search + optional local knowledge for out-of-scope queries
    - **Shared Tool Layer**: 22 tools (vector/BM25/hybrid/graph retrieval, entity/relation extraction, entity linking, sub-query decompose, assess evidence, rerank, query rewrite, memory read/write, web search, file IO)
    - **Dual-Layer Memory**: SharedMemory (QA cache, routing stats, entity aliases) + AgentPrivateMemory (per-agent per-intent JSONL experience store)
 
-### Key design patterns (IntentAgent)
+### Key design patterns (CollaRAG)
 
 - **Strategy**: each Agent implements `BaseAgent.do_execute()`
 - **Factory**: `AgentFactory.create(intent, all_tools, ...)` — maps intent label to Agent class
@@ -95,14 +95,14 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
 
 Single YAML config with 11 top-level domains: `app`, `logging`, `llm`, `embedding`, `rerank`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Six config variants in `configs/`:
 
-| Config | AdaGraph | IntentAgent |
+| Config | AdaGraph | CollaRAG |
 |---|:---:|:---:|
 | `default.yaml` | — | — |
 | `deepseek_vanilla.yaml` | off | off |
 | `deepseek_adagraph_only.yaml` | on | off |
-| `deepseek_intent_only.yaml` | off | on |
+| `deepseek_colla_rag_only.yaml` | off | on |
 | `deepseek_full.yaml` | on | on |
-| `ollama_intent_only.yaml` | off | on |
+| `ollama_colla_rag_only.yaml` | off | on |
 
 Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.
 
@@ -112,10 +112,10 @@ All cross-layer types in `core/types.py`: `Document`, `Chunk`, `Triple`, `Entity
 
 `MultiAgentIntentLabel = Literal["greeting", "single_hop", "multi_hop", "summarization", "other"]`
 
-### IntentAgent plugin structure
+### CollaRAG plugin structure
 
 ```
-plugins/intent_agent/
+plugins/colla_rag/
 ├── __init__.py              # Plugin entry, triggers @register
 ├── prompts.py               # Centralized prompt templates (13 prompts)
 ├── classifier.py            # TreeIntentClassifier (greeting + LLM + rule fallback)
@@ -123,10 +123,10 @@ plugins/intent_agent/
 ├── agent_factory.py         # AgentFactory + ToolSetBuilder + TOOL_MATRIX
 ├── agents/                  # 5 specialized agents
 │   ├── preprocessor.py      # PreprocessorAgent
-│   ├── native_rag.py        # NativeRAGAgent
-│   ├── react_agent.py       # ReActAgent
-│   ├── map_reduce.py        # MapReduceAgent
-│   └── web_search.py        # WebSearchAgent
+│   ├── single_hop.py        # SingleHopAgent
+│   ├── multi_hop.py         # MultiHopAgent (Plan-Execute-Reflect)
+│   ├── summarization.py     # SummarizationAgent
+│   └── other.py             # OtherAgent
 ├── tools/                   # 22 shared tools
 │   ├── retrieval_tools.py   # vector/BM25/hybrid/graph (+ BM25Index, ToolAccumulator)
 │   ├── entity_tools.py      # entity_extract/relation_extract/entity_link
@@ -150,5 +150,5 @@ FastAPI at `src/chimera_rag/web/` — 7 route modules. React frontend at `web-ui
 
 All tests use `FakeLLMProvider` + `FakeEmbeddingProvider` (test-only doubles in
 `tests/conftest.py`) — no real API keys needed. Tests cover: registry, config,
-types, pipeline end-to-end (vanilla/AdaGraph/IntentAgent/full), individual
+types, pipeline end-to-end (vanilla/AdaGraph/CollaRAG/full), individual
 defaults, agents, tools, memory, stores, datasets, and evaluation.

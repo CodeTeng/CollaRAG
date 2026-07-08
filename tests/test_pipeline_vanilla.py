@@ -77,7 +77,7 @@ def test_chimera_rag_state_persisted_between_ingest_and_query(vanilla_config: Pa
 
 
 def test_plugin_disabled_means_defaults_are_used(vanilla_config: Path):
-    """With mock_vanilla.yaml, plugins.adagraph.enabled and plugins.intent_agent.enabled
+    """With mock_vanilla.yaml, plugins.adagraph.enabled and plugins.colla_rag.enabled
     are both False; the active implementations must come from defaults.*."""
     from chimera_rag import ChimeraRAG
 

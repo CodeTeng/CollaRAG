@@ -1,5 +1,5 @@
 """Tests for preprocess tools (query_rewrite, coreference_resolve, followup_merge)."""
-from chimera_rag.plugins.intent_agent.tools.preprocess_tools import build_preprocess_tools
+from chimera_rag.plugins.colla_rag.tools.preprocess_tools import build_preprocess_tools
 
 
 class FakeLLM:

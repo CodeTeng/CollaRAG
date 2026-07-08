@@ -47,7 +47,7 @@ def _diff_usage(a: dict[str, int], b: dict[str, int]) -> dict[str, int]:
 def _lookup_texts(pipeline: Any, chunk_ids: list[str]) -> list[str]:
     """把 evidence chunk id 反查成原文，供 RAGAS 等需要 context 的离线评测使用。
 
-    chunk 原文存放在 pipeline 的 ``chunk_lookup``（IntentAgent 等检索器在其上
+    chunk 原文存放在 pipeline 的 ``chunk_lookup``（CollaRAG 等检索器在其上
     暴露），回退到 ``pipeline.state.chunk_lookup``。查不到的 id 静默跳过，保证
     推理流程的健壮性——缺失只意味着对应指标拿不到该片段，不应让整批推理失败。
     """

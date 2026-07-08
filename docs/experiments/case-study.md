@@ -14,9 +14,9 @@
 | RAPTOR | 通过层次聚合检索到导演信息，但出生城市证据不完整 | "Christopher Nolan" | ✗ |
 | HippoRAG | 通过个性化 PageRank 关联到 Nolan 条目，找到出生地 | "London" | ✓ |
 | HippoRAG2 | 增强版 PageRank + 多跳路径聚合，找到出生地并补充国家信息 | "London, England" | ✓ |
-| **IntentAgent** | 意图识别为 bridge → 图扩展策略，第一跳定位 Nolan，第二跳扩展到出生地信息 | "London, England" | ✓ |
+| **CollaRAG** | 意图识别为 bridge → 图扩展策略，第一跳定位 Nolan，第二跳扩展到出生地信息 | "London, England" | ✓ |
 
-**分析：** IntentAgent 通过意图分类直接选择桥接策略，避免了 Vanilla RAG 的证据链断裂问题。与 HippoRAG 相比，IntentAgent 的回答更完整（包含国家信息）。
+**分析：** CollaRAG 通过意图分类直接选择桥接策略，避免了 Vanilla RAG 的证据链断裂问题。与 HippoRAG 相比，CollaRAG 的回答更完整（包含国家信息）。
 
 ---
 
@@ -34,9 +34,9 @@
 | GraphRAG | 社区摘要包含两部电影，但上下文过长导致关键信息被稀释 | "The Godfather" | ✓ |
 | HippoRAG | 分别命中两部电影条目，但未显式执行对比 | "The Godfather was released in 1972" | ✓ |
 | HippoRAG2 | 增强检索覆盖两部电影，但仍缺乏显式对比推理 | "The Godfather (1972) and Chinatown (1974)" | ✓ |
-| **IntentAgent** | 意图识别为 comparison → 并行检索两个实体，显式对比发布日期 | "The Godfather (1972) was released earlier than Chinatown (1974)" | ✓ |
+| **CollaRAG** | 意图识别为 comparison → 并行检索两个实体，显式对比发布日期 | "The Godfather (1972) was released earlier than Chinatown (1974)" | ✓ |
 
-**分析：** IntentAgent 的对比策略确保了两个比较对象的信息被完整检索并显式对比，回答中包含了完整的推理过程。
+**分析：** CollaRAG 的对比策略确保了两个比较对象的信息被完整检索并显式对比，回答中包含了完整的推理过程。
 
 ---
 
@@ -46,7 +46,7 @@
 
 **意图分类:** bridge（多跳桥接，3跳）
 
-**IntentAgent 执行过程：**
+**CollaRAG 执行过程：**
 
 | 步骤 | 动作 | 检索结果 | 质量评估 |
 |---|---|---|---|

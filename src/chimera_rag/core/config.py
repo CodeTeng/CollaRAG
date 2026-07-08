@@ -211,7 +211,7 @@ class AdaGraphConfig(BaseModel):
     dual_pruner: dict[str, Any] = Field(default_factory=dict)
 
 
-class IntentAgentConfig(BaseModel):
+class CollaRAGConfig(BaseModel):
     enabled: bool = False
     memory: dict[str, Any] = Field(default_factory=dict)
     intent_classifier: dict[str, Any] = Field(default_factory=dict)
@@ -222,7 +222,7 @@ class IntentAgentConfig(BaseModel):
 
 class PluginsConfig(BaseModel):
     adagraph: AdaGraphConfig = Field(default_factory=AdaGraphConfig)
-    intent_agent: IntentAgentConfig = Field(default_factory=IntentAgentConfig)
+    colla_rag: CollaRAGConfig = Field(default_factory=CollaRAGConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +300,7 @@ __all__ = [
     "HNSWParams",
     "IVFParams",
     "IngestionConfig",
-    "IntentAgentConfig",
+    "CollaRAGConfig",
     "LLMConfig",
     "LoggingConfig",
     "PluginsConfig",

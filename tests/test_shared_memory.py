@@ -1,7 +1,7 @@
 """Tests for SharedMemory."""
 import tempfile
 
-from chimera_rag.plugins.intent_agent.memory.shared_memory import SharedMemory
+from chimera_rag.plugins.colla_rag.memory.shared_memory import SharedMemory
 
 
 def test_shared_memory_read_write():

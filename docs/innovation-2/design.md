@@ -3,13 +3,13 @@
 > 日期：2026-07-07
 > 作者：Teng Li
 > 状态：设计中
-> 范围：重构创新点二（IntentAgent），从"M-R-D-E + 6策略 + LangGraph动态编排"演化为"多Agent协作 + 共享工具层 + 双层记忆"架构。创新点一（AdaGraph）不受影响。
+> 范围：重构创新点二（CollaRAG），从"M-R-D-E + 6策略 + LangGraph动态编排"演化为"多Agent协作 + 共享工具层 + 双层记忆"架构。创新点一（AdaGraph）不受影响。
 
 ---
 
 ## 1. 设计动机
 
-现有 IntentAgent 将所有检索逻辑集中在一个 Retriever 内部（6 种策略 + LangGraph 工具选择循环），存在三个问题：
+现有 CollaRAG 将所有检索逻辑集中在一个 Retriever 内部（6 种策略 + LangGraph 工具选择循环），存在三个问题：
 
 1. **职责耦合**：单跳事实查询和多跳推理共用同一个 ReAct 循环，前者承受不必要的工具选择开销，后者的反思循环又被单跳场景拉低平均质量。
 2. **缺乏预处理**：query 未经改写/指代消解直接进入分类和检索，导致追问型和模糊 query 的分类准确率下降。
@@ -158,7 +158,7 @@
 
 ### 5.7 Agent ↔ 工具可用矩阵
 
-| 工具 | Preprocessor | Native RAG | ReAct | Map-Reduce | WebSearch+LLM |
+| 工具 | Preprocessor | SingleHop | MultiHop | Summarization | Other |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `vector_search` | | ✅ | ✅ | ✅ | |
 | `bm25_search` | | ✅ | ✅ | ✅ | |
@@ -233,7 +233,7 @@ def classify(query: str) -> IntentLabel:
 
 其中 `multi_hop` 涵盖了原来的 `multi_hop + comparative + exploratory` 三类。
 
-### 6.3 Native RAG Agent
+### 6.3 SingleHop Agent
 
 **适用场景**：事实性单跳查询（"爱因斯坦的出生地是哪里？"）
 
@@ -251,34 +251,42 @@ START → retrieve → rerank → quality_check → generate → END
 
 **特点**：单轮、无 ReAct 循环、无反思重试。最快、成本最低的路径。
 
-### 6.4 ReAct Agent（含反思）
+### 6.4 MultiHop Agent（Plan-Execute-Reflect）
 
 **适用场景**：多跳推理、比较、探索性查询
 
-**LangGraph 状态图**（改造自现有 `graph.py`）：
+**三阶段架构**：
 
 ```
-START → memory → reasoning → decision ←─┐
-                                  │      │
-                            tools ─┘      │
-                                  │      │
-                            reflect ─────┘ (quality<τ && iter<max)
-                                  │
-                                 END
+Phase 1: Plan
+   LLM → JSON 步骤列表 [{"step": "...", "tools_hint": [...]}]
+       ↓
+Phase 2: Execute（逐步）
+   for each step:
+     迷你 ReAct 循环（max_step_iterations 轮）
+     Thought → Action → Observation → Step Result
+       ↓
+Phase 3: Reflect + Synthesize
+   assess_evidence → quality check
+   ├── quality ≥ τ → synthesize → Answer
+   └── quality < τ → reflect → 补充执行 → 再评估（最多 reflect_retries 次）
 ```
 
-**与现有 LangGraph 编排的关键差异**：
+**与旧 ReAct 循环的关键差异**：
 
-| 方面 | 现有实现 | 新设计 |
+| 方面 | 旧 ReAct 循环 | Plan-Execute-Reflect |
 |---|---|---|
-| 工具集 | 5 个（vector/graph_neighbors/multi_hop/parallel/assess） | 9 个（+bm25/hybrid/graph_path/sub_query_decompose/rerank） |
-| 意图来源 | 分类器输出作为 SystemMessage hint | 由 Orchestrator 传入，分类已在外部完成 |
-| 记忆 | 只读会话历史 | 读写双层记忆（shared + agent-private） |
-| 反思 | 启发式 + 可选 LLM 反思 | 保留双模反思，反思文本注入下轮决策 |
+| 结构 | 平铺 Thought→Action→Observation 循环 | 三阶段：Plan → Execute → Reflect |
+| 规划 | 无显式规划，LLM 隐式决策 | 显式 JSON 步骤列表 |
+| 执行 | 全局单循环，max_iterations=3 | 每步独立迷你循环，max_step_iterations=2 |
+| 反思 | 循环内 assess_evidence 提示 | 独立反思阶段，可补充执行 |
+| 综合 | 循环内直接 Final Answer | 独立 Synthesize 阶段，综合所有步骤证据 |
 
-**max_iterations**：默认 3（可配置），与现有的 2 相比多一轮，因为工具集更丰富，值得多探索一轮。
+**max_plan_steps**：默认 5（可配置），控制计划步骤数上限。  
+**max_step_iterations**：默认 2，每步 ReAct 循环上限。  
+**reflect_retries**：默认 1，反思重试次数。
 
-### 6.5 Map-Reduce Agent
+### 6.5 Summarization Agent (Map-Reduce)
 
 **适用场景**：归纳总结、综述类查询（"总结这篇文档的主要观点"）
 
@@ -297,7 +305,7 @@ START → retrieve → map → reduce → END
 
 **成本控制**：Map 阶段的 chunk 数量由 `top_k` 控制（默认 50），不会对整个知识库做 Map。
 
-### 6.6 WebSearch + LLM Agent
+### 6.6 Other Agent (WebSearch + LLM)
 
 **适用场景**：超出知识库范围的查询
 
@@ -376,7 +384,7 @@ class AgentExperienceEntry(BaseModel):
     created_at: str                    # ISO 时间戳
 ```
 
-**跨 Agent 不互看**——Native RAG 的经验不会被 ReAct Agent 召回，反之亦然。这保证了消融实验中"w/o Memory"的粒度可以精确到单个 Agent。
+**跨 Agent 不互看**——SingleHop 的经验不会被 MultiHop Agent 召回，反之亦然。这保证了消融实验中"w/o Memory"的粒度可以精确到单个 Agent。
 
 ---
 
@@ -483,7 +491,7 @@ class ToolSetBuilder:
 ### 8.4 MultiAgentRetriever（门面模式）
 
 ```python
-@register("retriever", "intent_agent.multi_agent")
+@register("retriever", "colla_rag.multi_agent")
 class MultiAgentRetriever(BaseRetriever):
     """对 QueryPipeline 暴露单一 retrieve() 接口，内部完成：
        预处理 → 分类 → 分派 → Agent 执行 → 后处理
@@ -527,7 +535,7 @@ class MultiAgentRetriever(BaseRetriever):
 | **`interfaces/`** | 新增 `base_agent.py`（BaseAgent ABC） |
 | **`configs/*.yaml`** | 新增 `multi_agent` 配置段（见 §10） |
 | **旧 `strategies/` 目录** | **删除**，策略逻辑分散到各 Agent 内部 |
-| **旧 `langgraph/` 目录** | **删除**，ReAct Agent 重写（复用 `llm_adapter.py` 的 ReAct 协议解析） |
+| **旧 `langgraph/` 目录** | **删除**，MultiHop Agent 重写为 Plan-Execute-Reflect 架构 |
 | **旧 `intent_classifier.py`** | **重构**为树形分类器，标签集从 6 类改为 5 类 |
 | **旧 `experiential_memory.py`** | **重构**为双层架构（Shared + AgentPrivate），保留核心 JSONL/去重/淘汰逻辑 |
 
@@ -538,10 +546,10 @@ class MultiAgentRetriever(BaseRetriever):
 ```yaml
 query:
   retriever:
-    active: intent_agent.multi_agent
+    active: colla_rag.multi_agent
 
 plugins:
-  intent_agent:
+  colla_rag:
     enabled: true
 
     multi_agent:
@@ -557,27 +565,27 @@ plugins:
         enable_coreference: true
         enable_followup_merge: true
 
-      # Native RAG Agent
+      # SingleHop Agent
       native_rag:
         default_top_k: 10
         rerank_top_k: 5
         quality_check: true                 # 一次性轻量质量检查
         quality_threshold: 0.4              # 低于此值标记 low_confidence
 
-      # ReAct Agent
+      # MultiHop Agent (Plan-Execute-Reflect)
       react:
         max_iterations: 3
         quality_threshold: 0.6
         reflection_mode: "llm"              # "heuristic" | "llm"
         enable_sub_query: true
 
-      # Map-Reduce Agent
+      # Summarization Agent (Map-Reduce)
       map_reduce:
         retrieve_top_k: 50
         map_concurrency: 5                  # Map 阶段并发数
         enable_rerank_before_map: true
 
-      # WebSearch + LLM Agent
+      # Other Agent (WebSearch + LLM)
       web_search:
         search_backend: "duckduckgo"        # "duckduckgo" | "serpapi"
         max_results: 5
@@ -601,7 +609,7 @@ plugins:
 | 消融变体 | 具体做法 | 验证目标 |
 |---|---|---|
 | **w/o Preprocess** | 跳过预处理 Agent，原始 query 直接分类 | 预处理改写的价值 |
-| **w/o TreeIntent** | 所有 query 统一走 ReAct Agent | 意图路由的必要性 |
+| **w/o TreeIntent** | 所有 query 统一走 MultiHop Agent | 意图路由的必要性 |
 | **w/o Reflect** | ReAct 只跑单轮，不做反思循环 | 反思机制的贡献 |
 | **w/o Memory** | 禁用双层记忆（shared + private 都关） | 经验记忆的累积价值 |
 | **w/o SharedMem** | 只禁用共享记忆，保留 Agent 私有记忆 | 共享 vs 私有记忆的贡献分离 |
@@ -614,7 +622,7 @@ plugins:
 ## 12. 新增目录结构
 
 ```
-src/chimera_rag/plugins/intent_agent/
+src/chimera_rag/plugins/colla_rag/
 ├── __init__.py                          # 插件入口
 ├── orchestrator.py                      # Orchestrator + MultiAgentRetriever (Facade)
 ├── classifier.py                        # 树形意图分类器
@@ -623,10 +631,10 @@ src/chimera_rag/plugins/intent_agent/
 ├── agents/
 │   ├── __init__.py
 │   ├── preprocessor.py                  # Preprocessor Agent
-│   ├── native_rag.py                    # Native RAG Agent
-│   ├── react_agent.py                   # ReAct Agent (LangGraph StateGraph)
-│   ├── map_reduce.py                    # Map-Reduce Agent
-│   └── web_search.py                    # WebSearch + LLM Agent
+│   ├── single_hop.py                    # SingleHop Agent
+│   ├── multi_hop.py                     # MultiHop Agent (Plan-Execute-Reflect)
+│   ├── summarization.py                 # Summarization Agent (Map-Reduce)
+│   └── other.py                         # Other Agent (WebSearch + LLM)
 ├── tools/
 │   ├── __init__.py                      # build_all_tools() + TOOL_MATRIX
 │   ├── retrieval_tools.py               # vector/bm25/hybrid/graph 系列
@@ -648,13 +656,13 @@ src/chimera_rag/plugins/intent_agent/
 **删除的目录/文件**：
 - `strategies/` — 整个目录（6 种策略文件）
 - `langgraph/` — 整个目录（graph.py, tools.py, llm_adapter.py, retriever.py, experience.py）
-- `agent.py` — 旧的 IntentAgentRetriever
+- `agent.py` — 旧的 CollaRAGRetriever
 - `reasoning.py` — 旧的推理阶段
 
 **保留并复用的文件**：
 - `hooks/reflection_hook.py` — 反思逻辑
 - `hooks/reranking_hook.py` — 重排序逻辑
-- `langgraph/llm_adapter.py` 的 ReAct 协议解析逻辑 — 提取到 `tools/` 或 `agents/react_agent.py` 内部
+- `langgraph/llm_adapter.py` 的 ReAct 协议解析逻辑 — 提取到 `agents/multi_hop.py` 内部
 
 ---
 
@@ -685,9 +693,9 @@ agent = [
    - Level-1: is_greeting? → No
    - Level-2: LLM → "multi_hop"（含比较语义 + 多实体跨文档推理）
 
-3. 分派 → ReAct Agent
+3. 分派 → MultiHop Agent
 
-4. ReAct Agent 执行:
+4. MultiHop Agent 执行:
    - read_agent_memory(react, multi_hop) → 召回历史经验
    - Iteration 1:
      - Thought: "需要分别检索两人的量子力学贡献"

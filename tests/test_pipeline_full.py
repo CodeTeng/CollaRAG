@@ -1,4 +1,4 @@
-"""End-to-end integration test with both AdaGraph and IntentAgent enabled."""
+"""End-to-end integration test with both AdaGraph and CollaRAG enabled."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ def test_full_config_activates_both_plugins_across_all_slots(full_config: Path):
     assert active["chunker"].startswith("adagraph.")
     assert active["extractor"].startswith("adagraph.")
     assert active["pruner"].startswith("adagraph.")
-    # query side -> IntentAgent
-    assert active["intent_classifier"] == "intent_agent.tree"
-    assert active["retriever"] == "intent_agent.multi_agent"
+    # query side -> CollaRAG
+    assert active["intent_classifier"] == "colla_rag.tree"
+    assert active["retriever"] == "colla_rag.multi_agent"
 
 
 def test_full_pipeline_ingest_then_query_with_both_plugins(full_config: Path):

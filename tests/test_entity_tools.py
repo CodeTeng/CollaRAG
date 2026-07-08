@@ -4,7 +4,7 @@ import json
 import pytest
 
 from chimera_rag.core.types import Triple
-from chimera_rag.plugins.intent_agent.tools.entity_tools import (
+from chimera_rag.plugins.colla_rag.tools.entity_tools import (
     _parse_json_list,
     build_entity_tools,
 )

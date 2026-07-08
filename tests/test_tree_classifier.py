@@ -1,6 +1,6 @@
 """Tests for TreeIntentClassifier."""
 from chimera_rag.core.types import Query
-from chimera_rag.plugins.intent_agent.classifier import TreeIntentClassifier
+from chimera_rag.plugins.colla_rag.classifier import TreeIntentClassifier
 
 
 class FakeLLM:

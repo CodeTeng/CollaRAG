@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-# Allowed intent labels (keep in sync with IntentAgent plugin).
+# Allowed intent labels (keep in sync with CollaRAG plugin).
 IntentLabel = Literal[
     "factual",
     "analytical",

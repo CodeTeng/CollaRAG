@@ -62,7 +62,7 @@ query:
 
 plugins:
   adagraph:     { enabled: false }
-  intent_agent: { enabled: false }
+  colla_rag: { enabled: false }
 
 web: { host: 0.0.0.0, port: 8000, cors_origins: [http://localhost:5173], static_dir: x }
 
@@ -93,7 +93,7 @@ def test_load_config_returns_app_config_with_populated_sections(tmp_config):
     assert cfg.ingestion.chunker.params["chunk_size"] == 300
     assert cfg.query.retriever.active == "defaults.direct"
     assert cfg.plugins.adagraph.enabled is False
-    assert cfg.plugins.intent_agent.enabled is False
+    assert cfg.plugins.colla_rag.enabled is False
     assert cfg.web.port == 8000
     assert cfg.evaluation.metrics == ["em", "f1"]
 
@@ -140,7 +140,7 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
     [
         "deepseek_vanilla.yaml",
         "deepseek_adagraph_only.yaml",
-        "deepseek_intent_only.yaml",
+        "deepseek_colla_rag_only.yaml",
         "deepseek_full.yaml",
     ],
 )
@@ -162,8 +162,8 @@ def test_plugin_enabled_flag_reflected_per_config(
 
     vanilla = load_config(mock_vanilla_yaml)
     assert vanilla.plugins.adagraph.enabled is False
-    assert vanilla.plugins.intent_agent.enabled is False
+    assert vanilla.plugins.colla_rag.enabled is False
 
     full = load_config(mock_full_yaml)
     assert full.plugins.adagraph.enabled is True
-    assert full.plugins.intent_agent.enabled is True
+    assert full.plugins.colla_rag.enabled is True

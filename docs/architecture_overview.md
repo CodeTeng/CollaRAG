@@ -11,7 +11,7 @@
 1. **一个可独立运行的裸 KG-RAG 基线**：固定分块 + LLM 显式三元组提取 + NetworkX 图存储 + FAISS 向量索引 + 直接检索 + LLM 生成。
 2. **两个研究创新点作为可选插件**：
    - **AdaGraph**（知识构建阶段增强）
-   - **IntentAgent**（查询阶段多Agent智能检索）
+   - **CollaRAG**（查询阶段多Agent智能检索）
 3. **一套注册表驱动的依赖注入机制**：创新点开/关只改一行 yaml，`core/` 代码不动。
 4. **一个 FastAPI + React 的演示系统**：单端口部署。
 5. **一个 TDD 体系**：全部实现由失败测试驱动，所有测试默认 `MockProvider`，CI 零 API key 依赖。
@@ -27,7 +27,7 @@
 | **核心层** | `src/chimera_rag/core/` | `types / config / registry / pipeline / logging / exceptions / env_loader` | 仅 `interfaces/` |
 | **接口层** | `src/chimera_rag/interfaces/` | ABC 接口 | 仅 `core/types` |
 | **默认层** | `src/chimera_rag/defaults/` | 裸实现，都以 `defaults.<name>` 注册 | `core/` + `interfaces/` |
-| **插件层** | `src/chimera_rag/plugins/adagraph/` 与 `plugins/intent_agent/` | 两个创新点，均以 `<plugin>.*` 注册 | `core/` + `interfaces/` + `defaults/`（仅复用，不反向引用） |
+| **插件层** | `src/chimera_rag/plugins/adagraph/` 与 `plugins/colla_rag/` | 两个创新点，均以 `<plugin>.*` 注册 | `core/` + `interfaces/` + `defaults/`（仅复用，不反向引用） |
 
 **依赖方向**：`core/` **绝不** import `defaults/` 和 `plugins/`，由 `tests/test_plugin_toggle_regression.py` 守护。
 
@@ -37,13 +37,13 @@
 
 `src/chimera_rag/interfaces/` 下每个 ABC 对应 `registry.py` 中的一个 slot 名：
 
-| 接口文件 | slot 名 | 默认实现 | AdaGraph 覆盖 | IntentAgent 覆盖 |
+| 接口文件 | slot 名 | 默认实现 | AdaGraph 覆盖 | CollaRAG 覆盖 |
 |---|---|---|---|---|
 | `chunker.py` | `chunker` | `defaults.fixed` | `adagraph.dynamic` | — |
 | `extractor.py` | `extractor` | `defaults.simple_llm` | `adagraph.layered` | — |
 | `pruner.py` | `pruner` | `defaults.noop` | `adagraph.dual_redundancy` | — |
-| `intent_classifier.py` | `intent_classifier` | `defaults.rule` | — | `intent_agent.tree` |
-| `retriever.py` | `retriever` | `defaults.direct` | — | `intent_agent.multi_agent` |
+| `intent_classifier.py` | `intent_classifier` | `defaults.rule` | — | `colla_rag.tree` |
+| `retriever.py` | `retriever` | `defaults.direct` | — | `colla_rag.multi_agent` |
 | `generator.py` | `generator` | `defaults.prompt` | — | — |
 | `llm_provider.py` | `llm_provider` | `providers/llm.py` (OpenAI-compatible) | — | — |
 | `embedding_provider.py` | `embedding_provider` | `providers/embedding.py` (OpenAI-compatible) | — | — |
@@ -52,7 +52,7 @@
 | `vector_store.py` | `vector_store` | `stores/vector.py` (FAISS) | — | — |
 | `base_agent.py` | — | — | — | `BaseAgent` ABC + `AgentContext` |
 
-**AdaGraph 占 3 个构建插槽，IntentAgent 占 2 个查询插槽**，彼此不重叠。
+**AdaGraph 占 3 个构建插槽，CollaRAG 占 2 个查询插槽**，彼此不重叠。
 
 ---
 
@@ -64,7 +64,7 @@
 @register("chunker", "adagraph.dynamic")
 class DynamicChunker(BaseChunker): ...
 
-@register("retriever", "intent_agent.multi_agent")
+@register("retriever", "colla_rag.multi_agent")
 class MultiAgentRetriever(BaseRetriever): ...
 ```
 
@@ -97,30 +97,30 @@ documents
 
 ```
 query
-  → intent_classifier.classify()   ← defaults.rule / intent_agent.tree
-  → retriever.retrieve(top_k)      ← defaults.direct / intent_agent.multi_agent
+  → intent_classifier.classify()   ← defaults.rule / colla_rag.tree
+  → retriever.retrieve(top_k)      ← defaults.direct / colla_rag.multi_agent
   → generator.generate()           ← defaults.prompt
   → Answer
 ```
 
-当 `intent_agent.multi_agent` 启用时，`MultiAgentRetriever.retrieve()` 内部展开为：
+当 `colla_rag.multi_agent` 启用时，`MultiAgentRetriever.retrieve()` 内部展开为：
 
 ```
 query
   → Preprocessor Agent（查询改写/指代消解/追问拼接）
   → Tree-Intent Classifier
       ├─ greeting      → LLM 直答（短路）
-      ├─ single_hop    → Native RAG Agent（混合检索 → 重排 → 质量检查 → 生成）
-      ├─ multi_hop     → ReAct Agent（工具选择循环 + 反思 → 生成）
-      ├─ summarization → Map-Reduce Agent（检索 → Map 摘要 → Reduce 综合）
-      └─ other         → WebSearch + LLM Agent（联网搜索 → 生成）
+      ├─ single_hop    → SingleHop Agent（混合检索 → 重排 → 质量检查 → 生成）
+      ├─ multi_hop     → MultiHop Agent（Plan-Execute-Reflect：规划 → 逐步 ReAct → 反思综合）
+      ├─ summarization → Summarization Agent（检索 → Map 摘要 → Reduce 综合）
+      └─ other         → Other Agent（联网搜索 → 生成）
   → 后处理（写入记忆、trace 元数据、QA 缓存）
   → RetrievalResult
 ```
 
 ---
 
-## 6. IntentAgent 多Agent内部架构
+## 6. CollaRAG 多Agent内部架构
 
 ### 6.1 共享工具层（22 个工具）
 
@@ -138,7 +138,7 @@ query
 
 ### 6.2 Agent ↔ 工具可用矩阵
 
-| 工具 | Preprocessor | Native RAG | ReAct | Map-Reduce | WebSearch |
+| 工具 | Preprocessor | SingleHop | MultiHop | Summarization | Other |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `vector_search` | | ✅ | ✅ | ✅ | |
 | `bm25_search` | | ✅ | ✅ | ✅ | |
@@ -170,13 +170,13 @@ query
 │   ├── qa_cache.json               #   高质量 QA 对缓存（同 query 直接返回）
 │   ├── entity_aliases.json         #   实体别名表
 │   └── rewrite_templates.json      #   成功的改写 pattern
-├── react/experience/               # ReAct Agent 私有记忆
+├── multi_hop/experience/            # MultiHop Agent 私有记忆
 │   └── multi_hop.jsonl             #   按意图分桶的 JSONL 经验
-├── native_rag/experience/          # Native RAG Agent 私有记忆
+├── single_hop/experience/          # SingleHop Agent 私有记忆
 │   └── single_hop.jsonl
-├── map_reduce/experience/          # Map-Reduce Agent 私有记忆
+├── summarization/experience/       # Summarization Agent 私有记忆
 │   └── summarization.jsonl
-└── web_search/experience/          # WebSearch Agent 私有记忆
+└── other/experience/               # Other Agent 私有记忆
     └── other.jsonl
 ```
 
@@ -197,9 +197,9 @@ query
 
 | 文件 | 插件开关 |
 |---|---|
-| `deepseek_vanilla.yaml` | AdaGraph=off，IntentAgent=off |
-| `deepseek_adagraph_only.yaml` | AdaGraph=on，IntentAgent=off |
-| `deepseek_intent_only.yaml` | AdaGraph=off，IntentAgent=on |
+| `deepseek_vanilla.yaml` | AdaGraph=off，CollaRAG=off |
+| `deepseek_adagraph_only.yaml` | AdaGraph=on，CollaRAG=off |
+| `deepseek_colla_rag_only.yaml` | AdaGraph=off，CollaRAG=on |
 | `deepseek_full.yaml` | 两个都 on |
 
 四种组合共用同一份 `QueryPipeline.run()` 代码路径，差异**只由 yaml 的 `active` 字段驱动**。
@@ -242,7 +242,7 @@ QAExample / EvalResult                                            ← 评测
 ```
 
 - **AdaGraph** 只改变"图长什么样"；
-- **IntentAgent** 只改变"在图上怎么查"。
+- **CollaRAG** 只改变"在图上怎么查"。
 
 它们通过共享 `PipelineState` 产生**正交但可叠加**的效果。
 
@@ -251,7 +251,7 @@ QAExample / EvalResult                                            ← 评测
 ## 10. 相关文档
 
 - `docs/innovation-1/adagraph.md` — 创新点一的 3 个子模块实装细节；
-- `docs/innovation-2/intent-agent.md` — 创新点二的多Agent架构实装细节；
+- `docs/innovation-2/colla-rag.md` — 创新点二的多Agent架构实装细节；
 - `docs/innovation-2/design.md` — 创新点二多Agent架构设计文档；
 - `docs/experiments/experiment-guide.md` — 实验指南；
 - `README.md` — 仓库根目录的用户级入门文档。

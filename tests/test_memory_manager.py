@@ -1,7 +1,7 @@
 """Tests for MemoryManager (dual-layer facade)."""
 import tempfile
 
-from chimera_rag.plugins.intent_agent.memory.memory_manager import MemoryManager
+from chimera_rag.plugins.colla_rag.memory.memory_manager import MemoryManager
 
 
 def test_memory_manager_creation():

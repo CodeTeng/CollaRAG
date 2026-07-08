@@ -1,22 +1,19 @@
 # Chimera-RAG 配置文件索引
 
-本目录保留 **6 份配置**，覆盖两个创新点的组合及创新点 2b 的 LangGraph 动态编排变体，加上一份完整字段注释模板。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
+本目录保留 **6 份配置**，覆盖两个创新点的四种组合，加上一份完整字段注释模板。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
 
 运行任意子命令都需要用 `--config configs/<name>.yaml` 指定其一。
 
 ## 速查表
 
-| 文件 | AdaGraph | IntentAgent | 检索器 | Hook 配置 | 主要用途 |
-|---|:---:|:---:|---|---|---|
-| `default.yaml` | — | — | — | 全字段注释模板 | 配置参考（不直接运行） |
-| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | — | 真实 API 基线（消融对照组） |
-| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | — | 真实 API 下单独衡量创新点一的增益 |
-| `deepseek_intent_only.yaml` | ❌ | ✅ | `intent_agent.strategy_selector`（静态路由） | reflection: heuristic, off / reranking: token_overlap, off | 真实 API 下单独衡量创新点二的增益 |
-| `deepseek_intent_langgraph.yaml` | ❌ | ✅ | `intent_agent.langgraph`（动态编排） | reflection: heuristic, **on** / reranking: token_overlap, off | 创新点 2b：对照 `intent_only` 衡量「动态工具编排 vs 静态路由」的增益（需 `uv sync --extra agent`） |
-| `deepseek_full.yaml` | ✅ | ✅ | `intent_agent.strategy_selector` | reflection: heuristic, off / reranking: token_overlap, off | 真实 API 下两创新点叠加的最终表现 |
-| `ollama_intent_only.yaml` | ❌ | ✅ | `intent_agent.strategy_selector` | reflection: heuristic, off / reranking: token_overlap, off | 本地 Qwen3-8B 实验 |
-
-> **Hook 切换**：在 yaml 中 `plugins.intent_agent.hooks.reflection.type` 改为 `llm_reflection` 启用 Self-Reflection（创新点 2d），`hooks.reranking.type` 改为 `cross_encoder` 启用语义重排（需 `--extra reranker`）。
+| 文件 | AdaGraph | CollaRAG | 检索器 | 主要用途 |
+|---|:---:|:---:|---|---|
+| `default.yaml` | — | — | — | 配置参考（不直接运行） |
+| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 真实 API 基线（消融对照组） |
+| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 真实 API 下单独衡量创新点一的增益 |
+| `deepseek_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 真实 API 下单独衡量创新点二的增益 |
+| `deepseek_full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 真实 API 下两创新点叠加的最终表现 |
+| `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Qwen3-8B 实验 |
 
 **公共部分（四份相同）**：
 - LLM：`deepseek`（model 从 `.env` 的 `LLM_MODEL` 读，默认 `deepseek-chat`）
@@ -32,15 +29,9 @@ deepseek_<plugin_combo>.yaml
              │
              ├── vanilla           两创新点全关（defaults 裸基线）
              ├── adagraph_only     仅创新点一
-             ├── intent_only       仅创新点二（静态意图→策略路由）
-             ├── intent_langgraph  创新点 2b（LangGraph 动态工具编排，需 --extra agent）
+             ├── colla_rag_only    仅创新点二（多Agent协作检索）
              └── full              两创新点全开
 ```
-
-> **创新点 2b 专属前置**：`deepseek_intent_langgraph.yaml` 依赖可选 extra
-> `agent`（`langgraph>=1.0` + `langchain-core>=1.0`）。先执行
-> `uv sync --extra agent`（或 `uv sync --all-extras --dev`）再运行；未安装时
-> 该检索器不会注册，配置切到它会报清晰错误。
 
 ## 典型运行
 
@@ -49,7 +40,7 @@ deepseek_<plugin_combo>.yaml
 
 ### 单次查询
 ```bash
-uv run python main.py query --config configs/deepseek_intent_only.yaml \
+uv run python main.py query --config configs/deepseek_colla_rag_only.yaml \
   "Which company acquired the employer of Ada Verdant?"
 ```
 
@@ -57,13 +48,13 @@ uv run python main.py query --config configs/deepseek_intent_only.yaml \
 ```bash
 # 阶段 1：推理。首次会自动构图并落盘到 storage/，之后秒级复用；加 --rebuild 可强制重建
 uv run python main.py infer \
-  --config configs/deepseek_intent_only.yaml \
+  --config configs/deepseek_colla_rag_only.yaml \
   --dataset mock_wiki --limit 100
-# → output/mock_wiki/deepseek_intent_only/{predictions.jsonl, meta.json}
+# → output/mock_wiki/deepseek_colla_rag_only/{predictions.jsonl, meta.json}
 
 # 阶段 2：打分 + 报告（0 LLM 调用）
 uv run python eval.py \
-  --predictions output/mock_wiki/deepseek_intent_only/ \
+  --predictions output/mock_wiki/deepseek_colla_rag_only/ \
   --metrics em,f1,rouge_l
 ```
 
@@ -71,12 +62,12 @@ uv run python eval.py \
 ```bash
 # 对每份配置各跑一次 infer（各自复用各自的持久化图谱）
 uv run python main.py infer --config configs/deepseek_vanilla.yaml     --dataset mock_wiki --limit 100
-uv run python main.py infer --config configs/deepseek_intent_only.yaml --dataset mock_wiki --limit 100
+uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset mock_wiki --limit 100
 
 # 再用 eval.py 多目录对比（自动生成 compare 报告 + 柱图/雷达图）
 uv run python eval.py \
   --predictions output/mock_wiki/deepseek_vanilla/ \
-                output/mock_wiki/deepseek_intent_only/ \
+                output/mock_wiki/deepseek_colla_rag_only/ \
   --out output/mock_wiki/compare/ --metrics em,f1,rouge_l
 ```
 
@@ -139,12 +130,12 @@ def mock_vanilla_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
 def mock_adagraph_only_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
-def mock_intent_only_yaml(tmp_path: Path) -> str: ...
+def mock_colla_rag_only_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
 def mock_full_yaml(tmp_path: Path) -> str: ...
 ```
 
 测试里直接 `def test_xxx(mock_vanilla_yaml: str, ...)` 就能拿到一份
 临时 YAML 路径，workspace_dir 自动挂在 `tmp_path` 下。需要新增 Mock
-配置组合时，调用 `mock_config_yaml_builder(adagraph=..., intent_agent=...)`
+配置组合时，调用 `mock_config_yaml_builder(adagraph=..., colla_rag=...)`
 即可。

@@ -37,7 +37,7 @@ def create_app(chimera: ChimeraRAG) -> FastAPI:
     app = FastAPI(
         title="Chimera-RAG API",
         version=__version__,
-        description="Knowledge-graph based RAG with AdaGraph + IntentAgent plugins.",
+        description="Knowledge-graph based RAG with AdaGraph + CollaRAG plugins.",
     )
     app.state.app_state = AppState(chimera=chimera)
 

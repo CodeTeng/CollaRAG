@@ -9,7 +9,7 @@
 #   1) LLM / Embedding / Storage / Datasets     —— 基础设施层
 #   2) ingestion (chunker/extractor/pruner)     —— 知识构建阶段（创新点一）
 #      query (intent_classifier/retriever/...)  —— 查询阶段（创新点二）
-#   3) plugins.adagraph / plugins.intent_agent  —— 两创新点独立开关 + 子配置
+#   3) plugins.adagraph / plugins.colla_rag  —— 两创新点独立开关 + 子配置
 # ============================================================================
 
 # --------------------------------------------------------------------------
@@ -36,7 +36,7 @@ logging:
 # provider + 业务参数（温度、超时、重试等）。
 llm:
   model: deepseek-chat         # OpenAI-compatible 模型名，必填
-  base_url: null               # null = 使用 OpenAI 默认地址；DeepSeek 填 https://api.deepseek.com
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1              # null = 使用 OpenAI 默认地址；DeepSeek 填 https://api.deepseek.com
   api_key_env: LLM_API_KEY     # 从 .env 中读取 API Key 的环境变量名
   temperature: 0.1
   max_tokens: 1024
@@ -50,10 +50,10 @@ llm:
 # Embedding 提供者（OpenAI 兼容 /v1/embeddings 端点）
 # --------------------------------------------------------------------------
 embedding:
-  model: text-embedding-3-small
-  base_url: https://api.openai.com/v1
+  model: text-embedding-v4
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
   dim: 1536
-  batch_size: 32
+  batch_size: 10
   normalize: true
   api_key_env: LLM_API_KEY     # 默认与 LLM 共用 key；可单独设置
 
@@ -62,8 +62,8 @@ embedding:
 # --------------------------------------------------------------------------
 rerank:
   enabled: false               # 设为 true 启用跨编码器重排序
-  model: bge-reranker-v2-m3
-  base_url: http://localhost:9997/v1
+  model: qwen3-rerank
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
   api_key_env: LLM_API_KEY
   top_n: 5
   timeout: 30.0
@@ -89,8 +89,8 @@ storage:
     #   flat_ip / flat_l2  —— 暴力精确检索（≤1k 向量，推荐；100% 召回）
     #   ivf_flat           —— 倒排索引（10k~1M 级别，需 nlist 个训练点）
     #   hnsw               —— 图索引（10k+ 级别，召回-速度曲线最好）
-    index_type: flat_ip
-    metric: ip                   # ip（内积/余弦，配合 normalize=true）/ l2
+    index_type: hnsw
+    metric: ip                   # 配合 normalize=true 等价于余弦相似度
     persist_path: ./storage/default/vectors
     top_k: 5                     # 全局默认 top-k（retriever 可覆盖）
     hnsw:
@@ -105,102 +105,32 @@ storage:
 # --------------------------------------------------------------------------
 # 数据集（命名注册；由 main.py --dataset <name> 选用）
 # --------------------------------------------------------------------------
-# 路径声明方式（按 loader 的需要二选一即可，不需要同时给）：
-#
-#   ① 自包含数据集（hotpotqa / two_wiki / musique 等多跳 QA benchmark）：
-#      只需要 path: 单字段 —— 因为 JSON/JSONL 内每行同时携带
-#      question / answer / paragraphs（语料段落），loader 会从同一文件
-#      分别抽出 QA 和语料。
-#        path: ./data/musique/musique_ans_v1.0_dev.jsonl
-#
-#   ② 分离数据集（mock_wiki / 自定义合成集等 QA 与语料分两个文件）：
-#      用 corpus_path + qa_path 两字段：
-#        corpus_path: ./data/mock_wiki/corpus.txt
-#        qa_path:     ./data/mock_wiki/qa.jsonl
-#
-#   ③ 目录式（少数 loader 支持）：path 指向目录，loader 用内部默认文件名。
-#
-# 即：只有 mock_wiki 这种"语料文件独立存在"的数据集才需要 corpus_path；
-# HotpotQA / 2Wiki / MuSiQue 都是 ① 类，**不需要** 单独的语料路径。
-# output_dir: 该数据集跑评测时，报告默认落到这个目录下。
 datasets:
-  sample:
-    loader: plain_text
-    path: ./examples/data/sample.txt
   hotpotqa:
-    loader: hotpotqa
-    # 自包含格式：path 单字段已同时提供 QA 和支撑段落（paragraphs）。
-    # 早期注释里 corpus_path 的写法已废弃；HotpotQALoader 只接受 path=。
-    path: ./data/hotpotqa/hotpotqa.json
-    output_dir: ./output/hotpotqa
-    split: dev
-    eval_field_mapping:
-      question: question
-      answer: answer
-      contexts: context
-  two_wiki:
-    loader: two_wiki
-    path: ./data/two_wiki/dev.json
-    output_dir: ./output/two_wiki
-  musique:
-    loader: musique
-    path: ./data/musique/musique_ans_v1.0_dev.jsonl
-    output_dir: ./output/musique
-  mock_wiki:
-    loader: mock_wiki
-    corpus_path: ./data/mock_wiki/corpus.txt
-    qa_path:     ./data/mock_wiki/qa.jsonl
-    output_dir:  ./output/mock_wiki
-  # ---- mock_wiki 格式版本（由 scripts/convert_to_mock_wiki.py 生成）----
-  # 统一的 corpus.txt + qa.jsonl 布局，走 mock_wiki loader；
-  # 与上方原始格式条目并存，按需选用。
-  # 注意：nq_mw / popqa_mw 为开放域，corpus.txt 为空占位（无自带语料）。
-  hotpotqa_mw:
     loader: mock_wiki
     corpus_path: ./data/hotpotqa/corpus.txt
-    qa_path:     ./data/hotpotqa/qa.jsonl
-    output_dir:  ./output/hotpotqa_mw
-  two_wiki_mw:
+    qa_path: ./data/hotpotqa/qa.jsonl
+    output_dir: ./output/hotpotqa
+  two_wiki:
     loader: mock_wiki
     corpus_path: ./data/two_wiki/corpus.txt
-    qa_path:     ./data/two_wiki/qa.jsonl
-    output_dir:  ./output/two_wiki_mw
-  musique_mw:
+    qa_path: ./data/two_wiki/qa.jsonl
+    output_dir: ./output/two_wiki
+  musique:
     loader: mock_wiki
     corpus_path: ./data/musique/corpus.txt
-    qa_path:     ./data/musique/qa.jsonl
-    output_dir:  ./output/musique_mw
-  nq_mw:
+    qa_path: ./data/musique/qa.jsonl
+    output_dir: ./output/musique
+  nq:
     loader: mock_wiki
     corpus_path: ./data/nq/corpus.txt
-    qa_path:     ./data/nq/qa.jsonl
-    output_dir:  ./output/nq_mw
-  popqa_mw:
+    qa_path: ./data/nq/qa.jsonl
+    output_dir: ./output/nq
+  popqa:
     loader: mock_wiki
     corpus_path: ./data/popqa/corpus.txt
-    qa_path:     ./data/popqa/qa.jsonl
-    output_dir:  ./output/popqa_mw
-  nq:
-    loader: generic_jsonl
-    path: ./data/nq/nq.jsonl
-    output_dir: ./output/nq
-    eval_field_mapping:
-      question: question
-      answer: answer
-  popqa:
-    loader: generic_jsonl
-    path: ./data/popqa/popqa.jsonl
+    qa_path: ./data/popqa/qa.jsonl
     output_dir: ./output/popqa
-    eval_field_mapping:
-      question: question
-      answer: answer
-  custom_jsonl:
-    loader: generic_jsonl
-    path: ./data/custom.jsonl
-    output_dir: ./output/custom
-    eval_field_mapping:
-      question: question
-      answer: answer
 
 # --------------------------------------------------------------------------
 # 摄取阶段（构建知识图谱）——创新点一 AdaGraph 插件入口在这里
@@ -221,14 +151,14 @@ ingestion:
     params: {}
 
 # --------------------------------------------------------------------------
-# 查询阶段——创新点二 IntentAgent 多Agent架构入口
+# 查询阶段——创新点二 CollaRAG 多Agent架构入口
 # --------------------------------------------------------------------------
 query:
   intent_classifier:
-    active: defaults.rule          # defaults.rule / intent_agent.tree
+    active: defaults.rule          # defaults.rule / colla_rag.tree
     params: {}
   retriever:
-    active: defaults.direct        # defaults.direct / intent_agent.multi_agent
+    active: defaults.direct        # defaults.direct / colla_rag.multi_agent
     params:
       top_k: 5
       neighbor_hops: 1             # 图上邻居扩展跳数（仅 defaults.direct 使用）
@@ -257,8 +187,8 @@ plugins:
       enable_transitive: false     # 传递性冗余（保留位，暂不实装）
 
   # 创新点二：多Agent意图感知检索
-  intent_agent:
-    enabled: false
+  colla_rag:
+    enabled: true
     multi_agent:
       # 树形意图分类器
       classifier:

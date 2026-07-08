@@ -11,7 +11,7 @@ from chimera_rag.interfaces.intent_classifier import BaseIntentClassifier
 class RuleBasedIntentClassifier(BaseIntentClassifier):
     """Dumbest useful classifier: every query is 'factual'.
 
-    IntentAgent replaces this with a genuine 6-way classifier.
+    CollaRAG replaces this with a genuine 6-way classifier.
     """
 
     def classify(self, query: Query) -> Intent:

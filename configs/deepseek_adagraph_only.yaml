@@ -81,7 +81,7 @@ ingestion:
       similarity_threshold: 0.85
       enable_transitive: false
 
-# IntentAgent OFF — query 侧走 defaults (和 vanilla 相同)
+# CollaRAG OFF — query 侧走 defaults (和 vanilla 相同)
 query:
   intent_classifier:
     active: defaults.rule
@@ -107,7 +107,7 @@ plugins:
     dual_pruner:
       similarity_threshold: 0.85
       enable_transitive: false
-  intent_agent:
+  colla_rag:
     enabled: false
 
 web:

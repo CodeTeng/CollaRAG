@@ -37,16 +37,16 @@ ingestion:
     params: {{}}
 query:
   intent_classifier:
-    active: intent_agent.tree
+    active: colla_rag.tree
     params: {{}}
   retriever:
-    active: intent_agent.multi_agent
+    active: colla_rag.multi_agent
     params: {{}}
   generator:
     active: defaults.prompt
     params: {{}}
 plugins:
-  intent_agent:
+  colla_rag:
     enabled: true
 """
     cfg_path = tmp_path / "test_config.yaml"

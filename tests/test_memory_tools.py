@@ -1,5 +1,5 @@
 """Tests for memory tools."""
-from chimera_rag.plugins.intent_agent.tools.memory_tools import build_memory_tools
+from chimera_rag.plugins.colla_rag.tools.memory_tools import build_memory_tools
 
 
 class FakeSharedMemory:

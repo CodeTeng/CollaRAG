@@ -13,7 +13,7 @@ class BaseIntentClassifier(ABC):
     Implementations include:
 
     * ``defaults.rule`` — always returns ``factual`` (vanilla baseline)
-    * ``intent_agent.llm`` — LLM-powered 6-way classifier with rule fallback
+    * ``colla_rag.llm`` — LLM-powered 6-way classifier with rule fallback
     """
 
     @abstractmethod

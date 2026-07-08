@@ -109,17 +109,17 @@ ollama pull qwen3:8b
 ```bash
 # Step 1: 建图（前 500 条 QA 附带的全部 paragraph → 约数千~万个 Document → 图谱）
 uv run python main.py ingest \
-    --config configs/ollama_intent_only.yaml \
+    --config configs/ollama_colla_rag_only.yaml \
     --dataset musique --limit 500 --rebuild
 
 # Step 2: 推理（500 题问答，复用已建好的图谱）
 uv run python main.py infer \
-    --config configs/ollama_intent_only.yaml \
+    --config configs/ollama_colla_rag_only.yaml \
     --dataset musique --limit 500
 
 # Step 3: 评测
 uv run python eval.py \
-    --predictions output/musique/ollama_intent_only \
+    --predictions output/musique/ollama_colla_rag_only \
     --metrics em,f1,rouge_l
 ```
 
@@ -127,9 +127,9 @@ uv run python eval.py \
 
 ```bash
 for ds in hotpotqa two_wiki musique; do
-  uv run python main.py ingest --config configs/ollama_intent_only.yaml --dataset $ds --limit 500 --rebuild
-  uv run python main.py infer  --config configs/ollama_intent_only.yaml --dataset $ds --limit 500
-  uv run python eval.py        --predictions output/$ds/ollama_intent_only --metrics em,f1,rouge_l
+  uv run python main.py ingest --config configs/ollama_colla_rag_only.yaml --dataset $ds --limit 500 --rebuild
+  uv run python main.py infer  --config configs/ollama_colla_rag_only.yaml --dataset $ds --limit 500
+  uv run python eval.py        --predictions output/$ds/ollama_colla_rag_only --metrics em,f1,rouge_l
 done
 ```
 
@@ -137,9 +137,9 @@ done
 
 ```bash
 uv run python eval.py \
-  --predictions output/hotpotqa/ollama_intent_only \
-                output/two_wiki/ollama_intent_only \
-                output/musique/ollama_intent_only \
+  --predictions output/hotpotqa/ollama_colla_rag_only \
+                output/two_wiki/ollama_colla_rag_only \
+                output/musique/ollama_colla_rag_only \
   --out output/qwen3_8b_compare --metrics em,f1,rouge_l
 ```
 
@@ -159,12 +159,12 @@ done
 ```bash
 # .env 只需改：
 # LLM_API_KEY=sk-xxxxxxxx
-# 模型名、base_url 等全部在 config.yaml 中配置（configs/deepseek_intent_only.yaml 已预设好）
+# 模型名、base_url 等全部在 config.yaml 中配置（configs/deepseek_colla_rag_only.yaml 已预设好）
 
 for ds in hotpotqa two_wiki musique; do
-  uv run python main.py ingest --config configs/deepseek_intent_only.yaml --dataset $ds --limit 500 --rebuild
-  uv run python main.py infer  --config configs/deepseek_intent_only.yaml --dataset $ds --limit 500
-  uv run python eval.py        --predictions output/$ds/deepseek_intent_only --metrics em,f1,rouge_l
+  uv run python main.py ingest --config configs/deepseek_colla_rag_only.yaml --dataset $ds --limit 500 --rebuild
+  uv run python main.py infer  --config configs/deepseek_colla_rag_only.yaml --dataset $ds --limit 500
+  uv run python eval.py        --predictions output/$ds/deepseek_colla_rag_only --metrics em,f1,rouge_l
 done
 ```
 

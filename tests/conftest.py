@@ -56,7 +56,7 @@ def _mock_config_yaml(
     *,
     workspace: str,
     adagraph: bool,
-    intent_agent: bool,
+    colla_rag: bool,
 ) -> str:
     sample_path = REPO_ROOT / "examples" / "data" / "sample.txt"
 
@@ -81,14 +81,14 @@ def _mock_config_yaml(
             "  pruner: { active: defaults.noop, params: {} }",
         ]
 
-    if intent_agent:
+    if colla_rag:
         query_lines = [
             "query:",
             "  intent_classifier:",
-            "    active: intent_agent.tree",
+            "    active: colla_rag.tree",
             "    params: {}",
             "  retriever:",
-            "    active: intent_agent.multi_agent",
+            "    active: colla_rag.multi_agent",
             "    params: { top_k: 5, neighbor_hops: 1 }",
             "  generator:",
             "    active: defaults.prompt",
@@ -109,8 +109,8 @@ def _mock_config_yaml(
         "    dynamic_chunker: { min_chunk_size: 100, max_chunk_size: 500, base_chunk_size: 300 }",
         "    layered_extractor: { layers_enabled: [L1] }",
         "    dual_pruner: { similarity_threshold: 0.85, enable_transitive: false }",
-        "  intent_agent:",
-        f"    enabled: {str(intent_agent).lower()}",
+        "  colla_rag:",
+        f"    enabled: {str(colla_rag).lower()}",
         "    memory: { max_history: 10 }",
         "    intent_classifier: { confidence_threshold: 0.6 }",
         "    strategies: { enabled: [direct, multi_hop, parallel, iterative, expansion, context_aware] }",
@@ -178,7 +178,7 @@ def _mock_config_yaml(
 def mock_vanilla_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "vanilla_ws")
     p = tmp_path / "mock_vanilla.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, intent_agent=False))
+    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, colla_rag=False))
     return str(p)
 
 
@@ -186,15 +186,15 @@ def mock_vanilla_yaml(tmp_path: Path) -> str:
 def mock_adagraph_only_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "adagraph_ws")
     p = tmp_path / "mock_adagraph_only.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, intent_agent=False))
+    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, colla_rag=False))
     return str(p)
 
 
 @pytest.fixture
-def mock_intent_only_yaml(tmp_path: Path) -> str:
+def mock_colla_rag_only_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "intent_ws")
-    p = tmp_path / "mock_intent_only.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, intent_agent=True))
+    p = tmp_path / "mock_colla_rag_only.yaml"
+    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, colla_rag=True))
     return str(p)
 
 
@@ -202,7 +202,7 @@ def mock_intent_only_yaml(tmp_path: Path) -> str:
 def mock_full_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "full_ws")
     p = tmp_path / "mock_full.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, intent_agent=True))
+    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, colla_rag=True))
     return str(p)
 
 

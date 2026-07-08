@@ -10,13 +10,13 @@
 | `plan.md` | 项目最初的实施计划 |
 | `innovation-1/` | **创新点一：AdaGraph** 文档 |
 | `innovation-1/adagraph.md` | AdaGraph 实装细节：DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner |
-| `innovation-2/` | **创新点二：IntentAgent** 文档 |
-| `innovation-2/intent-agent.md` | IntentAgent 多Agent架构实装细节 |
+| `innovation-2/` | **创新点二：CollaRAG** 文档 |
+| `innovation-2/colla-rag.md` | CollaRAG 多Agent架构实装细节 |
 | `innovation-2/design.md` | 多Agent架构设计文档（5 Agent + 19 工具 + 双层记忆） |
 | `innovation-2/plan.md` | 多Agent架构实现计划 |
 | `experiments/` | **实验相关** 文档 |
 | `experiments/experiment-guide.md` | 实验指南：三阶段工作流（ingest → infer → eval）、数据集格式、操作手册 |
-| `experiments/experiments_intent_agent.md` | IntentAgent 实验设计文档 |
+| `experiments/experiments_colla_rag.md` | CollaRAG 实验设计文档 |
 | `experiments/main-results.md` | 主实验结果 |
 | `experiments/ablation.md` | 消融实验与进一步分析 |
 | `experiments/performance.md` | 性能优势分析 |
@@ -32,13 +32,13 @@
 
 ## 注册表插槽速查
 
-AdaGraph 占 3 个构建插槽，IntentAgent 占 2 个查询插槽：
+AdaGraph 占 3 个构建插槽，CollaRAG 占 2 个查询插槽：
 
-| 插槽（slot） | 默认实现 | AdaGraph | IntentAgent |
+| 插槽（slot） | 默认实现 | AdaGraph | CollaRAG |
 |---|---|---|---|
 | `chunker` | `defaults.fixed` | `adagraph.dynamic` | — |
 | `extractor` | `defaults.simple_llm` | `adagraph.layered` | — |
 | `pruner` | `defaults.noop` | `adagraph.dual_redundancy` | — |
-| `intent_classifier` | `defaults.rule` | — | `intent_agent.tree`（树形分类：greeting / single_hop / multi_hop / summarization / other） |
-| `retriever` | `defaults.direct` | — | `intent_agent.multi_agent`（MultiAgentRetriever：5 Agent + 19 工具 + 双层记忆） |
+| `intent_classifier` | `defaults.rule` | — | `colla_rag.tree`（树形分类：greeting / single_hop / multi_hop / summarization / other） |
+| `retriever` | `defaults.direct` | — | `colla_rag.multi_agent`（MultiAgentRetriever：5 Agent + 19 工具 + 双层记忆） |
 | `generator` | `defaults.prompt` | — | — |

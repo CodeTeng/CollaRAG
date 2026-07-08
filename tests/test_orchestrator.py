@@ -33,7 +33,7 @@ class MockEmbedder:
 
 
 def _make_retriever(tmp_path):
-    from chimera_rag.plugins.intent_agent.orchestrator import MultiAgentRetriever
+    from chimera_rag.plugins.colla_rag.orchestrator import MultiAgentRetriever
     chunks = {"c1": Chunk(chunk_id="c1", doc_id="d1", index=0, text="Test chunk about Einstein")}
     return MultiAgentRetriever(
         llm=MockLLM(),

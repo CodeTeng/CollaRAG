@@ -4,7 +4,7 @@ Two research innovations are optional plugins, controlled by ``config.yaml``:
 
 - **AdaGraph** (Adaptive Graph Construction) — dynamic chunking + layered
   triple extraction + dual redundancy pruning.
-- **IntentAgent** — intent-aware agent with Memory / Reasoning / Decision /
+- **CollaRAG** — intent-aware agent with Memory / Reasoning / Decision /
   Execution stages plus pluggable Reflection / Reranking / ParallelPool hooks.
 
 With both plugins disabled the framework degrades gracefully to a working
@@ -306,11 +306,11 @@ class ChimeraRAG:
                 self.config.ingestion.chunker.active = "defaults.fixed"
                 self.config.ingestion.extractor.active = "defaults.simple_llm"
                 self.config.ingestion.pruner.active = "defaults.noop"
-        elif name == "intent_agent":
-            self.config.plugins.intent_agent.enabled = enabled
+        elif name == "colla_rag":
+            self.config.plugins.colla_rag.enabled = enabled
             if enabled:
-                self.config.query.intent_classifier.active = "intent_agent.tree"
-                self.config.query.retriever.active = "intent_agent.multi_agent"
+                self.config.query.intent_classifier.active = "colla_rag.tree"
+                self.config.query.retriever.active = "colla_rag.multi_agent"
             else:
                 self.config.query.intent_classifier.active = "defaults.rule"
                 self.config.query.retriever.active = "defaults.direct"
@@ -353,13 +353,13 @@ class ChimeraRAG:
 
                 logging.getLogger(__name__).warning("adagraph plugin not available: %s", e)
 
-        if plugins_cfg.intent_agent.enabled:
+        if plugins_cfg.colla_rag.enabled:
             try:
-                importlib.import_module("chimera_rag.plugins.intent_agent")
+                importlib.import_module("chimera_rag.plugins.colla_rag")
             except ImportError as e:  # pragma: no cover - optional
                 import logging
 
-                logging.getLogger(__name__).warning("intent_agent plugin not available: %s", e)
+                logging.getLogger(__name__).warning("colla_rag plugin not available: %s", e)
 
     def _build_stores(self):
         from chimera_rag.stores.graph import NetworkXGraphStore
@@ -435,7 +435,7 @@ class ChimeraRAG:
         call_params.pop("top_k", None)
 
         # Classic retrievers (DirectRetriever) want vector_store + graph_store + embedder
-        # + chunk_lookup. Smart retrievers (IntentAgentRetriever) want a base_retriever
+        # + chunk_lookup. Smart retrievers (CollaRAGRetriever) want a base_retriever
         # + classifier + optional hooks. We inspect the ctor and adapt.
 
         # Multi-agent retriever — wires the full multi-agent orchestrator.
@@ -448,7 +448,7 @@ class ChimeraRAG:
                 "chunk_lookup": self.state.chunk_lookup,
                 "reranker": self.reranker,
             }
-            ma_cfg = self.config.plugins.intent_agent.multi_agent
+            ma_cfg = self.config.plugins.colla_rag.multi_agent
             if ma_cfg.get("memory", {}).get("shared", {}).get("path"):
                 wiring["memory_path"] = ma_cfg["memory"]["shared"]["path"]
             if ma_cfg.get("classifier"):

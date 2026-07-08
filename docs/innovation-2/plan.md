@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the existing IntentAgent (M-R-D-E + 6 strategies + LangGraph) with a multi-Agent architecture that routes queries to specialized Agents (Preprocessor → TreeIntent Classifier → Native RAG / ReAct / Map-Reduce / WebSearch+LLM), backed by a shared tool layer and dual-layer memory system.
+**Goal:** Replace the existing CollaRAG (M-R-D-E + 6 strategies + LangGraph) with a multi-Agent architecture that routes queries to specialized Agents (Preprocessor → TreeIntent Classifier → SingleHop / MultiHop / Summarization / Other), backed by a shared tool layer and dual-layer memory system.
 
-**Architecture:** A `MultiAgentRetriever` facade registers as `intent_agent.multi_agent` in the existing retriever slot. Inside, an Orchestrator runs: Preprocessor Agent → Tree-Intent Classifier → dispatch to one of four specialized Agents. Each Agent inherits from `BaseAgent` (Template Method pattern) and receives its tool subset from `ToolSetBuilder`. A dual-layer memory (shared + agent-private) persists across sessions.
+**Architecture:** A `MultiAgentRetriever` facade registers as `colla_rag.multi_agent` in the existing retriever slot. Inside, an Orchestrator runs: Preprocessor Agent → Tree-Intent Classifier → dispatch to one of four specialized Agents. Each Agent inherits from `BaseAgent` (Template Method pattern) and receives its tool subset from `ToolSetBuilder`. A dual-layer memory (shared + agent-private) persists across sessions.
 
 **Tech Stack:** Python 3.11+, Pydantic v2, LangGraph ≥1.0, langchain-core ≥1.0, rank-bm25, duckduckgo-search, FAISS, NetworkX, sentence-transformers (optional reranker).
 
 ## Global Constraints
 
 - Python ≥3.11, Pydantic v2 (strict validation, frozen where appropriate)
-- All new code under `src/chimera_rag/plugins/intent_agent/` — never import plugins from `core/` or `defaults/`
+- All new code under `src/chimera_rag/plugins/colla_rag/` — never import plugins from `core/` or `defaults/`
 - `@register` decorator for all slot implementations
 - Tests use `MockProvider` — zero API keys in CI
 - AdaGraph (innovation 1) is untouched — only query-side changes
@@ -26,7 +26,7 @@ src/chimera_rag/
 │   └── types.py                          # MODIFY: add new types
 ├── interfaces/
 │   └── base_agent.py                     # CREATE: BaseAgent ABC
-├── plugins/intent_agent/
+├── plugins/colla_rag/
 │   ├── __init__.py                       # MODIFY: re-export new modules
 │   ├── orchestrator.py                   # CREATE: MultiAgentRetriever facade
 │   ├── classifier.py                     # CREATE: TreeIntentClassifier
@@ -34,10 +34,10 @@ src/chimera_rag/
 │   ├── agents/
 │   │   ├── __init__.py                   # CREATE
 │   │   ├── preprocessor.py              # CREATE: PreprocessorAgent
-│   │   ├── native_rag.py                # CREATE: NativeRAGAgent
-│   │   ├── react_agent.py               # CREATE: ReActAgent (LangGraph)
-│   │   ├── map_reduce.py                # CREATE: MapReduceAgent
-│   │   └── web_search.py                # CREATE: WebSearchAgent
+│   │   ├── single_hop.py                # CREATE: SingleHopAgent
+│   │   ├── multi_hop.py               # CREATE: MultiHopAgent (LangGraph)
+│   │   ├── summarization.py                # CREATE: SummarizationAgent
+│   │   └── other.py                     # CREATE: OtherAgent
 │   ├── tools/
 │   │   ├── __init__.py                   # CREATE: build_all_tools + TOOL_MATRIX
 │   │   ├── retrieval_tools.py           # CREATE: vector/bm25/hybrid/graph tools
@@ -64,7 +64,7 @@ tests/
 ├── test_memory_manager.py                # CREATE
 ├── test_preprocessor_agent.py            # CREATE
 ├── test_native_rag_agent.py              # CREATE
-├── test_react_agent.py                   # CREATE
+├── test_multi_hop.py                   # CREATE
 ├── test_map_reduce_agent.py              # CREATE
 ├── test_web_search_agent.py              # CREATE
 ├── test_agent_factory.py                 # CREATE
@@ -341,12 +341,12 @@ git commit -m "feat: add multi-agent types and BaseAgent ABC (Task 1)"
 ### Task 2: Tree-Intent Classifier
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/classifier.py`
+- Create: `src/chimera_rag/plugins/colla_rag/classifier.py`
 - Test: `tests/test_tree_classifier.py`
 
 **Interfaces:**
 - Consumes: `Query` from `core/types.py`, `BaseIntentClassifier` from `interfaces/intent_classifier.py`, `BaseLLMProvider` from `interfaces/llm_provider.py`
-- Produces: `TreeIntentClassifier.classify(query: Query) -> Intent` — returns `Intent` with `label` set to one of `MultiAgentIntentLabel` values. Registered as `("intent_classifier", "intent_agent.tree")`.
+- Produces: `TreeIntentClassifier.classify(query: Query) -> Intent` — returns `Intent` with `label` set to one of `MultiAgentIntentLabel` values. Registered as `("intent_classifier", "colla_rag.tree")`.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -355,7 +355,7 @@ git commit -m "feat: add multi-agent types and BaseAgent ABC (Task 1)"
 """Tests for TreeIntentClassifier."""
 import pytest
 from chimera_rag.core.types import Intent, Query
-from chimera_rag.plugins.intent_agent.classifier import TreeIntentClassifier
+from chimera_rag.plugins.colla_rag.classifier import TreeIntentClassifier
 
 
 class FakeLLM:
@@ -442,7 +442,7 @@ Expected: FAIL — `ImportError`
 - [ ] **Step 3: Implement TreeIntentClassifier**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/classifier.py
+# src/chimera_rag/plugins/colla_rag/classifier.py
 """Tree-shaped intent classifier: Level-1 greeting filter + Level-2 LLM classification."""
 from __future__ import annotations
 
@@ -490,7 +490,7 @@ Query: {query}
 Respond with ONLY the category name, nothing else."""
 
 
-@register("intent_classifier", "intent_agent.tree")
+@register("intent_classifier", "colla_rag.tree")
 class TreeIntentClassifier(BaseIntentClassifier):
     def __init__(self, llm: object, confidence_threshold: float = 0.7,
                  rule_fallback: bool = True) -> None:
@@ -562,7 +562,7 @@ Expected: All PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/chimera_rag/plugins/intent_agent/classifier.py tests/test_tree_classifier.py
+git add src/chimera_rag/plugins/colla_rag/classifier.py tests/test_tree_classifier.py
 git commit -m "feat: add TreeIntentClassifier with greeting filter + LLM + rule fallback (Task 2)"
 ```
 
@@ -571,8 +571,8 @@ git commit -m "feat: add TreeIntentClassifier with greeting filter + LLM + rule 
 ### Task 3: Retrieval Tools (vector / BM25 / hybrid / graph)
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/tools/__init__.py`
-- Create: `src/chimera_rag/plugins/intent_agent/tools/retrieval_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/__init__.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/retrieval_tools.py`
 - Modify: `pyproject.toml` (add `rank-bm25` dependency)
 - Test: `tests/test_retrieval_tools.py`
 - Test: `tests/test_bm25_tool.py`
@@ -587,7 +587,7 @@ git commit -m "feat: add TreeIntentClassifier with greeting filter + LLM + rule 
 # tests/test_bm25_tool.py
 """Tests for BM25Index wrapper and ToolAccumulator."""
 from chimera_rag.core.types import Chunk
-from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
+from chimera_rag.plugins.colla_rag.tools.retrieval_tools import (
     BM25Index,
     ToolAccumulator,
 )
@@ -644,7 +644,7 @@ def test_tool_accumulator_top_k_limit():
 import numpy as np
 import pytest
 from chimera_rag.core.types import Chunk, Triple
-from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
+from chimera_rag.plugins.colla_rag.tools.retrieval_tools import (
     BM25Index,
     ToolAccumulator,
     build_retrieval_tools,
@@ -775,14 +775,14 @@ Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv sync --extra agent`
 - [ ] **Step 5: Create `tools/__init__.py`**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/tools/__init__.py
+# src/chimera_rag/plugins/colla_rag/tools/__init__.py
 """Shared tool layer for multi-agent architecture."""
 ```
 
 - [ ] **Step 6: Implement retrieval_tools.py**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/tools/retrieval_tools.py
+# src/chimera_rag/plugins/colla_rag/tools/retrieval_tools.py
 """Retrieval tools: vector, BM25, hybrid, graph neighbors, graph path, graph community."""
 from __future__ import annotations
 
@@ -1053,7 +1053,7 @@ Expected: All PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add pyproject.toml src/chimera_rag/plugins/intent_agent/tools/ tests/test_bm25_tool.py tests/test_retrieval_tools.py
+git add pyproject.toml src/chimera_rag/plugins/colla_rag/tools/ tests/test_bm25_tool.py tests/test_retrieval_tools.py
 git commit -m "feat: add retrieval tools — vector, BM25, hybrid RRF, graph (Task 3)"
 ```
 
@@ -1062,11 +1062,11 @@ git commit -m "feat: add retrieval tools — vector, BM25, hybrid RRF, graph (Ta
 ### Task 4: Preprocessing, Reasoning, Memory, Web, and IO Tools
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/tools/preprocess_tools.py`
-- Create: `src/chimera_rag/plugins/intent_agent/tools/reasoning_tools.py`
-- Create: `src/chimera_rag/plugins/intent_agent/tools/memory_tools.py`
-- Create: `src/chimera_rag/plugins/intent_agent/tools/web_tools.py`
-- Create: `src/chimera_rag/plugins/intent_agent/tools/io_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/preprocess_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/reasoning_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/memory_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/web_tools.py`
+- Create: `src/chimera_rag/plugins/colla_rag/tools/io_tools.py`
 - Modify: `pyproject.toml` (add `duckduckgo-search` dependency)
 - Test: `tests/test_preprocess_tools.py`
 - Test: `tests/test_memory_tools.py`
@@ -1085,7 +1085,7 @@ git commit -m "feat: add retrieval tools — vector, BM25, hybrid RRF, graph (Ta
 ```python
 # tests/test_preprocess_tools.py
 """Tests for preprocess tools (query_rewrite, coreference_resolve, followup_merge)."""
-from chimera_rag.plugins.intent_agent.tools.preprocess_tools import build_preprocess_tools
+from chimera_rag.plugins.colla_rag.tools.preprocess_tools import build_preprocess_tools
 
 
 class FakeLLM:
@@ -1141,7 +1141,7 @@ def test_followup_merge_invocation():
 ```python
 # tests/test_memory_tools.py
 """Tests for memory tools."""
-from chimera_rag.plugins.intent_agent.tools.memory_tools import build_memory_tools
+from chimera_rag.plugins.colla_rag.tools.memory_tools import build_memory_tools
 
 
 class FakeSharedMemory:
@@ -1235,7 +1235,7 @@ Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv sync --extra agent`
 
 - [ ] **Step 5: Implement all five tool modules**
 
-Create `src/chimera_rag/plugins/intent_agent/tools/preprocess_tools.py`:
+Create `src/chimera_rag/plugins/colla_rag/tools/preprocess_tools.py`:
 
 ```python
 """Preprocessing tools: query rewrite, coreference resolution, follow-up merge."""
@@ -1297,7 +1297,7 @@ def build_preprocess_tools(*, llm, session_memory) -> list[StructuredTool]:
 __all__ = ["build_preprocess_tools"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/tools/reasoning_tools.py`:
+Create `src/chimera_rag/plugins/colla_rag/tools/reasoning_tools.py`:
 
 ```python
 """Reasoning tools: sub-query decomposition, evidence assessment, reranking."""
@@ -1388,7 +1388,7 @@ def build_reasoning_tools(*, llm, reflector, reranker, accumulator, chunk_lookup
 __all__ = ["build_reasoning_tools"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/tools/memory_tools.py`:
+Create `src/chimera_rag/plugins/colla_rag/tools/memory_tools.py`:
 
 ```python
 """Memory and context tools: read/write session, shared, and agent memory."""
@@ -1469,7 +1469,7 @@ def build_memory_tools(*, shared_memory, agent_memory, session_memory) -> list[S
 __all__ = ["build_memory_tools"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/tools/web_tools.py`:
+Create `src/chimera_rag/plugins/colla_rag/tools/web_tools.py`:
 
 ```python
 """Web tools: search and fetch."""
@@ -1529,7 +1529,7 @@ def build_web_tools() -> list[StructuredTool]:
 __all__ = ["build_web_tools"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/tools/io_tools.py`:
+Create `src/chimera_rag/plugins/colla_rag/tools/io_tools.py`:
 
 ```python
 """IO tools: save and load files."""
@@ -1590,7 +1590,7 @@ Expected: All PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pyproject.toml src/chimera_rag/plugins/intent_agent/tools/ tests/test_preprocess_tools.py tests/test_memory_tools.py
+git add pyproject.toml src/chimera_rag/plugins/colla_rag/tools/ tests/test_preprocess_tools.py tests/test_memory_tools.py
 git commit -m "feat: add preprocess, reasoning, memory, web, IO tools (Task 4)"
 ```
 
@@ -1599,10 +1599,10 @@ git commit -m "feat: add preprocess, reasoning, memory, web, IO tools (Task 4)"
 ### Task 5: Dual-Layer Memory System
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/memory/__init__.py`
-- Create: `src/chimera_rag/plugins/intent_agent/memory/shared_memory.py`
-- Create: `src/chimera_rag/plugins/intent_agent/memory/agent_memory.py`
-- Create: `src/chimera_rag/plugins/intent_agent/memory/memory_manager.py`
+- Create: `src/chimera_rag/plugins/colla_rag/memory/__init__.py`
+- Create: `src/chimera_rag/plugins/colla_rag/memory/shared_memory.py`
+- Create: `src/chimera_rag/plugins/colla_rag/memory/agent_memory.py`
+- Create: `src/chimera_rag/plugins/colla_rag/memory/memory_manager.py`
 - Test: `tests/test_shared_memory.py`
 - Test: `tests/test_agent_memory.py`
 - Test: `tests/test_memory_manager.py`
@@ -1622,7 +1622,7 @@ git commit -m "feat: add preprocess, reasoning, memory, web, IO tools (Task 4)"
 import tempfile
 from pathlib import Path
 
-from chimera_rag.plugins.intent_agent.memory.shared_memory import SharedMemory
+from chimera_rag.plugins.colla_rag.memory.shared_memory import SharedMemory
 
 
 def test_shared_memory_read_write():
@@ -1673,7 +1673,7 @@ def test_shared_memory_stats():
 """Tests for AgentPrivateMemory."""
 import tempfile
 
-from chimera_rag.plugins.intent_agent.memory.agent_memory import AgentPrivateMemory
+from chimera_rag.plugins.colla_rag.memory.agent_memory import AgentPrivateMemory
 
 
 def test_remember_and_recall():
@@ -1739,7 +1739,7 @@ def test_stats():
 """Tests for MemoryManager (dual-layer facade)."""
 import tempfile
 
-from chimera_rag.plugins.intent_agent.memory.memory_manager import MemoryManager
+from chimera_rag.plugins.colla_rag.memory.memory_manager import MemoryManager
 
 
 def test_memory_manager_creation():
@@ -1770,13 +1770,13 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 5: Implement memory modules**
 
-Create `src/chimera_rag/plugins/intent_agent/memory/__init__.py`:
+Create `src/chimera_rag/plugins/colla_rag/memory/__init__.py`:
 
 ```python
 """Dual-layer memory system for multi-agent architecture."""
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/memory/shared_memory.py`:
+Create `src/chimera_rag/plugins/colla_rag/memory/shared_memory.py`:
 
 ```python
 """SharedMemory — JSON-backed global memory shared across all Agents."""
@@ -1829,7 +1829,7 @@ class SharedMemory:
 __all__ = ["SharedMemory"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/memory/agent_memory.py`:
+Create `src/chimera_rag/plugins/colla_rag/memory/agent_memory.py`:
 
 ```python
 """AgentPrivateMemory — per-agent, per-intent JSONL experience store."""
@@ -1915,7 +1915,7 @@ class AgentPrivateMemory:
 __all__ = ["AgentPrivateMemory"]
 ```
 
-Create `src/chimera_rag/plugins/intent_agent/memory/memory_manager.py`:
+Create `src/chimera_rag/plugins/colla_rag/memory/memory_manager.py`:
 
 ```python
 """MemoryManager — unified facade for dual-layer memory."""
@@ -1923,8 +1923,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from chimera_rag.plugins.intent_agent.memory.agent_memory import AgentPrivateMemory
-from chimera_rag.plugins.intent_agent.memory.shared_memory import SharedMemory
+from chimera_rag.plugins.colla_rag.memory.agent_memory import AgentPrivateMemory
+from chimera_rag.plugins.colla_rag.memory.shared_memory import SharedMemory
 
 
 class SessionMemory:
@@ -1964,7 +1964,7 @@ Expected: All PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/chimera_rag/plugins/intent_agent/memory/ tests/test_shared_memory.py tests/test_agent_memory.py tests/test_memory_manager.py
+git add src/chimera_rag/plugins/colla_rag/memory/ tests/test_shared_memory.py tests/test_agent_memory.py tests/test_memory_manager.py
 git commit -m "feat: add dual-layer memory system — shared + agent-private (Task 5)"
 ```
 
@@ -1973,7 +1973,7 @@ git commit -m "feat: add dual-layer memory system — shared + agent-private (Ta
 ### Task 6: Agent Factory & ToolSetBuilder
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/agent_factory.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agent_factory.py`
 - Test: `tests/test_agent_factory.py`
 
 **Interfaces:**
@@ -1988,7 +1988,7 @@ git commit -m "feat: add dual-layer memory system — shared + agent-private (Ta
 ```python
 # tests/test_agent_factory.py
 """Tests for AgentFactory and ToolSetBuilder."""
-from chimera_rag.plugins.intent_agent.agent_factory import (
+from chimera_rag.plugins.colla_rag.agent_factory import (
     TOOL_MATRIX,
     AgentFactory,
     ToolSetBuilder,
@@ -2046,7 +2046,7 @@ Expected: FAIL — `ImportError`
 - [ ] **Step 3: Implement agent_factory.py**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agent_factory.py
+# src/chimera_rag/plugins/colla_rag/agent_factory.py
 """AgentFactory (Factory pattern) + ToolSetBuilder (Builder pattern)."""
 from __future__ import annotations
 
@@ -2126,24 +2126,24 @@ Expected: All PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/chimera_rag/plugins/intent_agent/agent_factory.py tests/test_agent_factory.py
+git add src/chimera_rag/plugins/colla_rag/agent_factory.py tests/test_agent_factory.py
 git commit -m "feat: add AgentFactory + ToolSetBuilder with TOOL_MATRIX (Task 6)"
 ```
 
 ---
 
-### Task 7: Specialized Agents (Preprocessor + Native RAG + ReAct + Map-Reduce + WebSearch)
+### Task 7: Specialized Agents (Preprocessor + SingleHop + ReAct + Map-Reduce + WebSearch)
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/agents/__init__.py`
-- Create: `src/chimera_rag/plugins/intent_agent/agents/preprocessor.py`
-- Create: `src/chimera_rag/plugins/intent_agent/agents/native_rag.py`
-- Create: `src/chimera_rag/plugins/intent_agent/agents/react_agent.py`
-- Create: `src/chimera_rag/plugins/intent_agent/agents/map_reduce.py`
-- Create: `src/chimera_rag/plugins/intent_agent/agents/web_search.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/__init__.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/preprocessor.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/single_hop.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/multi_hop.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/summarization.py`
+- Create: `src/chimera_rag/plugins/colla_rag/agents/other.py`
 - Test: `tests/test_preprocessor_agent.py`
 - Test: `tests/test_native_rag_agent.py`
-- Test: `tests/test_react_agent.py`
+- Test: `tests/test_multi_hop.py`
 - Test: `tests/test_map_reduce_agent.py`
 - Test: `tests/test_web_search_agent.py`
 
@@ -2151,10 +2151,10 @@ git commit -m "feat: add AgentFactory + ToolSetBuilder with TOOL_MATRIX (Task 6)
 - Consumes: `BaseAgent` / `AgentContext` from Task 1, `ToolAccumulator` / `BM25Index` from Task 3, all tools from Tasks 3-4, `AgentFactory.register` from Task 6
 - Produces: Five `BaseAgent` subclasses, each registered via `@AgentFactory.register(intent)`:
   - `PreprocessorAgent.do_execute(query, context) -> Answer` (returns dummy Answer; real output is side-effect on context)
-  - `NativeRAGAgent.do_execute(query, context) -> Answer`
-  - `ReActAgent.do_execute(query, context) -> Answer`
-  - `MapReduceAgent.do_execute(query, context) -> Answer`
-  - `WebSearchAgent.do_execute(query, context) -> Answer`
+  - `SingleHopAgent.do_execute(query, context) -> Answer`
+  - `MultiHopAgent.do_execute(query, context) -> Answer`
+  - `SummarizationAgent.do_execute(query, context) -> Answer`
+  - `OtherAgent.do_execute(query, context) -> Answer`
 
 This is the largest task. Each agent is a focused file. Tests use mock tools — no real LLM or vector store calls.
 
@@ -2165,7 +2165,7 @@ This is the largest task. Each agent is a focused file. Tests use mock tools —
 """Tests for PreprocessorAgent."""
 from chimera_rag.core.types import Query, PreprocessResult
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.preprocessor import PreprocessorAgent
+from chimera_rag.plugins.colla_rag.agents.preprocessor import PreprocessorAgent
 from langchain_core.tools import StructuredTool
 
 
@@ -2212,10 +2212,10 @@ def test_preprocessor_with_session():
 
 ```python
 # tests/test_native_rag_agent.py
-"""Tests for NativeRAGAgent."""
+"""Tests for SingleHopAgent."""
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.native_rag import NativeRAGAgent
+from chimera_rag.plugins.colla_rag.agents.single_hop import SingleHopAgent
 from langchain_core.tools import StructuredTool
 
 
@@ -2241,7 +2241,7 @@ def test_native_rag_produces_answer():
         async def generate(self, prompt, **kw):
             return "Einstein was born in Ulm, Germany."
 
-    agent = NativeRAGAgent(
+    agent = SingleHopAgent(
         agent_type="single_hop",
         tools=[_mock_hybrid(), _mock_assess()],
         config={"llm": FakeLLM(), "top_k": 5},
@@ -2253,11 +2253,11 @@ def test_native_rag_produces_answer():
 ```
 
 ```python
-# tests/test_react_agent.py
-"""Tests for ReActAgent (simplified — no real LangGraph, mock tools)."""
+# tests/test_multi_hop.py
+"""Tests for MultiHopAgent (simplified — no real LangGraph, mock tools)."""
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.react_agent import ReActAgent
+from chimera_rag.plugins.colla_rag.agents.multi_hop import MultiHopAgent
 from langchain_core.tools import StructuredTool
 
 
@@ -2280,7 +2280,7 @@ def test_react_agent_creates():
         async def generate(self, prompt, **kw):
             return "Final Answer: The answer is 42."
 
-    agent = ReActAgent(
+    agent = MultiHopAgent(
         agent_type="multi_hop",
         tools=[_mock_hybrid(), _mock_assess()],
         config={"llm": FakeLLM(), "max_iterations": 2, "quality_threshold": 0.6},
@@ -2293,7 +2293,7 @@ def test_react_agent_executes():
         async def generate(self, prompt, **kw):
             return "Final Answer: The answer is 42."
 
-    agent = ReActAgent(
+    agent = MultiHopAgent(
         agent_type="multi_hop",
         tools=[_mock_hybrid(), _mock_assess()],
         config={"llm": FakeLLM(), "max_iterations": 1, "quality_threshold": 0.6},
@@ -2305,10 +2305,10 @@ def test_react_agent_executes():
 
 ```python
 # tests/test_map_reduce_agent.py
-"""Tests for MapReduceAgent."""
+"""Tests for SummarizationAgent."""
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.map_reduce import MapReduceAgent
+from chimera_rag.plugins.colla_rag.agents.summarization import SummarizationAgent
 from langchain_core.tools import StructuredTool
 
 
@@ -2329,7 +2329,7 @@ def test_map_reduce_produces_summary():
                 return "Key point from this chunk."
             return "Summary: The topic has two main points."
 
-    agent = MapReduceAgent(
+    agent = SummarizationAgent(
         agent_type="summarization",
         tools=[_mock_hybrid()],
         config={"llm": FakeLLM(), "retrieve_top_k": 10},
@@ -2345,10 +2345,10 @@ def test_map_reduce_produces_summary():
 
 ```python
 # tests/test_web_search_agent.py
-"""Tests for WebSearchAgent."""
+"""Tests for OtherAgent."""
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.web_search import WebSearchAgent
+from chimera_rag.plugins.colla_rag.agents.web_search import OtherAgent
 from langchain_core.tools import StructuredTool
 
 
@@ -2364,7 +2364,7 @@ def test_web_search_agent():
         async def generate(self, prompt, **kw):
             return "Based on web results, the answer is X."
 
-    agent = WebSearchAgent(
+    agent = OtherAgent(
         agent_type="other",
         tools=[_mock_web_search()],
         config={"llm": FakeLLM()},
@@ -2376,33 +2376,33 @@ def test_web_search_agent():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv run pytest tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_react_agent.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py -v`
+Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv run pytest tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_multi_hop.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py -v`
 Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Create `agents/__init__.py`**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/__init__.py
+# src/chimera_rag/plugins/colla_rag/agents/__init__.py
 """Specialized agents for multi-agent RAG architecture."""
-from chimera_rag.plugins.intent_agent.agents.preprocessor import PreprocessorAgent
-from chimera_rag.plugins.intent_agent.agents.native_rag import NativeRAGAgent
-from chimera_rag.plugins.intent_agent.agents.react_agent import ReActAgent
-from chimera_rag.plugins.intent_agent.agents.map_reduce import MapReduceAgent
-from chimera_rag.plugins.intent_agent.agents.web_search import WebSearchAgent
+from chimera_rag.plugins.colla_rag.agents.preprocessor import PreprocessorAgent
+from chimera_rag.plugins.colla_rag.agents.single_hop import SingleHopAgent
+from chimera_rag.plugins.colla_rag.agents.multi_hop import MultiHopAgent
+from chimera_rag.plugins.colla_rag.agents.summarization import SummarizationAgent
+from chimera_rag.plugins.colla_rag.agents.web_search import OtherAgent
 
-__all__ = ["PreprocessorAgent", "NativeRAGAgent", "ReActAgent", "MapReduceAgent", "WebSearchAgent"]
+__all__ = ["PreprocessorAgent", __all__ = ["MultiHopAgent", "OtherAgent", "PreprocessorAgent", "SingleHopAgent", "SummarizationAgent"]]
 ```
 
 - [ ] **Step 4: Implement PreprocessorAgent**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/preprocessor.py
+# src/chimera_rag/plugins/colla_rag/agents/preprocessor.py
 """PreprocessorAgent — query rewriting, coreference resolution, follow-up merging."""
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
 
 
 @AgentFactory.register("preprocessor")
@@ -2422,17 +2422,17 @@ class PreprocessorAgent(BaseAgent):
 __all__ = ["PreprocessorAgent"]
 ```
 
-- [ ] **Step 5: Implement NativeRAGAgent**
+- [ ] **Step 5: Implement SingleHopAgent**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/native_rag.py
-"""NativeRAGAgent — single-round retrieval for simple factual queries."""
+# src/chimera_rag/plugins/colla_rag/agents/single_hop.py
+"""SingleHopAgent — single-round retrieval for simple factual queries."""
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
 
 _GENERATE_PROMPT = """Answer the question based on the following evidence.
 Evidence:
@@ -2443,7 +2443,7 @@ Answer:"""
 
 
 @AgentFactory.register("single_hop")
-class NativeRAGAgent(BaseAgent):
+class SingleHopAgent(BaseAgent):
     def do_execute(self, query: Query, context: AgentContext) -> Answer:
         llm = self.config.get("llm")
         top_k = self.config.get("top_k", 10)
@@ -2474,14 +2474,14 @@ class NativeRAGAgent(BaseAgent):
         )
 
 
-__all__ = ["NativeRAGAgent"]
+__all__ = ["SingleHopAgent"]
 ```
 
-- [ ] **Step 6: Implement ReActAgent**
+- [ ] **Step 6: Implement MultiHopAgent**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/react_agent.py
-"""ReActAgent — multi-step reasoning with tool selection and reflection loop."""
+# src/chimera_rag/plugins/colla_rag/agents/multi_hop.py
+"""MultiHopAgent — multi-step reasoning with tool selection and reflection loop."""
 from __future__ import annotations
 
 import json
@@ -2491,7 +2491,7 @@ import re
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
 
 logger = logging.getLogger(__name__)
 
@@ -2514,7 +2514,7 @@ _FINAL_RE = re.compile(r"Final Answer:\s*(.*)", re.DOTALL)
 
 
 @AgentFactory.register("multi_hop")
-class ReActAgent(BaseAgent):
+class MultiHopAgent(BaseAgent):
     def do_execute(self, query: Query, context: AgentContext) -> Answer:
         llm = self.config.get("llm")
         max_iters = self.config.get("max_iterations", 3)
@@ -2573,20 +2573,20 @@ class ReActAgent(BaseAgent):
         return Answer(text=final_text.strip(), strategy_name="react")
 
 
-__all__ = ["ReActAgent"]
+__all__ = ["MultiHopAgent"]
 ```
 
-- [ ] **Step 7: Implement MapReduceAgent**
+- [ ] **Step 7: Implement SummarizationAgent**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/map_reduce.py
-"""MapReduceAgent — retrieve top-N chunks, map each to a summary, reduce into final answer."""
+# src/chimera_rag/plugins/colla_rag/agents/summarization.py
+"""SummarizationAgent — retrieve top-N chunks, map each to a summary, reduce into final answer."""
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
 
 _MAP_PROMPT = """Extract key information relevant to the query from this passage.
 Query: {query}
@@ -2601,7 +2601,7 @@ Summary:"""
 
 
 @AgentFactory.register("summarization")
-class MapReduceAgent(BaseAgent):
+class SummarizationAgent(BaseAgent):
     def do_execute(self, query: Query, context: AgentContext) -> Answer:
         llm = self.config.get("llm")
         retrieve_top_k = self.config.get("retrieve_top_k", 50)
@@ -2651,20 +2651,20 @@ class MapReduceAgent(BaseAgent):
         )
 
 
-__all__ = ["MapReduceAgent"]
+__all__ = ["SummarizationAgent"]
 ```
 
-- [ ] **Step 8: Implement WebSearchAgent**
+- [ ] **Step 8: Implement OtherAgent**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/agents/web_search.py
-"""WebSearchAgent — search the web + optional local knowledge, then generate."""
+# src/chimera_rag/plugins/colla_rag/agents/other.py
+"""OtherAgent — search the web + optional local knowledge, then generate."""
 from __future__ import annotations
 
 from chimera_rag.core.types import Answer, Query
 from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext, BaseAgent
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
 
 _GENERATE_PROMPT = """Answer the question based on the following web search results and local knowledge.
 Web results:
@@ -2678,7 +2678,7 @@ Answer:"""
 
 
 @AgentFactory.register("other")
-class WebSearchAgent(BaseAgent):
+class OtherAgent(BaseAgent):
     def do_execute(self, query: Query, context: AgentContext) -> Answer:
         llm = self.config.get("llm")
         tool_map = {t.name: t for t in self.tools}
@@ -2711,19 +2711,19 @@ class WebSearchAgent(BaseAgent):
         return Answer(text=answer_text.strip(), strategy_name="web_search")
 
 
-__all__ = ["WebSearchAgent"]
+__all__ = ["OtherAgent"]
 ```
 
 - [ ] **Step 9: Run tests to verify they pass**
 
-Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv run pytest tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_react_agent.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py -v`
+Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv run pytest tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_multi_hop.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py -v`
 Expected: All PASS
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/chimera_rag/plugins/intent_agent/agents/ tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_react_agent.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py
-git commit -m "feat: add 5 specialized agents — Preprocessor, NativeRAG, ReAct, MapReduce, WebSearch (Task 7)"
+git add src/chimera_rag/plugins/colla_rag/agents/ tests/test_preprocessor_agent.py tests/test_native_rag_agent.py tests/test_multi_hop.py tests/test_map_reduce_agent.py tests/test_web_search_agent.py
+git commit -m "feat: add 5 specialized agents — Preprocessor, SingleHop, MultiHop, Summarization, Other (Task 7)"
 ```
 
 ---
@@ -2731,13 +2731,13 @@ git commit -m "feat: add 5 specialized agents — Preprocessor, NativeRAG, ReAct
 ### Task 8: Orchestrator & MultiAgentRetriever Facade
 
 **Files:**
-- Create: `src/chimera_rag/plugins/intent_agent/orchestrator.py`
-- Modify: `src/chimera_rag/plugins/intent_agent/__init__.py`
+- Create: `src/chimera_rag/plugins/colla_rag/orchestrator.py`
+- Modify: `src/chimera_rag/plugins/colla_rag/__init__.py`
 - Test: `tests/test_orchestrator.py`
 
 **Interfaces:**
 - Consumes: `TreeIntentClassifier` (Task 2), `AgentFactory` (Task 6), all agents (Task 7), `MemoryManager` (Task 5), `BM25Index` + `ToolAccumulator` (Task 3), all `build_*_tools` functions (Tasks 3-4)
-- Produces: `MultiAgentRetriever.retrieve(query, top_k) -> RetrievalResult` registered as `("retriever", "intent_agent.multi_agent")`
+- Produces: `MultiAgentRetriever.retrieve(query, top_k) -> RetrievalResult` registered as `("retriever", "colla_rag.multi_agent")`
 
 - [ ] **Step 1: Write failing tests**
 
@@ -2778,7 +2778,7 @@ class MockEmbedder:
 
 
 def test_orchestrator_creation():
-    from chimera_rag.plugins.intent_agent.orchestrator import MultiAgentRetriever
+    from chimera_rag.plugins.colla_rag.orchestrator import MultiAgentRetriever
     chunks = {"c1": Chunk(chunk_id="c1", doc_id="d1", index=0, text="Test chunk")}
     r = MultiAgentRetriever(
         llm=MockLLM(),
@@ -2791,7 +2791,7 @@ def test_orchestrator_creation():
 
 
 def test_orchestrator_greeting():
-    from chimera_rag.plugins.intent_agent.orchestrator import MultiAgentRetriever
+    from chimera_rag.plugins.colla_rag.orchestrator import MultiAgentRetriever
     chunks = {"c1": Chunk(chunk_id="c1", doc_id="d1", index=0, text="Test")}
     r = MultiAgentRetriever(
         llm=MockLLM(),
@@ -2805,7 +2805,7 @@ def test_orchestrator_greeting():
 
 
 def test_orchestrator_single_hop():
-    from chimera_rag.plugins.intent_agent.orchestrator import MultiAgentRetriever
+    from chimera_rag.plugins.colla_rag.orchestrator import MultiAgentRetriever
     chunks = {"c1": Chunk(chunk_id="c1", doc_id="d1", index=0, text="Einstein was born in Ulm")}
     r = MultiAgentRetriever(
         llm=MockLLM(),
@@ -2826,7 +2826,7 @@ Expected: FAIL — `ImportError`
 - [ ] **Step 3: Implement orchestrator.py**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/orchestrator.py
+# src/chimera_rag/plugins/colla_rag/orchestrator.py
 """MultiAgentRetriever — top-level facade (Facade pattern)."""
 from __future__ import annotations
 
@@ -2838,10 +2838,10 @@ from chimera_rag.core.types import Answer, Chunk, Query, RetrievalResult
 from chimera_rag.defaults.extractor import _run_async
 from chimera_rag.interfaces.base_agent import AgentContext
 from chimera_rag.interfaces.retriever import BaseRetriever
-from chimera_rag.plugins.intent_agent.agent_factory import AgentFactory
-from chimera_rag.plugins.intent_agent.classifier import TreeIntentClassifier
-from chimera_rag.plugins.intent_agent.memory.memory_manager import MemoryManager
-from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
+from chimera_rag.plugins.colla_rag.agent_factory import AgentFactory
+from chimera_rag.plugins.colla_rag.classifier import TreeIntentClassifier
+from chimera_rag.plugins.colla_rag.memory.memory_manager import MemoryManager
+from chimera_rag.plugins.colla_rag.tools.retrieval_tools import (
     BM25Index,
     ToolAccumulator,
     build_retrieval_tools,
@@ -2850,7 +2850,7 @@ from chimera_rag.plugins.intent_agent.tools.retrieval_tools import (
 logger = logging.getLogger(__name__)
 
 
-@register("retriever", "intent_agent.multi_agent")
+@register("retriever", "colla_rag.multi_agent")
 class MultiAgentRetriever(BaseRetriever):
     def __init__(
         self,
@@ -2880,14 +2880,14 @@ class MultiAgentRetriever(BaseRetriever):
         self.bm25_index = BM25Index.from_chunks(chunk_lookup)
 
         # Import all agents to trigger @AgentFactory.register side effects
-        import chimera_rag.plugins.intent_agent.agents  # noqa: F401
+        import chimera_rag.plugins.colla_rag.agents  # noqa: F401
 
     def _build_tools(self, accumulator: ToolAccumulator) -> list:
-        from chimera_rag.plugins.intent_agent.tools.io_tools import build_io_tools
-        from chimera_rag.plugins.intent_agent.tools.memory_tools import build_memory_tools
-        from chimera_rag.plugins.intent_agent.tools.preprocess_tools import build_preprocess_tools
-        from chimera_rag.plugins.intent_agent.tools.reasoning_tools import build_reasoning_tools
-        from chimera_rag.plugins.intent_agent.tools.web_tools import build_web_tools
+        from chimera_rag.plugins.colla_rag.tools.io_tools import build_io_tools
+        from chimera_rag.plugins.colla_rag.tools.memory_tools import build_memory_tools
+        from chimera_rag.plugins.colla_rag.tools.preprocess_tools import build_preprocess_tools
+        from chimera_rag.plugins.colla_rag.tools.reasoning_tools import build_reasoning_tools
+        from chimera_rag.plugins.colla_rag.tools.web_tools import build_web_tools
 
         all_tools = []
         all_tools.extend(build_retrieval_tools(
@@ -2917,7 +2917,7 @@ class MultiAgentRetriever(BaseRetriever):
 
     @staticmethod
     def _default_reflector():
-        from chimera_rag.plugins.intent_agent.hooks.reflection_hook import HeuristicReflectionHook
+        from chimera_rag.plugins.colla_rag.hooks.reflection_hook import HeuristicReflectionHook
         return HeuristicReflectionHook()
 
     def retrieve(self, query: Query, top_k: int = 5) -> RetrievalResult:
@@ -2991,17 +2991,17 @@ class MultiAgentRetriever(BaseRetriever):
 __all__ = ["MultiAgentRetriever"]
 ```
 
-- [ ] **Step 4: Update `plugins/intent_agent/__init__.py`**
+- [ ] **Step 4: Update `plugins/colla_rag/__init__.py`**
 
 ```python
-# src/chimera_rag/plugins/intent_agent/__init__.py
-"""IntentAgent plugin — multi-agent architecture for intent-aware retrieval."""
+# src/chimera_rag/plugins/colla_rag/__init__.py
+"""CollaRAG plugin — multi-agent architecture for intent-aware retrieval."""
 # Trigger @register side effects for all slot implementations.
-from chimera_rag.plugins.intent_agent import classifier as _classifier  # noqa: F401
-from chimera_rag.plugins.intent_agent import orchestrator as _orchestrator  # noqa: F401
+from chimera_rag.plugins.colla_rag import classifier as _classifier  # noqa: F401
+from chimera_rag.plugins.colla_rag import orchestrator as _orchestrator  # noqa: F401
 # Legacy registrations (kept for backward compatibility with existing configs)
-from chimera_rag.plugins.intent_agent import intent_classifier as _intent_classifier  # noqa: F401
-from chimera_rag.plugins.intent_agent import memory as _memory  # noqa: F401
+from chimera_rag.plugins.colla_rag import intent_classifier as _intent_classifier  # noqa: F401
+from chimera_rag.plugins.colla_rag import memory as _memory  # noqa: F401
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -3012,7 +3012,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/chimera_rag/plugins/intent_agent/orchestrator.py src/chimera_rag/plugins/intent_agent/__init__.py tests/test_orchestrator.py
+git add src/chimera_rag/plugins/colla_rag/orchestrator.py src/chimera_rag/plugins/colla_rag/__init__.py tests/test_orchestrator.py
 git commit -m "feat: add MultiAgentRetriever orchestrator facade (Task 8)"
 ```
 
@@ -3021,14 +3021,14 @@ git commit -m "feat: add MultiAgentRetriever orchestrator facade (Task 8)"
 ### Task 9: Config Integration & End-to-End Pipeline Test
 
 **Files:**
-- Modify: `src/chimera_rag/core/config.py` (extend `IntentAgentConfig` for multi-agent params)
+- Modify: `src/chimera_rag/core/config.py` (extend `CollaRAGConfig` for multi-agent params)
 - Modify: `src/chimera_rag/__init__.py` (wire `MultiAgentRetriever` in `_instantiate_retriever`)
 - Create: `configs/deepseek_multi_agent.yaml`
 - Test: `tests/test_pipeline_multi_agent.py`
 
 **Interfaces:**
 - Consumes: `MultiAgentRetriever` from Task 8, `ChimeraRAG` facade, `AppConfig`
-- Produces: End-to-end pipeline test proving `ChimeraRAG.query()` works with `intent_agent.multi_agent` retriever
+- Produces: End-to-end pipeline test proving `ChimeraRAG.query()` works with `colla_rag.multi_agent` retriever
 
 - [ ] **Step 1: Write failing end-to-end test**
 
@@ -3075,16 +3075,16 @@ ingestion:
     params: {{}}
 query:
   intent_classifier:
-    active: intent_agent.tree
+    active: colla_rag.tree
     params: {{}}
   retriever:
-    active: intent_agent.multi_agent
+    active: colla_rag.multi_agent
     params: {{}}
   generator:
     active: defaults.prompt
     params: {{}}
 plugins:
-  intent_agent:
+  colla_rag:
     enabled: true
 """
     cfg_path = tmp_path / "test_config.yaml"
@@ -3108,12 +3108,12 @@ plugins:
 Run: `cd /Users/teng/Projects/my/Chimera-RAG && uv run pytest tests/test_pipeline_multi_agent.py -v`
 Expected: FAIL — config or wiring errors
 
-- [ ] **Step 3: Extend `IntentAgentConfig` in config.py**
+- [ ] **Step 3: Extend `CollaRAGConfig` in config.py**
 
-Add `multi_agent` field to `IntentAgentConfig` in `src/chimera_rag/core/config.py`:
+Add `multi_agent` field to `CollaRAGConfig` in `src/chimera_rag/core/config.py`:
 
 ```python
-class IntentAgentConfig(BaseModel):
+class CollaRAGConfig(BaseModel):
     enabled: bool = False
     memory: dict[str, Any] = Field(default_factory=dict)
     intent_classifier: dict[str, Any] = Field(default_factory=dict)
@@ -3136,7 +3136,7 @@ In `src/chimera_rag/__init__.py`, add handling for `MultiAgentRetriever` inside 
                 "embedder": self.embedder,
                 "chunk_lookup": self.state.chunk_lookup,
             }
-            ma_cfg = self.config.plugins.intent_agent.multi_agent
+            ma_cfg = self.config.plugins.colla_rag.multi_agent
             if ma_cfg.get("memory", {}).get("shared", {}).get("path"):
                 wiring["memory_path"] = ma_cfg["memory"]["shared"]["path"]
             if ma_cfg.get("classifier"):
@@ -3207,10 +3207,10 @@ ingestion:
 
 query:
   intent_classifier:
-    active: intent_agent.tree
+    active: colla_rag.tree
     params: {}
   retriever:
-    active: intent_agent.multi_agent
+    active: colla_rag.multi_agent
     params: {}
   generator:
     active: defaults.prompt
@@ -3219,7 +3219,7 @@ query:
 plugins:
   adagraph:
     enabled: true
-  intent_agent:
+  colla_rag:
     enabled: true
     multi_agent:
       classifier:
@@ -3265,11 +3265,11 @@ git commit -m "feat: wire MultiAgentRetriever into ChimeraRAG facade + e2e test 
 ### Task 10: Clean Up Old Code & Update Documentation
 
 **Files:**
-- Delete: `src/chimera_rag/plugins/intent_agent/strategies/` (entire directory)
-- Delete: `src/chimera_rag/plugins/intent_agent/langgraph/` (entire directory)
-- Delete: `src/chimera_rag/plugins/intent_agent/agent.py`
-- Delete: `src/chimera_rag/plugins/intent_agent/reasoning.py`
-- Modify: `src/chimera_rag/plugins/intent_agent/__init__.py` (remove old imports)
+- Delete: `src/chimera_rag/plugins/colla_rag/strategies/` (entire directory)
+- Delete: `src/chimera_rag/plugins/colla_rag/langgraph/` (entire directory)
+- Delete: `src/chimera_rag/plugins/colla_rag/agent.py`
+- Delete: `src/chimera_rag/plugins/colla_rag/reasoning.py`
+- Modify: `src/chimera_rag/plugins/colla_rag/__init__.py` (remove old imports)
 - Modify: `docs/architecture_overview.md` (update to reflect multi-agent architecture)
 - Modify: `README.md` (update usage instructions)
 
@@ -3286,24 +3286,24 @@ Expected: All PASS — this is our baseline before deletion
 
 ```bash
 cd /Users/teng/Projects/my/Chimera-RAG
-rm -rf src/chimera_rag/plugins/intent_agent/strategies/
-rm -rf src/chimera_rag/plugins/intent_agent/langgraph/
-rm -f src/chimera_rag/plugins/intent_agent/agent.py
-rm -f src/chimera_rag/plugins/intent_agent/reasoning.py
+rm -rf src/chimera_rag/plugins/colla_rag/strategies/
+rm -rf src/chimera_rag/plugins/colla_rag/langgraph/
+rm -f src/chimera_rag/plugins/colla_rag/agent.py
+rm -f src/chimera_rag/plugins/colla_rag/reasoning.py
 ```
 
 - [ ] **Step 3: Update `__init__.py` to remove old imports**
 
-Replace `src/chimera_rag/plugins/intent_agent/__init__.py` with:
+Replace `src/chimera_rag/plugins/colla_rag/__init__.py` with:
 
 ```python
-# src/chimera_rag/plugins/intent_agent/__init__.py
-"""IntentAgent plugin — multi-agent architecture for intent-aware retrieval."""
-from chimera_rag.plugins.intent_agent import classifier as _classifier  # noqa: F401
-from chimera_rag.plugins.intent_agent import orchestrator as _orchestrator  # noqa: F401
-from chimera_rag.plugins.intent_agent import intent_classifier as _intent_classifier  # noqa: F401
-from chimera_rag.plugins.intent_agent import memory as _memory  # noqa: F401
-from chimera_rag.plugins.intent_agent import experiential_memory as _exp_memory  # noqa: F401
+# src/chimera_rag/plugins/colla_rag/__init__.py
+"""CollaRAG plugin — multi-agent architecture for intent-aware retrieval."""
+from chimera_rag.plugins.colla_rag import classifier as _classifier  # noqa: F401
+from chimera_rag.plugins.colla_rag import orchestrator as _orchestrator  # noqa: F401
+from chimera_rag.plugins.colla_rag import intent_classifier as _intent_classifier  # noqa: F401
+from chimera_rag.plugins.colla_rag import memory as _memory  # noqa: F401
+from chimera_rag.plugins.colla_rag import experiential_memory as _exp_memory  # noqa: F401
 ```
 
 - [ ] **Step 4: Remove or update tests that reference deleted code**
@@ -3312,10 +3312,10 @@ Find and remove tests that import from deleted modules:
 
 ```bash
 cd /Users/teng/Projects/my/Chimera-RAG
-grep -rl "from chimera_rag.plugins.intent_agent.strategies" tests/ | head -10
-grep -rl "from chimera_rag.plugins.intent_agent.langgraph" tests/ | head -10
-grep -rl "from chimera_rag.plugins.intent_agent.agent import" tests/ | head -10
-grep -rl "from chimera_rag.plugins.intent_agent.reasoning" tests/ | head -10
+grep -rl "from chimera_rag.plugins.colla_rag.strategies" tests/ | head -10
+grep -rl "from chimera_rag.plugins.colla_rag.langgraph" tests/ | head -10
+grep -rl "from chimera_rag.plugins.colla_rag.agent import" tests/ | head -10
+grep -rl "from chimera_rag.plugins.colla_rag.reasoning" tests/ | head -10
 ```
 
 For each file found: either delete the test file (if it only tests deleted code) or update imports to point to new equivalents.

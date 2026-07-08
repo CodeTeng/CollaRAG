@@ -1,4 +1,4 @@
-## 一、IntentAgent 三层架构总览
+## 一、CollaRAG 三层架构总览
 
 创新点 #2 是一个**三阶段逐级增量**的检索智能体系统：
 
@@ -27,7 +27,7 @@
 | `exploratory`（探索型） | `expansion`（扩展图遍历）     | "Tell me about quantum computing"                      | 覆盖范围不足                   |
 | `follow_up`（追问型）   | `context_aware`（上下文感知） | "What about her husband?"                              | 无会话记忆，不理解指代         |
 
-IntentAgent 通过 **LLM + 规则双路意图分类器**（`LLMIntentClassifier`）将查询分类为 6 类意图，再由 `IntentReasoner` 通过**纯查表**（`_INTENT_TO_STRATEGY`）映射到对应策略，零额外 LLM 开销。
+CollaRAG 通过 **LLM + 规则双路意图分类器**（`LLMIntentClassifier`）将查询分类为 6 类意图，再由 `IntentReasoner` 通过**纯查表**（`_INTENT_TO_STRATEGY`）映射到对应策略，零额外 LLM 开销。
 
 ### 2.2 为什么这能超过 baselines
 
@@ -101,7 +101,7 @@ reflect_node 评估证据质量
 | G-Retriever            | 固定：GNN embedding             | 跳数、策略均不可调                                          |
 | GraphRAG               | 固定：社区选择                  | 社区预计算，运行时不可调整粒度                              |
 | HippoRAG/HippoRAG2     | 固定：PPR 扩散                  | 扩散模式单一，无工具组合                                    |
-| **IntentAgent**        | **LLM 自主工具选择 + 反思回路** | 按需组合、质量不足时重试                                    |
+| **CollaRAG**        | **LLM 自主工具选择 + 反思回路** | 按需组合、质量不足时重试                                    |
 
 **关键优势：**
 
@@ -178,7 +178,7 @@ reflect_node 评估证据质量
 | Vanilla RAG / RAPTOR / TOG / G-Retriever / LightRAG | 无状态，每次查询完全独立           |
 | GraphRAG                                            | 社区摘要在构建时固定，无运行时学习 |
 | HippoRAG / HippoRAG2                                | 无跨会话记忆，PPR 扩散模式不变     |
-| **IntentAgent**                                     | **磁盘经验记忆，越用越聪明**       |
+| **CollaRAG**                                     | **磁盘经验记忆，越用越聪明**       |
 
 具体来说有两个层面：
 
@@ -217,7 +217,7 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 
 ### 6.1 vs Vanilla RAG
 
-| 维度         | Vanilla RAG           | IntentAgent                   |
+| 维度         | Vanilla RAG           | CollaRAG                   |
 | ------------ | --------------------- | ----------------------------- |
 | 检索策略     | 单一向量检索          | 6 意图 × 动态工具组合         |
 | 多跳能力     | 无（仅 1-hop 图扩展） | MultiHopStrategy + 图邻居扩展 |
@@ -227,7 +227,7 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 
 ### 6.2 vs RAPTOR
 
-| 维度     | RAPTOR                         | IntentAgent               |
+| 维度     | RAPTOR                         | CollaRAG               |
 | -------- | ------------------------------ | ------------------------- |
 | 知识组织 | 层次摘要树（信息在聚合中丢失） | 实体-关系图（细粒度保留） |
 | 检索方式 | 树遍历（单一模式）             | 6 种策略 + 5 工具自由组合 |
@@ -237,7 +237,7 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 
 ### 6.3 vs TOG
 
-| 维度         | TOG                                | IntentAgent                         |
+| 维度         | TOG                                | CollaRAG                         |
 | ------------ | ---------------------------------- | ----------------------------------- |
 | 图遍历       | LLM beam search（暴力探索）        | 结构化图扩展 + LLM 工具决策         |
 | LLM 调用成本 | O(beam_width × hops)，每跳多次评分 | 仅 decision_node 时调用，最多 2 轮  |
@@ -245,7 +245,7 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 
 ### 6.4 vs GraphRAG
 
-| 维度       | GraphRAG                 | IntentAgent                 |
+| 维度       | GraphRAG                 | CollaRAG                 |
 | ---------- | ------------------------ | --------------------------- |
 | 检索粒度   | 社区级（粗，信息被稀释） | 实体级（细，精确检索）      |
 | 查询适应性 | 单一社区选择             | 意图驱动策略 + 动态工具编排 |
@@ -254,7 +254,7 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 
 ### 6.5 vs HippoRAG / HippoRAG2
 
-| 维度         | HippoRAG/HippoRAG2         | IntentAgent                      |
+| 维度         | HippoRAG/HippoRAG2         | CollaRAG                      |
 | ------------ | -------------------------- | -------------------------------- |
 | 图遍历策略   | 单一 PPR 扩散              | 6 种策略（含图扩展，可按需选择） |
 | 意图感知     | 无（所有查询同一扩散模式） | 6 类意图驱动                     |
@@ -262,11 +262,11 @@ LLM 意图分类在边缘 case 上可能出错。Dual-Path 同时运行两条路
 | 跨会话学习   | 无                         | 经验记忆飞轮                     |
 | 意图分类容错 | 无                         | Dual-Path 规则兜底               |
 
-HippoRAG2 是最强 baseline，在 MuSiQue-Full 的极端多跳场景上表现突出（其多跳路径聚合机制在 3-4 跳链式推理中有独特优势）。但 IntentAgent 在 2Wiki、HotpotQA、MuSiQue-Ans 上全面领先，得益于对不同查询类型的精准适配和动态编排能力。
+HippoRAG2 是最强 baseline，在 MuSiQue-Full 的极端多跳场景上表现突出（其多跳路径聚合机制在 3-4 跳链式推理中有独特优势）。但 CollaRAG 在 2Wiki、HotpotQA、MuSiQue-Ans 上全面领先，得益于对不同查询类型的精准适配和动态编排能力。
 
 ### 6.6 vs LightRAG
 
-| 维度     | LightRAG                  | IntentAgent             |
+| 维度     | LightRAG                  | CollaRAG             |
 | -------- | ------------------------- | ----------------------- |
 | 检索策略 | 向量 + 图混合（一种模式） | 6 种策略 + 动态工具组合 |
 | 多跳     | 有限的图遍历              | 显式 MultiHopStrategy   |
@@ -280,7 +280,7 @@ HippoRAG2 是最强 baseline，在 MuSiQue-Full 的极端多跳场景上表现�
 
 2Wiki 需要**跨两篇 Wikipedia 文章进行桥接推理**，查询类型以 `multi_hop` 为主。
 
-- IntentAgent 的 `multi_hop` 意图 → `MultiHopStrategy` 精确执行两跳图扩展
+- CollaRAG 的 `multi_hop` 意图 → `MultiHopStrategy` 精确执行两跳图扩展
 - HippoRAG2 的 PPR 扩散虽能关联实体，但会引入不相关文章的噪声实体
 - Vanilla RAG / RAPTOR 的单文本检索在桥接查询上根本性失败（证据链断裂）
 - **意图路由在此数据集价值最大：** 桥接查询占比高，意图分类准确 → 策略选择准确
@@ -298,7 +298,7 @@ HotpotQA 混合了桥接、对比、事实型等**多种查询类型**，查询�
 MuSiQue 是**最难的推理链数据集**（2-4 跳组合）。
 
 - HippoRAG2 的多跳路径聚合在 3-4 跳链式推理中有架构优势
-- IntentAgent 的反思回路在 2-3 跳场景效用显著，但 `max_iterations=2` 限制了 4 跳场景的重试深度
+- CollaRAG 的反思回路在 2-3 跳场景效用显著，但 `max_iterations=2` 限制了 4 跳场景的重试深度
 - 经验记忆在此数据集的帮助在于：同类型多跳查询可以复用成功路径，减少试错
 - **改进方向：** 增加 `max_iterations` 或引入更灵活的反思策略，缩小与 HippoRAG2 在极端多跳场景的差距
 
@@ -306,7 +306,7 @@ MuSiQue 是**最难的推理链数据集**（2-4 跳组合）。
 
 ## 八、总结
 
-IntentAgent 超越 baselines 的核心原因可归结为**四个 baselines 不具备或只部分具备的能力**：
+CollaRAG 超越 baselines 的核心原因可归结为**四个 baselines 不具备或只部分具备的能力**：
 
 ```
 性能优势 ≈ 意图路由 (~14%) + 动态编排 (~7%) + 反思回路 (~6%) + 经验记忆 (~4%) + 双路径兜底 (~3%)
@@ -320,4 +320,4 @@ IntentAgent 超越 baselines 的核心原因可归结为**四个 baselines 不�
 | 跨查询经验积累     | 阶段 C   | ~4%+ 飞轮 | 所有 baseline 均无——每次查询从零开始           |
 | 分类错误容错       | 阶段 A   | ~3%       | 无 baseline 有冗余兜底机制                     |
 
-**核心洞察：** 这不是"一个更强的检索算法"打败了其他检索算法，而是一个**多阶段智能编排系统**打败了**单一检索策略的方法**。各 baseline 各自在一个维度上做得不错（HippoRAG2 在图扩散、GraphRAG 在摘要聚合、RAPTOR 在层次树），但都没有解决"不同查询应该用不同方法"这个根本问题。IntentAgent 的三阶段架构（A→B→C）正是围绕这个核心洞察设计的——先分类（A），再动态组合（B），最后积累经验让下次更快（C）。
+**核心洞察：** 这不是"一个更强的检索算法"打败了其他检索算法，而是一个**多阶段智能编排系统**打败了**单一检索策略的方法**。各 baseline 各自在一个维度上做得不错（HippoRAG2 在图扩散、GraphRAG 在摘要聚合、RAPTOR 在层次树），但都没有解决"不同查询应该用不同方法"这个根本问题。CollaRAG 的三阶段架构（A→B→C）正是围绕这个核心洞察设计的——先分类（A），再动态组合（B），最后积累经验让下次更快（C）。

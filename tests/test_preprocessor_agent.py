@@ -3,7 +3,7 @@ from langchain_core.tools import StructuredTool
 
 from chimera_rag.core.types import Query
 from chimera_rag.interfaces.base_agent import AgentContext
-from chimera_rag.plugins.intent_agent.agents.preprocessor import PreprocessorAgent
+from chimera_rag.plugins.colla_rag.agents.preprocessor import PreprocessorAgent
 
 
 def _mock_rewrite_tool():

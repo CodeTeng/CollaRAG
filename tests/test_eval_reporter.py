@@ -9,7 +9,7 @@ from chimera_rag.core.types import EvalResult
 
 def _sample_result() -> EvalResult:
     return EvalResult(
-        config_name="deepseek_intent_only",
+        config_name="deepseek_colla_rag_only",
         metrics={"em": 0.8, "f1": 0.85, "rouge_l": 0.82, "avg_latency_s": 4.3},
         usage={"prompt_tokens": 1200, "completion_tokens": 300, "total_tokens": 1500, "calls": 2},
         elapsed_s=9.0,

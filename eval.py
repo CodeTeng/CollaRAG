@@ -12,13 +12,13 @@ Usage:
 
     # single-directory scoring
     uv run python eval.py \
-        --predictions output/mock_wiki/deepseek_intent_only/ \
+        --predictions output/mock_wiki/deepseek_colla_rag_only/ \
         --metrics em,f1,rouge_l
 
     # multi-directory comparison
     uv run python eval.py \
         --predictions output/mock_wiki/vanilla/ \
-                      output/mock_wiki/intent_only/ \
+                      output/mock_wiki/colla_rag_only/ \
         --out output/mock_wiki/compare/ \
         --metrics em,f1,rouge_l
 """

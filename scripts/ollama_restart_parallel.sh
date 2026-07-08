@@ -9,7 +9,7 @@
 #   3) 设 OLLAMA_KEEP_ALIVE=30m 让 qwen3:8b 30 分钟内不卸载
 #   4) 后台启动，日志输出到 ~/.ollama/logs/server.log
 #
-# 与之配套的 yaml 设置：configs/ollama_intent_only.yaml 的
+# 与之配套的 yaml 设置：configs/ollama_colla_rag_only.yaml 的
 #   ingestion.extractor.params.extract_workers: 4
 # 两边并发数对齐才有效。
 

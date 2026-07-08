@@ -236,11 +236,11 @@ plan.md §目录结构 第 346–348 行规划的三个测试文件均已落地�
 
 ---
 
-## 7. 与 IntentAgent 的正交性
+## 7. 与 CollaRAG 的正交性
 
 AdaGraph **只写** `PipelineState.graph_store / vector_store / chunk_lookup`，不读取它们；更不会触碰查询阶段的任何插槽。这带来了两个好处：
 
-1. **消融实验干净**：可以把 IntentAgent 关掉只比较"图好不好"的贡献，或把 AdaGraph 关掉只比较"查得聪不聪明"的贡献；
-2. **协同效应可度量**：full 配置相对 `adagraph_only + intent_agent_only` 的增益超出两者加和的部分，就是真正的协同——这是答辩时"1+1>2"的定量依据。
+1. **消融实验干净**：可以把 CollaRAG 关掉只比较"图好不好"的贡献，或把 AdaGraph 关掉只比较"查得聪不聪明"的贡献；
+2. **协同效应可度量**：full 配置相对 `adagraph_only + colla_rag_only` 的增益超出两者加和的部分，就是真正的协同——这是答辩时"1+1>2"的定量依据。
 
-关于 IntentAgent 侧的实装细节，见 `docs/innovation-2/intent-agent.md`。
+关于 CollaRAG 侧的实装细节，见 `docs/innovation-2/colla-rag.md`。

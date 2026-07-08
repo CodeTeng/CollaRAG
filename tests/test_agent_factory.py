@@ -1,7 +1,7 @@
 """Tests for AgentFactory and ToolSetBuilder."""
 from langchain_core.tools import StructuredTool
 
-from chimera_rag.plugins.intent_agent.agent_factory import (
+from chimera_rag.plugins.colla_rag.agent_factory import (
     TOOL_MATRIX,
     AgentFactory,
     ToolSetBuilder,

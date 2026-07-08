@@ -2,7 +2,7 @@
 # deepseek_full.yaml
 #
 # 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
-#       两个创新点（AdaGraph + 多Agent IntentAgent）全部启用。
+#       两个创新点（AdaGraph + 多Agent CollaRAG）全部启用。
 # 典型场景：
 #   - 最终演示配置：展示两创新点叠加后的 EM / F1 / ROUGE-L 最高分
 #   - 与 deepseek_vanilla 对比展示完整增益
@@ -78,13 +78,13 @@ ingestion:
       similarity_threshold: 0.85
       enable_transitive: false
 
-# IntentAgent ON — 多Agent架构
+# CollaRAG ON — 多Agent架构
 query:
   intent_classifier:
-    active: intent_agent.tree
+    active: colla_rag.tree
     params: {}
   retriever:
-    active: intent_agent.multi_agent
+    active: colla_rag.multi_agent
     params: {}
   generator:
     active: defaults.prompt
@@ -102,7 +102,7 @@ plugins:
     dual_pruner:
       similarity_threshold: 0.85
       enable_transitive: false
-  intent_agent:
+  colla_rag:
     enabled: true
     multi_agent:
       classifier:

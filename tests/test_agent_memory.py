@@ -1,7 +1,7 @@
 """Tests for AgentPrivateMemory."""
 import tempfile
 
-from chimera_rag.plugins.intent_agent.memory.agent_memory import AgentPrivateMemory
+from chimera_rag.plugins.colla_rag.memory.agent_memory import AgentPrivateMemory
 
 
 def test_remember_and_recall():
