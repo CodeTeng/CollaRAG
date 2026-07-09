@@ -71,10 +71,3 @@ top-k 检索结果中命中至少一条 gold evidence 的查询比例。k=5 和 
 **分析**：CollaRAG 在证据支撑率上平均领先 HippoRAG2 5.4 个百分点。2Wiki 上表现最好（0.815），因为两跳推理的 evidence chain 相对完整，PER 的两步分解通常能覆盖全部 gold evidence。MuSiQue-Full 上 sentence-level 支撑率降至 0.728——4 跳场景下个别中间步骤可能缺少直接证据，但 Synthesize 阶段会基于已有证据推断，这些推断句在 sentence-level 评估中标记为"无直接证据"。
 
 ---
-
-## 结论
-
-1. **Recall@10 全面领先**：CollaRAG 在四个多跳数据集上 R@10 达到 0.755-0.872，比 HippoRAG2 高 6.1-7.3 点
-2. **忠实性评分首次突破 0.8**：平均 0.801，比 HippoRAG2 高 4.3 点
-3. **幻觉率比最强 baseline 低 4.9 个百分点**：平均 16.7%，PER 的 Reflect 和 Synthesize 阶段是关键
-4. **Query Triage 对检索质量和忠实性的贡献均最大**：正确的 Agent 路由是确保多跳查询获得多步检索和证据验证的前提
