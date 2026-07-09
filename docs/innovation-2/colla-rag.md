@@ -18,7 +18,7 @@
 - [7. Summarization Agent](#7-summarization-agent)
 - [8. Other Agent](#8-other-agent)
 - [9. Greeting 短路](#9-greeting-短路)
-- [10. 共享工具层（22 个工具）](#10-共享工具层22-个工具)
+- [10. 共享工具层（31 个工具）](#10-共享工具层31-个工具)
 - [11. 双层记忆架构](#11-双层记忆架构)
 - [12. 设计模式](#12-设计模式)
 - [13. 配置开关](#13-配置开关)
@@ -193,11 +193,13 @@ Level-2: LLM 分类 → single_hop | multi_hop | summarization | other
 hybrid_search(query, top_k=10) → assess_evidence（一次性质量检查）→ LLM 生成
 ```
 
-**可用工具**（10 个）：
+**可用工具**（15 个）：
 - 检索：`vector_search`、`bm25_search`、`hybrid_search`、`graph_neighbors`
 - 推理：`assess_evidence`、`rerank`
 - 记忆：`read_shared_memory`、`read_agent_memory`
 - IO：`save_to_file`、`load_from_file`
+- 验证：`answer_verify`
+- 证据处理：`evidence_dedup`、`confidence_calibrate`
 
 **质量检查**：`assess_evidence` 仅做**一次性**轻量检查，不触发循环。若 `quality < quality_threshold`（默认 0.4），在 trace 中标记 `low_confidence`。
 
@@ -236,10 +238,13 @@ Phase 3: Reflect（反思综合）
 
 **可用工具**（15 个）：
 - 检索：`vector_search`、`bm25_search`、`hybrid_search`、`graph_neighbors`、`graph_path_search`、`graph_community_search`
+- 图分析：`graph_subgraph_extract`、`graph_statistics`
 - 实体：`entity_extract`、`relation_extract`、`entity_link`
 - 推理：`sub_query_decompose`、`assess_evidence`、`rerank`
 - 记忆：`read_session_context`、`read_shared_memory`、`read_agent_memory`
 - IO：`save_to_file`、`load_from_file`
+- 验证：`answer_verify`、`claim_decompose`、`source_attribution`
+- 证据处理：`temporal_filter`、`evidence_dedup`、`chunk_summarize`、`confidence_calibrate`
 
 **Plan 阶段**：使用 `PLAN_PROMPT` 让 LLM 分析 query 并输出 JSON 步骤列表。若 LLM 返回无法解析，降级为单步计划 `[{"step": original_query}]`。步骤数上限由 `max_plan_steps`（默认 5）控制。
 
@@ -279,6 +284,8 @@ hybrid_search(query, top_k=50) → Map（每个 chunk 独立 LLM 摘要）→ Re
 - 推理：`rerank`
 - 记忆：`read_shared_memory`、`read_agent_memory`
 - IO：`save_to_file`、`load_from_file`
+- 验证：`source_attribution`
+- 证据处理：`chunk_summarize`、`evidence_dedup`、`confidence_calibrate`
 
 **Map 阶段**：对每个检索到的 chunk 独立调用 LLM 提取与 query 相关的关键信息。
 
@@ -306,6 +313,7 @@ web_search(query, max_results=5) → hybrid_search（可选补充本地）→ LL
 - Web：`web_search`、`web_fetch`
 - 记忆：`read_shared_memory`、`read_agent_memory`
 - IO：`save_to_file`、`load_from_file`
+- 证据处理：`confidence_calibrate`
 
 **搜索后端**：DuckDuckGo（免费无 key），通过 `web_tools.py` 封装。
 
@@ -323,7 +331,7 @@ if label == "greeting":
 
 ---
 
-## 10. 共享工具层（22 个工具）
+## 10. 共享工具层（31 个工具）
 
 所有工具统一实现为 `langchain_core.tools.StructuredTool`，参数由 Pydantic schema 校验。每个 Agent 通过 `ToolSetBuilder` 按 `TOOL_MATRIX` 过滤可用工具子集。
 
@@ -381,7 +389,31 @@ if label == "greeting":
 | `save_to_file` | 结果/中间数据保存到文件 |
 | `load_from_file` | 从文件加载数据 |
 
-### 10.7 Agent ↔ 工具可用矩阵
+### 10.7 验证与溯源工具（`tools/verification_tools.py`）
+
+| 工具名 | 描述 |
+|---|---|
+| `answer_verify` | LLM 验证 draft answer 是否被 evidence 支持（verified/partially_verified/rejected） |
+| `claim_decompose` | 将文本拆解为原子可验证命题列表 |
+| `source_attribution` | 为 answer 中每个 claim 标注来源 chunk_id，生成可追溯引用链 |
+
+### 10.8 图谱分析工具（`tools/graph_advanced_tools.py`）
+
+| 工具名 | 描述 |
+|---|---|
+| `graph_subgraph_extract` | 围绕种子实体提取 k-hop 子图，LLM 生成结构化描述 |
+| `graph_statistics` | 返回图谱统计信息（节点/边数、top hubs、谓词分布、密度、孤立叶节点数） |
+
+### 10.9 证据处理工具（`tools/evidence_tools.py`）
+
+| 工具名 | 描述 |
+|---|---|
+| `temporal_filter` | 按年份范围过滤 evidence chunks（正则提取年份，无日期的 chunk 保留） |
+| `evidence_dedup` | Jaccard token 相似度去重，减少冗余证据 |
+| `chunk_summarize` | LLM 压缩单个 chunk（保留与 query 相关的关键事实） |
+| `confidence_calibrate` | 多信号加权置信度校准（证据覆盖度、query/evidence overlap、refusal 检测、长度） |
+
+### 10.10 Agent ↔ 工具可用矩阵
 
 | 工具 | Preprocessor | SingleHop | MultiHop | Summarization | Other |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -407,6 +439,15 @@ if label == "greeting":
 | `web_fetch` | | | | | ✅ |
 | `save_to_file` | | ✅ | ✅ | ✅ | ✅ |
 | `load_from_file` | | ✅ | ✅ | ✅ | ✅ |
+| `answer_verify` | | ✅ | ✅ | | |
+| `claim_decompose` | | | ✅ | | |
+| `source_attribution` | | | ✅ | ✅ | |
+| `graph_subgraph_extract` | | | ✅ | | |
+| `graph_statistics` | | | ✅ | | |
+| `temporal_filter` | | | ✅ | | |
+| `evidence_dedup` | | ✅ | ✅ | ✅ | |
+| `chunk_summarize` | | | ✅ | ✅ | |
+| `confidence_calibrate` | | ✅ | ✅ | ✅ | ✅ |
 
 ---
 

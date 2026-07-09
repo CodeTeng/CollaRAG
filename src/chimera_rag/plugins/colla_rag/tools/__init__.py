@@ -8,5 +8,8 @@ Tools are organized by category:
 - memory_tools: read/write session, shared, and agent-private memory
 - web_tools: web search, web fetch
 - io_tools: save/load to/from file
+- verification_tools: answer verify, claim decompose, source attribution
+- graph_advanced_tools: subgraph extraction, graph statistics
+- evidence_tools: temporal filter, evidence dedup, chunk summarize, confidence calibrate
 - quality_evaluator: heuristic quality scoring (no LLM)
 """

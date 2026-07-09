@@ -24,14 +24,22 @@ from chimera_rag.interfaces.llm_provider import BaseLLMProvider
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_PROMPT = """You are an expert knowledge-graph builder.
-From the text below, extract factual (subject, predicate, object) triples.
-Return a JSON array of objects with exactly the keys subject, predicate, object.
-Do not include explanations outside the JSON.
+DEFAULT_PROMPT = """# Role
+You are an expert knowledge-graph builder that extracts structured factual triples from text.
 
+# Task
+Extract all factual (subject, predicate, object) triples from the text below.
+
+# Context
 Text:
 {text}
-"""
+
+# Few-Shot
+Text: "Marie Curie was born in Warsaw and won the Nobel Prize in Physics in 1903."
+Output: [{{"subject": "Marie Curie", "predicate": "born_in", "object": "Warsaw"}}, {{"subject": "Marie Curie", "predicate": "won", "object": "Nobel Prize in Physics"}}, {{"subject": "Marie Curie", "predicate": "won_year", "object": "1903"}}]
+
+# Format
+Return a JSON array of objects with exactly the keys "subject", "predicate", "object". Do not include any explanations outside the JSON array."""
 
 
 @register("extractor", "defaults.simple_llm")

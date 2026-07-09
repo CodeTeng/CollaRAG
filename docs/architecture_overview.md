@@ -122,7 +122,7 @@ query
 
 ## 6. CollaRAG 多Agent内部架构
 
-### 6.1 共享工具层（22 个工具）
+### 6.1 共享工具层（31 个工具）
 
 | 分类 | 工具 |
 |---|---|
@@ -133,6 +133,9 @@ query
 | **记忆** | `read_session_context` · `write_session_context` · `read_shared_memory` · `write_shared_memory` · `read_agent_memory` · `write_agent_memory` |
 | **Web** | `web_search` · `web_fetch` |
 | **IO** | `save_to_file` · `load_from_file` |
+| **验证** | `answer_verify` · `claim_decompose` · `source_attribution` |
+| **图分析** | `graph_subgraph_extract` · `graph_statistics` |
+| **证据处理** | `temporal_filter` · `evidence_dedup` · `chunk_summarize` · `confidence_calibrate` |
 
 每个 Agent 只能使用 `TOOL_MATRIX` 中指定的工具子集（由 `ToolSetBuilder` 在创建时过滤）。
 
@@ -160,6 +163,15 @@ query
 | `web_fetch` | | | | | ✅ |
 | `save/load_from_file` | | ✅ | ✅ | ✅ | ✅ |
 | `read/write_*_memory` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `answer_verify` | | ✅ | ✅ | | |
+| `claim_decompose` | | | ✅ | | |
+| `source_attribution` | | | ✅ | ✅ | |
+| `graph_subgraph_extract` | | | ✅ | | |
+| `graph_statistics` | | | ✅ | | |
+| `temporal_filter` | | | ✅ | | |
+| `evidence_dedup` | | ✅ | ✅ | ✅ | |
+| `chunk_summarize` | | | ✅ | ✅ | |
+| `confidence_calibrate` | | ✅ | ✅ | ✅ | ✅ |
 
 ### 6.3 双层记忆架构
 

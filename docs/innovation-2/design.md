@@ -156,7 +156,31 @@
 | `save_to_file` | **新增** | 将结果/中间数据保存到指定路径 | `path: str, content: str, format: str="json"` |
 | `load_from_file` | **新增** | 从文件加载数据 | `path: str` |
 
-### 5.7 Agent ↔ 工具可用矩阵
+### 5.7 验证与溯源工具
+
+| 工具名 | 新增/复用 | 描述 | Pydantic 参数 |
+|---|---|---|---|
+| `answer_verify` | **新增** | LLM 验证 answer 是否被 evidence 支持 | `query: str, draft_answer: str` |
+| `claim_decompose` | **新增** | 将文本拆为原子可验证命题 | `text: str` |
+| `source_attribution` | **新增** | 为 answer 每个 claim 标注来源 chunk_id | `query: str, answer: str` |
+
+### 5.8 图谱分析工具
+
+| 工具名 | 新增/复用 | 描述 | Pydantic 参数 |
+|---|---|---|---|
+| `graph_subgraph_extract` | **新增** | 围绕种子实体提取 k-hop 子图 + LLM 描述 | `entities: list[str], hops: int=2, max_triples: int=50` |
+| `graph_statistics` | **新增** | 图谱统计（节点/边数、hub、密度） | 无参数 |
+
+### 5.9 证据处理工具
+
+| 工具名 | 新增/复用 | 描述 | Pydantic 参数 |
+|---|---|---|---|
+| `temporal_filter` | **新增** | 按年份范围过滤 evidence chunks | `year_min: int=0, year_max: int=2100` |
+| `evidence_dedup` | **新增** | Jaccard 相似度语义去重 | `similarity_threshold: float=0.8` |
+| `chunk_summarize` | **新增** | LLM 压缩单个 chunk（保留关键事实） | `query: str, chunk_id: str, max_length: int=300` |
+| `confidence_calibrate` | **新增** | 多信号加权置信度校准 | `query: str, answer: str` |
+
+### 5.10 Agent ↔ 工具可用矩阵
 
 | 工具 | Preprocessor | SingleHop | MultiHop | Summarization | Other |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -182,6 +206,15 @@
 | `web_fetch` | | | | | ✅ |
 | `save_to_file` | | ✅ | ✅ | ✅ | ✅ |
 | `load_from_file` | | ✅ | ✅ | ✅ | ✅ |
+| `answer_verify` | | ✅ | ✅ | | |
+| `claim_decompose` | | | ✅ | | |
+| `source_attribution` | | | ✅ | ✅ | |
+| `graph_subgraph_extract` | | | ✅ | | |
+| `graph_statistics` | | | ✅ | | |
+| `temporal_filter` | | | ✅ | | |
+| `evidence_dedup` | | ✅ | ✅ | ✅ | |
+| `chunk_summarize` | | | ✅ | ✅ | |
+| `confidence_calibrate` | | ✅ | ✅ | ✅ | ✅ |
 
 > \* Native RAG 的 `assess_evidence` 仅在最终结果上做**一次性**轻量质量检查（不触发循环），在 trace 中标记 `low_confidence`。
 
@@ -642,7 +675,10 @@ src/chimera_rag/plugins/colla_rag/
 │   ├── preprocess_tools.py              # query_rewrite/coreference/followup
 │   ├── memory_tools.py                  # read/write session/shared/agent memory
 │   ├── web_tools.py                     # web_search/web_fetch
-│   └── io_tools.py                      # save_to_file/load_from_file
+│   ├── io_tools.py                      # save_to_file/load_from_file
+│   ├── verification_tools.py            # answer_verify/claim_decompose/source_attribution
+│   ├── graph_advanced_tools.py          # graph_subgraph_extract/graph_statistics
+│   └── evidence_tools.py               # temporal_filter/evidence_dedup/chunk_summarize/confidence_calibrate
 ├── memory/
 │   ├── __init__.py
 │   ├── shared_memory.py                 # 共享记忆（路由统计/QA缓存/实体别名/改写模板）

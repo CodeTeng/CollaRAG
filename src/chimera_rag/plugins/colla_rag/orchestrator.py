@@ -55,10 +55,13 @@ class MultiAgentRetriever(BaseRetriever):
 
     def _build_tools(self, accumulator: ToolAccumulator) -> list:
         from chimera_rag.plugins.colla_rag.tools.entity_tools import build_entity_tools
+        from chimera_rag.plugins.colla_rag.tools.evidence_tools import build_evidence_tools
+        from chimera_rag.plugins.colla_rag.tools.graph_advanced_tools import build_graph_advanced_tools
         from chimera_rag.plugins.colla_rag.tools.io_tools import build_io_tools
         from chimera_rag.plugins.colla_rag.tools.memory_tools import build_memory_tools
         from chimera_rag.plugins.colla_rag.tools.preprocess_tools import build_preprocess_tools
         from chimera_rag.plugins.colla_rag.tools.reasoning_tools import build_reasoning_tools
+        from chimera_rag.plugins.colla_rag.tools.verification_tools import build_verification_tools
         from chimera_rag.plugins.colla_rag.tools.web_tools import build_web_tools
 
         all_tools = []
@@ -90,6 +93,15 @@ class MultiAgentRetriever(BaseRetriever):
         ))
         all_tools.extend(build_web_tools())
         all_tools.extend(build_io_tools())
+        all_tools.extend(build_verification_tools(
+            llm=self.llm, accumulator=accumulator,
+        ))
+        all_tools.extend(build_graph_advanced_tools(
+            llm=self.llm, graph_store=self.graph_store, accumulator=accumulator,
+        ))
+        all_tools.extend(build_evidence_tools(
+            llm=self.llm, accumulator=accumulator, chunk_lookup=self.chunk_lookup,
+        ))
         return all_tools
 
     @staticmethod

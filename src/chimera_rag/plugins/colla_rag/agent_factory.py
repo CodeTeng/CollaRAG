@@ -18,14 +18,20 @@ TOOL_MATRIX: dict[str, list[str]] = {
         "assess_evidence", "rerank",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
+        "answer_verify", "confidence_calibrate",
+        "evidence_dedup",
     ],
     "multi_hop": [
         "vector_search", "bm25_search", "hybrid_search",
         "graph_neighbors", "graph_path_search", "graph_community_search",
+        "graph_subgraph_extract", "graph_statistics",
         "entity_extract", "relation_extract", "entity_link",
         "sub_query_decompose", "assess_evidence", "rerank",
         "read_session_context", "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
+        "answer_verify", "claim_decompose", "source_attribution",
+        "temporal_filter", "evidence_dedup", "chunk_summarize",
+        "confidence_calibrate",
     ],
     "summarization": [
         "vector_search", "bm25_search", "hybrid_search",
@@ -33,12 +39,15 @@ TOOL_MATRIX: dict[str, list[str]] = {
         "entity_extract",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
+        "chunk_summarize", "evidence_dedup",
+        "source_attribution", "confidence_calibrate",
     ],
     "other": [
         "hybrid_search", "web_search", "web_fetch",
         "entity_extract",
         "read_shared_memory", "read_agent_memory",
         "save_to_file", "load_from_file",
+        "confidence_calibrate",
     ],
 }
 

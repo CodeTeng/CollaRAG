@@ -66,7 +66,7 @@ We introduce \sys{}, a multi-agent RAG framework built on the principle of \emph
 \textbf{First}, \emph{Intent-Aware Query Triage}, a two-level classifier that routes each query to the best-suited specialist via one-shot, irreversible dispatch, replacing the one-pipeline-fits-all bottleneck and enabling clean per-agent ablation.
 \textbf{Second}, a \emph{Plan-Execute-Reflect} workflow for the multi-hop agent, which decomposes complex queries into a bounded retrieval plan, executes each step through a mini-ReAct loop~\citep{yao2023react}, and self-reflects on evidence gaps before synthesis.
 \textbf{Third}, \emph{Dual-Layer Experiential Memory}, pairing a cross-agent shared memory (QA caching, routing statistics, entity aliases) with per-agent private memory that accumulates successful retrieval patterns over time.
-Five agents---a preprocessor and four task specialists---share a pool of 22 retrieval, reasoning, and memory tools, with access governed by a static tool-permission matrix that enforces capability specialization.
+Five agents---a preprocessor and four task specialists---share a pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by a static tool-permission matrix that enforces capability specialization.
 On six QA benchmarks spanning single-hop (NQ, PopQA), multi-hop (HotpotQA, 2WikiMultiHopQA, MuSiQue), and long-form summarization (ASQA), \sys{} outperforms nine baselines including the previous SOTA HippoRAG2~\citep{gutierrez2025hipporag2} under both Qwen3-8B and Qwen3-32B backbones.
 The largest gain is on ASQA, $+7.2$ F1 (Qwen3-8B), where no baseline runs a dedicated aggregation pipeline; on factoid and multi-hop sets, where baselines already retrieve well, gains come from reranking, sub-query decomposition, and reflection ($+1.8$ to $+5.7$ F1, Qwen3-8B).
 Ablation studies confirm that intent-aware routing is the single most impactful component, contributing $5.9$--$12.2$ EM points when removed.
@@ -148,7 +148,7 @@ Similarly, an intelligent retrieval system should route queries to specialized a
 We introduce \sys{}, a framework that replaces the monolithic retrieval pipeline with intent-conditioned specialist execution.
 \sys{} routes queries into five handling modes---greeting short-circuit, SingleHop, MultiHop, Summarization, and Other---supported by a Preprocessor agent and four task-specialist agents.
 An \emph{intent-aware query triage} module classifies incoming queries and dispatches each to the matching handler.
-Each task agent draws from a shared pool of 22 retrieval, reasoning, and memory tools, with access governed by a static \emph{tool-permission matrix} that enforces capability specialization.
+Each task agent draws from a shared pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by a static \emph{tool-permission matrix} that enforces capability specialization.
 The MultiHop agent employs a novel \emph{Plan-Execute-Reflect} workflow.
 A \emph{dual-layer memory system} enables cross-agent coordination and per-agent progressive learning.
 
@@ -280,7 +280,7 @@ The three contributions of this paper sit at the decision points of this flow: h
 \begin{figure*}[t]
 \centering
 \fbox{\parbox{0.96\textwidth}{\centering\vspace{3.2cm}\textbf{TODO: End-to-End Pipeline of \sys{}}\\[3pt]\smallskip
-\small Left-to-right flow: a user query enters the orchestrator and passes through six stages --- (1) intent classification, (2) greeting short-circuit, (3) QA-cache lookup, (4) Preprocessor (rewrite / coreference / follow-up merge), (5) dispatch to one of four task-specialist agents (SingleHop / MultiHop / Summarization / Other), (6) post-processing (memory writes, trace). The four task-specialist agents sit in a row (the Preprocessor sits upstream), all five agents drawing from a shared pool of 22 tools filtered by the tool-permission matrix; the dual-layer memory (Shared + Private + Session) sits underneath. Arrows: query $\to$ triage $\to$ agent $\to$ post-process $\to$ answer; dashed arrows from each agent to the shared tools and to shared memory; a lock icon on the dispatch arrow to mark one-shot, irreversible routing.\vspace{3.2cm}}}
+\small Left-to-right flow: a user query enters the orchestrator and passes through six stages --- (1) intent classification, (2) greeting short-circuit, (3) QA-cache lookup, (4) Preprocessor (rewrite / coreference / follow-up merge), (5) dispatch to one of four task-specialist agents (SingleHop / MultiHop / Summarization / Other), (6) post-processing (memory writes, trace). The four task-specialist agents sit in a row (the Preprocessor sits upstream), all five agents drawing from a shared pool of 31 tools filtered by the tool-permission matrix; the dual-layer memory (Shared + Private + Session) sits underneath. Arrows: query $\to$ triage $\to$ agent $\to$ post-process $\to$ answer; dashed arrows from each agent to the shared tools and to shared memory; a lock icon on the dispatch arrow to mark one-shot, irreversible routing.\vspace{3.2cm}}}
 \caption{End-to-end pipeline of \sys{}. The orchestrator routes each preprocessed query to one specialist agent; agents share a tool pool and a dual-layer memory. (Figure to be drawn.)}
 \label{fig:pipeline}
 \end{figure*}
@@ -295,6 +295,7 @@ The triage module answers one question per query: which specialist should run?
 It is a two-level cascade rather than a single classifier, because greetings are trivially detectable and should never pay the cost of a semantic LLM call.
 Level~1 is a regex filter for greeting patterns; a hit returns a direct LLM response and skips the rest of the pipeline.
 Level~2 sends the non-greeting query to the backbone LLM, which returns one of four labels---\texttt{single\_hop}, \texttt{multi\_hop}, \texttt{summarization}, or \texttt{other}---and a keyword rule fallback covers parse failures (summarization and comparative keywords, else \texttt{single\_hop}).
+The full classification prompt is given in Appendix~\ref{app:prompt_classify}.
 Formally, the routing decision is
 \begin{equation}
 a^{*}(q)=\mathrm{dispatch}\!\bigl(\,\underbrace{L_{2}(q)}_{\text{LLM label}}\!\circ\!\underbrace{L_{1}(q)}_{\text{regex}}\,\bigr),\quad a^{*}\in\{\text{SH},\text{MH},\text{SM},\text{OT}\}\cup\{\text{greet}\},
@@ -321,14 +322,15 @@ s(d)=\sum_{i\in\{\text{vec},\text{bm25}\}}\frac{1}{\mathrm{rank}_{i}(d)+k},
 \end{equation}
 optionally reranks, and generates after a one-shot quality check---the cheapest path, sufficient for a single-fact lookup.
 MultiHop runs the Plan-Execute-Reflect workflow of \S\ref{sec:per}.
-Summarization runs a Map-Reduce pipeline that retrieves a broad pool ($k\!=\!50$), summarizes each passage locally, and reduces the summaries into one overview, a shape of aggregation no factoid-retrieval pipeline provides.
+Summarization runs a Map-Reduce pipeline that retrieves a broad pool ($k\!=\!50$), summarizes each passage locally, and reduces the summaries into one overview, a shape of aggregation no factoid-retrieval pipeline provides (Appendix~\ref{app:prompt_summarization}).
 Other falls back to web search with optional local retrieval for out-of-domain queries.
-A Preprocessor agent rewrites the query (expansion, coreference resolution, follow-up merging) before triage; it holds no retrieval tools and only cleans the query text.
+A Preprocessor agent rewrites the query (expansion, coreference resolution, follow-up merging) before triage; it holds no retrieval tools and only cleans the query text (prompt templates in Appendix~\ref{app:prompt_preprocess}).
 
 \paragraph{Tool-permission matrix.}
-All five agents share one pool of 22 tools, but each agent sees only a curated subset (Table~\ref{tab:tool_matrix}).
-The matrix is the infrastructure-level enforcement of specialization: MultiHop alone can call graph path search and sub-query decomposition, while SingleHop works with a focused 12-tool set.
+All five agents share one pool of 31 tools, but each agent sees only a curated subset (Table~\ref{tab:tool_matrix}).
+The matrix is the infrastructure-level enforcement of specialization: MultiHop alone can call graph path search, sub-query decomposition, and claim verification, while SingleHop works with a focused 15-tool set.
 This prevents a nominally specialized agent from quietly behaving like a generalist.
+The complete tool inventory with per-tool descriptions is listed in Appendix~\ref{app:tools}.
 
 \begin{table}[t]
 \centering
@@ -337,18 +339,21 @@ This prevents a nominally specialized agent from quietly behaving like a general
 \toprule
 \textbf{Tool Category} & \textbf{PP} & \textbf{SH} & \textbf{MH} & \textbf{SM} & \textbf{OT} \\
 \midrule
-Retrieval (6)     & 0 & 4 & 6 & 4 & 1 \\
-Entity (3)        & 0 & 2 & 3 & 1 & 1 \\
-Reasoning (3)     & 0 & 2 & 3 & 1 & 0 \\
-Preprocessing (3) & 3 & 0 & 0 & 0 & 0 \\
-Memory (3 read)   & 2 & 2 & 3 & 2 & 2 \\
-Web (2)           & 0 & 0 & 0 & 0 & 2 \\
-IO (2)            & 0 & 2 & 2 & 2 & 2 \\
+Retrieval (6)           & 0 & 4 & 6 & 4 & 1 \\
+Entity (3)              & 0 & 2 & 3 & 1 & 1 \\
+Reasoning (3)           & 0 & 2 & 3 & 1 & 0 \\
+Preprocessing (3)       & 3 & 0 & 0 & 0 & 0 \\
+Memory (3 read)         & 2 & 2 & 3 & 2 & 2 \\
+Web (2)                 & 0 & 0 & 0 & 0 & 2 \\
+IO (2)                  & 0 & 2 & 2 & 2 & 2 \\
+Verification (3)        & 0 & 1 & 3 & 1 & 0 \\
+Graph Analysis (2)      & 0 & 0 & 2 & 0 & 0 \\
+Evidence (4)            & 0 & 2 & 4 & 3 & 1 \\
 \midrule
-\textbf{Total}    & 5 & 12 & 17 & 10 & 8 \\
+\textbf{Total}          & 5 & 15 & 26 & 14 & 9 \\
 \bottomrule
 \end{tabular}
-\caption{Tool-permission matrix. PP=Preprocessor, SH=SingleHop, MH=MultiHop, SM=Summarization, OT=Other. The MultiHop agent has the richest toolkit (17/22), reflecting its need for graph traversal, sub-query decomposition, and evidence assessment.}
+\caption{Tool-permission matrix. PP=Preprocessor, SH=SingleHop, MH=MultiHop, SM=Summarization, OT=Other. The MultiHop agent has the richest toolkit (26/31), reflecting its need for graph traversal, sub-query decomposition, answer verification, and evidence assessment.}
 \label{tab:tool_matrix}
 \end{table}
 
@@ -361,6 +366,7 @@ IO (2)            & 0 & 2 & 2 & 2 & 2 \\
 Multi-hop queries are the hardest case: the answer depends on a chain of facts spread across passages, and a single retrieval pass usually returns one link without the others.
 A flat ReAct loop~\citep{yao2023react} interleaves thought and action greedily, which (i) never commits to an explicit plan and (ii) has no principled way to notice that evidence is incomplete.
 The Plan-Execute-Reflect (PER) workflow separates these two concerns from execution itself, into three phases.
+The full prompt templates for each phase are provided in Appendix~\ref{app:prompt_multihop}.
 
 \begin{figure}[t]
 \centering
@@ -831,53 +837,379 @@ Confidence-based adaptive routing (escalating from SingleHop to MultiHop when qu
 % ===================================================================
 \appendix
 
+% ===================================================================
+% APPENDIX A: PROMPT TEMPLATES
+% ===================================================================
 \section{Prompt Templates}
 \label{app:prompts}
 
-All prompts are centralized in a single module for reproducibility.
-\sloppy
+All prompts are centralized in a single module (\texttt{prompts.py}) for reproducibility.
+Each template follows a unified structure: \textbf{Role} $\to$ \textbf{Task} $\to$ \textbf{Context} $\to$ \textbf{Format}, with optional \textbf{Few-Shot}, \textbf{COT}, and \textbf{Constraints} blocks.
+This appendix lists the core prompts that drive the three innovations.
 
-\paragraph{Intent Classification.}
+% -------------------------------------------------------------------
+% A.1 Intent Classification
+% -------------------------------------------------------------------
+\subsection{Intent Classification (\S\ref{sec:triage})}
+\label{app:prompt_classify}
+
 \begin{quote}
 \small\ttfamily
-Classify the following query into exactly one category.
-Categories: single\_hop (simple factual), multi\_hop (multi-fact reasoning/comparison), summarization (overview/synthesis), other (out-of-domain).
-Query: \{query\}. Respond with ONLY the category name.
+\textbf{\# Role}\\
+You are a query intent classifier for a Retrieval-Augmented Generation system.\\[4pt]
+\textbf{\# Task}\\
+Classify the following query into exactly one category.\\[4pt]
+\textbf{\# Context}\\
+Categories and their definitions:\\
+- single\_hop: simple factual question answerable from one passage\\
+- multi\_hop: requires reasoning across multiple facts, comparison, or exploration\\
+- summarization: asks for a summary, overview, or synthesis of information\\
+- other: does not fit any above category (e.g.\ weather, jokes, math)\\[4pt]
+Query: \{query\}\\[4pt]
+\textbf{\# Format}\\
+Respond with ONLY the category name (single\_hop / multi\_hop / summarization / other), nothing else.
 \end{quote}
+
+% -------------------------------------------------------------------
+% A.2 Preprocessor Prompts
+% -------------------------------------------------------------------
+\subsection{Preprocessor Agent Prompts}
+\label{app:prompt_preprocess}
+
+\paragraph{Query Rewrite.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a query rewriting specialist that improves search queries for better retrieval.\\[4pt]
+\textbf{\# Task}\\
+Rewrite the following query to be clearer, more specific, and self-contained while preserving the original intent.\\[4pt]
+\textbf{\# Context}\\
+Conversation context: \{context\}\\
+Original query: \{query\}\\[4pt]
+\textbf{\# Format}\\
+Output only the rewritten query, no explanations or prefixes.
+\end{quote}
+
+\paragraph{Coreference Resolution.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a coreference resolution specialist that replaces pronouns with explicit entity names.\\[4pt]
+\textbf{\# Task}\\
+Resolve all pronouns and references in the query using the conversation history.\\[4pt]
+\textbf{\# Context}\\
+Conversation history: \{history\}\\
+Current query: \{query\}\\[4pt]
+\textbf{\# Few-Shot}\\
+History: ``Who is Albert Einstein?'' | ``He developed the theory of relativity.''\\
+Query: Where was he born?\\
+Resolved: Where was Albert Einstein born?\\[4pt]
+\textbf{\# Format}\\
+Output only the resolved query with all pronouns replaced by explicit entities.
+\end{quote}
+
+\paragraph{Follow-up Merge.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a conversational query merger that combines follow-up questions with prior context into standalone queries.\\[4pt]
+\textbf{\# Task}\\
+Rewrite the follow-up question into a single self-contained query that does not depend on prior conversation.\\[4pt]
+\textbf{\# Context}\\
+Previous question: \{prev\_query\}\\
+Previous answer: \{prev\_answer\}\\
+Follow-up question: \{query\}\\[4pt]
+\textbf{\# Few-Shot}\\
+Previous question: What is the capital of France?\\
+Previous answer: Paris is the capital of France.\\
+Follow-up: What is its population?\\
+Self-contained query: What is the population of Paris, the capital of France?\\[4pt]
+\textbf{\# Format}\\
+Output only the self-contained query, no explanations.
+\end{quote}
+
+% -------------------------------------------------------------------
+% A.3 SingleHop Agent
+% -------------------------------------------------------------------
+\subsection{SingleHop Agent Prompt}
+\label{app:prompt_singlehop}
+
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a precise question-answering assistant that generates answers strictly based on provided evidence.\\[4pt]
+\textbf{\# Task}\\
+Answer the question using only the given evidence. If the evidence does not contain enough information, say ``I do not know.''\\[4pt]
+\textbf{\# Context}\\
+Evidence: \{evidence\}\\
+Question: \{query\}\\[4pt]
+\textbf{\# Format}\\
+Provide a concise, factual answer. Use the shortest accurate phrasing --- prefer entity names, numbers, or brief phrases over full sentences.
+\end{quote}
+
+% -------------------------------------------------------------------
+% A.4 MultiHop Agent (PER)
+% -------------------------------------------------------------------
+\subsection{MultiHop Agent Prompts (Plan-Execute-Reflect, \S\ref{sec:per})}
+\label{app:prompt_multihop}
 
 \paragraph{Plan Generation.}
 \begin{quote}
 \small\ttfamily
-You are a retrieval planning agent. Analyze the query and create a step-by-step retrieval plan. Break the query into independent sub-tasks. Output a JSON list of steps with ``step'' and ``tools\_hint'' fields.
+\textbf{\# Role}\\
+You are a retrieval planning agent that decomposes complex queries into step-by-step retrieval plans.\\[4pt]
+\textbf{\# Task}\\
+Analyze the query and create a retrieval plan:\\
+1. Identify the core entities and relationships\\
+2. Determine what independent pieces of information are needed\\
+3. Order sub-tasks so each step builds on prior results where needed\\
+4. For each step, suggest which retrieval tools would be most effective\\[4pt]
+\textbf{\# Context}\\
+Available tools: \{tool\_descriptions\}\\
+Query: \{query\}\\[4pt]
+\textbf{\# Format}\\
+Output a JSON list of steps. Each step has ``step'' (what to search/retrieve) and ``tools\_hint'' (suggested tools).\\[4pt]
+\textbf{\# Few-Shot}\\
+Query: ``Compare the populations of Tokyo and New York''\\
+Plan: [\{``step'': ``Find the population of Tokyo'', ``tools\_hint'': [``hybrid\_search'']\}, \{``step'': ``Find the population of New York'', ``tools\_hint'': [``hybrid\_search'']\}]
+\end{quote}
+
+\paragraph{Step Execution (ReAct).}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a retrieval execution agent using the ReAct (Reasoning + Acting) paradigm.\\[4pt]
+\textbf{\# Task}\\
+Execute step \{step\_num\} of the retrieval plan:\\
+1. Analyze what information is needed\\
+2. Choose the most appropriate tool\\
+3. Formulate precise tool inputs\\
+4. Evaluate the output --- if insufficient, try a different tool or refined query\\
+5. Summarize key findings once enough evidence is gathered\\[4pt]
+\textbf{\# Context}\\
+Plan step: \{step\_description\}\\
+Original query: \{query\}\\
+Previous steps evidence: \{previous\_evidence\}\\
+Available tools: \{tool\_descriptions\}\\[4pt]
+\textbf{\# COT}\\
+Thought: reason about what to do for this step\\
+Action: tool\_name\\
+Action Input: \{``param'': ``value''\}\\
+Observation: (tool result will appear here)\\
+\ldots\ (repeat if needed)\\
+Step Result: summarize what you found\\[4pt]
+\textbf{\# Format}\\
+Follow the COT format strictly. Begin with ``Thought:'' and end with ``Step Result:''.
 \end{quote}
 
 \paragraph{Reflection.}
 \begin{quote}
 \small\ttfamily
-Review the evidence gathered across all plan steps and identify gaps. Quality assessment: \{quality\_feedback\}. What important information is still missing? Be specific about what to search for.
+\textbf{\# Role}\\
+You are a retrieval quality assessor that identifies gaps in gathered evidence.\\[4pt]
+\textbf{\# Task}\\
+Review the evidence gathered across all plan steps and identify gaps:\\
+1. List all key facts the original query requires for a complete answer\\
+2. Check which facts are present in the step results\\
+3. Identify specific missing facts or relationships\\
+4. Propose concrete search strategies (tools + queries) to fill each gap\\[4pt]
+\textbf{\# Context}\\
+Original query: \{query\}\\
+Retrieval plan: \{plan\}\\
+Step results: \{step\_results\}\\
+Quality assessment: \{quality\_feedback\}\\[4pt]
+\textbf{\# Format}\\
+Output a structured analysis with:\\
+- Missing information: what specific facts are absent\\
+- Suggested actions: what to search for and which tools to use\\
+Be specific --- vague suggestions like ``search more'' are not helpful.
 \end{quote}
 
 \paragraph{Synthesis.}
 \begin{quote}
 \small\ttfamily
-Based on all gathered evidence from the retrieval plan, provide a comprehensive and accurate answer. Cite specific facts from the evidence.
+\textbf{\# Role}\\
+You are an evidence synthesis specialist that produces comprehensive answers from multi-step retrieval results.\\[4pt]
+\textbf{\# Task}\\
+Synthesize all gathered evidence into a final answer:\\
+1. Collect and organize all relevant facts\\
+2. Resolve any conflicts between different evidence sources\\
+3. Construct a coherent answer that addresses every aspect of the query\\
+4. Verify that no key aspect is left unanswered\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\
+Evidence from plan execution: \{all\_evidence\}\\[4pt]
+\textbf{\# Format}\\
+Provide a comprehensive answer that integrates facts from all evidence. Cite specific facts. Be accurate and do not hallucinate beyond what the evidence supports.
 \end{quote}
 
+% -------------------------------------------------------------------
+% A.5 Summarization Agent
+% -------------------------------------------------------------------
+\subsection{Summarization Agent Prompts}
+\label{app:prompt_summarization}
+
+\paragraph{Map (per-chunk extraction).}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are an information extraction specialist that identifies key facts relevant to a query.\\[4pt]
+\textbf{\# Task}\\
+Extract key information from the given passage that is relevant to answering the query.\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\
+Passage: \{text\}\\[4pt]
+\textbf{\# Format}\\
+Output a concise list of key facts and information extracted from the passage. Include only information relevant to the query.
+\end{quote}
+
+\paragraph{Reduce (synthesis).}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a summarization specialist that synthesizes extracted information into coherent summaries.\\[4pt]
+\textbf{\# Task}\\
+Combine the following extracted information fragments into a comprehensive, well-structured summary that answers the query.\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\
+Extracted information: \{summaries\}\\[4pt]
+\textbf{\# Format}\\
+Provide a coherent summary that integrates all relevant extracted information. Organize logically and avoid redundancy.
+\end{quote}
+
+% -------------------------------------------------------------------
+% A.6 Reasoning Tool Prompts
+% -------------------------------------------------------------------
+\subsection{Reasoning Tool Prompts}
+\label{app:prompt_tools}
+
+\paragraph{Sub-query Decomposition.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a query decomposition specialist that breaks complex questions into simpler sub-questions.\\[4pt]
+\textbf{\# Task}\\
+Decompose the following complex query into simpler, independent sub-queries that can each be answered separately.\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\[4pt]
+\textbf{\# Few-Shot}\\
+Query: ``What are the similarities and differences between photosynthesis and cellular respiration?''\\
+Sub-queries: [``What is photosynthesis and how does it work?'', ``What is cellular respiration and how does it work?'', ``What do photosynthesis and cellular respiration have in common?'', ``How do photosynthesis and cellular respiration differ?'']\\[4pt]
+\textbf{\# Format}\\
+Return a JSON list of strings. Maximum 4 sub-queries.
+\end{quote}
+
+\paragraph{Entity Extraction.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a named entity recognition specialist for knowledge graph queries.\\[4pt]
+\textbf{\# Task}\\
+Extract all named entities and key concepts from the query that could be used to search a knowledge graph.\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\[4pt]
+\textbf{\# Few-Shot}\\
+Query: ``What is the relationship between Einstein and the University of Zurich?''\\
+JSON: \{``entities'': [``Einstein'', ``University of Zurich'']\}\\[4pt]
+\textbf{\# Format}\\
+Return a JSON object with a single key ``entities'' containing a list of strings. Include only meaningful entities, not common words.
+\end{quote}
+
+\paragraph{Answer Verification.}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are a factual verification specialist that checks whether an answer is supported by evidence.\\[4pt]
+\textbf{\# Task}\\
+Verify the draft answer against the provided evidence:\\
+1. Identify each factual claim in the draft answer\\
+2. For each claim, check if it is directly supported by the evidence\\
+3. Flag any claim that is unsupported, contradicted, or hallucinated\\
+4. Produce a final verdict: verified, partially\_verified, or rejected\\[4pt]
+\textbf{\# Context}\\
+Question: \{query\}\\
+Draft answer: \{draft\_answer\}\\
+Evidence: \{evidence\}\\[4pt]
+\textbf{\# Format}\\
+Return a JSON object: \{``verdict'': ``verified|partially\_verified|rejected'', ``supported\_claims'': [\ldots], ``unsupported\_claims'': [\ldots], ``reason'': ``\ldots''\}
+\end{quote}
+
+% ===================================================================
+% APPENDIX B: FULL TOOL INVENTORY
+% ===================================================================
 \section{Full Tool Inventory}
 \label{app:tools}
 
-The 22 shared tools span six categories:
+The 31 shared tools span ten functional categories.
+Table~\ref{tab:tool_full} lists each tool with its inputs, outputs, LLM dependency, and which agents may invoke it (per the tool-permission matrix in Table~\ref{tab:tool_matrix}).
 
-\noindent\textbf{Retrieval (6):} \tool{vector\_search}, \tool{bm25\_search}, \tool{hybrid\_search}, \tool{graph\_neighbors}, \tool{graph\_path\_search}, \tool{graph\_community\_search}.
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{@{}lllcc@{}}
+\toprule
+\textbf{Category} & \textbf{Tool Name} & \textbf{Function} & \textbf{LLM?} & \textbf{Agents} \\
+\midrule
+\multirow{6}{*}{Retrieval}
+  & \tool{vector\_search}        & Dense embedding similarity search over FAISS index         & No  & SH, MH, SM \\
+  & \tool{bm25\_search}          & Sparse lexical search via BM25 inverted index              & No  & SH, MH, SM \\
+  & \tool{hybrid\_search}        & RRF fusion of dense + sparse, optional rerank              & No  & SH, MH, SM, OT \\
+  & \tool{graph\_neighbors}      & $k$-hop neighborhood expansion from seed entities          & No  & SH, MH \\
+  & \tool{graph\_path\_search}   & Shortest path between two entities in the KG               & No  & MH \\
+  & \tool{graph\_community}      & Community-level subgraph retrieval                         & No  & MH \\
+\midrule
+\multirow{3}{*}{Entity}
+  & \tool{entity\_extract}       & Extract named entities from query (LLM-based NER)          & Yes & SH, MH, SM, OT \\
+  & \tool{relation\_extract}     & Extract (subject, predicate, object) triples from query    & Yes & MH \\
+  & \tool{entity\_link}          & Map extracted entity names to canonical graph nodes        & Yes & SH, MH \\
+\midrule
+\multirow{3}{*}{Reasoning}
+  & \tool{sub\_query\_decompose} & Decompose complex query into $\le$4 independent sub-queries & Yes & MH \\
+  & \tool{assess\_evidence}      & Score evidence completeness for reflection ($\hat{q}\in[0,1]$) & No & SH, MH \\
+  & \tool{rerank}                & Cross-encoder reranking of retrieved chunks                & No  & SH, MH \\
+\midrule
+\multirow{3}{*}{Preprocessing}
+  & \tool{query\_rewrite}        & Expand and clarify query for better retrieval               & Yes & PP \\
+  & \tool{coreference\_resolve}  & Replace pronouns with explicit entity references            & Yes & PP \\
+  & \tool{followup\_merge}       & Merge follow-up question with prior context into standalone & Yes & PP \\
+\midrule
+\multirow{3}{*}{Memory}
+  & \tool{shared\_memory}        & Read/write QA cache, routing stats, entity aliases          & No  & All \\
+  & \tool{agent\_memory}         & Read/write per-agent per-intent experiential JSONL          & No  & SH, MH, SM, OT \\
+  & \tool{session\_context}      & Read/write in-process dialogue history                      & No  & PP, SH, MH, SM, OT \\
+\midrule
+\multirow{2}{*}{Web}
+  & \tool{web\_search}           & DuckDuckGo / SerpAPI external search                       & No  & OT \\
+  & \tool{web\_fetch}            & Fetch and parse a single URL                                & No  & OT \\
+\midrule
+\multirow{2}{*}{File I/O}
+  & \tool{save\_to\_file}        & Persist intermediate results to disk                        & No  & SH, MH, SM, OT \\
+  & \tool{load\_from\_file}      & Load previously saved results                               & No  & SH, MH, SM, OT \\
+\midrule
+\multirow{3}{*}{Verification}
+  & \tool{answer\_verify}        & Verify draft answer against evidence (supported/rejected)  & Yes & SH, MH \\
+  & \tool{claim\_decompose}      & Decompose text into atomic, independently verifiable claims & Yes & MH \\
+  & \tool{source\_attribution}   & Trace each answer claim back to its evidence chunk\_id     & Yes & MH, SM \\
+\midrule
+\multirow{2}{*}{Graph Analysis}
+  & \tool{graph\_subgraph\_extract} & Extract focused $k$-hop subgraph around seed entities   & Yes & MH \\
+  & \tool{graph\_statistics}     & Return graph-level statistics (nodes, edges, hubs, density)& No  & MH \\
+\midrule
+\multirow{4}{*}{Evidence}
+  & \tool{temporal\_filter}      & Filter evidence chunks by year/date range                  & No  & MH \\
+  & \tool{evidence\_dedup}       & Deduplicate chunks by Jaccard token similarity             & No  & SH, MH, SM \\
+  & \tool{chunk\_summarize}      & Compress a chunk while preserving query-relevant facts     & Yes & MH, SM \\
+  & \tool{confidence\_calibrate} & Multi-signal answer confidence score ($\in[0,1]$)          & No  & SH, MH, SM, OT \\
+\bottomrule
+\end{tabular}
+\caption{Full inventory of 31 shared tools. ``LLM?'' indicates whether the tool internally calls the backbone LLM. ``Agents'' lists which specialists may invoke each tool (PP=Preprocessor, SH=SingleHop, MH=MultiHop, SM=Summarization, OT=Other). Tools not assigned to an agent are invisible to it, enforced by the \texttt{ToolSetBuilder} and the tool-permission matrix (Table~\ref{tab:tool_matrix}).}
+\label{tab:tool_full}
+\end{table*}
 
-\noindent\textbf{Entity (3):} \tool{entity\_extract}, \tool{relation\_extract}, \tool{entity\_link}.
-
-\noindent\textbf{Reasoning (3):} \tool{sub\_query\_decompose}, \tool{assess\_evidence}, \tool{rerank}.
-
-\noindent\textbf{Preprocessing (3):} \tool{query\_rewrite}, \tool{coreference\_resolve}, \tool{followup\_merge}.
-
-\noindent\textbf{Memory (3):} \tool{shared\_memory} (read/write), \tool{agent\_memory} (read/write), \tool{session\_context} (read/write).
-
-\noindent\textbf{Web/IO (4):} \tool{web\_search}, \tool{web\_fetch}, \tool{save\_to\_file}, \tool{load\_from\_file}.
+\paragraph{Tool design principles.}
+Three design choices keep the tool layer manageable:
+(1)~\emph{Statelessness}: every tool is a pure function of its inputs plus the shared \texttt{PipelineState} (graph store, vector store, chunk lookup); no tool holds mutable state of its own, so tools compose freely.
+(2)~\emph{LLM isolation}: only 12 of 31 tools call the backbone LLM (entity extraction, relation extraction, entity linking, sub-query decomposition, query rewrite, coreference resolution, follow-up merge, answer verification, claim decomposition, source attribution, subgraph extraction, and chunk summarization); the rest are deterministic or use lightweight heuristics, keeping the per-query LLM budget predictable.
+(3)~\emph{Uniform interface}: every tool accepts a dictionary and returns a dictionary, enabling the agent's ReAct loop to dispatch any tool with a single \texttt{tool(name, params)} call.
 
 \end{document}
