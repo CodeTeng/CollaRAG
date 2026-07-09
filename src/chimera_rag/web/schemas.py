@@ -56,6 +56,20 @@ class ChunkPayload(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class AgentTracePayload(BaseModel):
+    agent_type: str | None = None
+    rewritten_query: str | None = None
+    original_query: str | None = None
+    plan: list[dict[str, Any]] = Field(default_factory=list)
+    step_results: list[str] = Field(default_factory=list)
+    tool_call_log: list[str] = Field(default_factory=list)
+    reflect_count: int = 0
+    quality: float | None = None
+    map_count: int | None = None
+    web_results_count: int | None = None
+    iterations: int | None = None
+
+
 class QueryResponse(BaseModel):
     answer: str
     intent: str | None = None
@@ -65,6 +79,7 @@ class QueryResponse(BaseModel):
     chunks: list[ChunkPayload] = Field(default_factory=list)
     triples: list[TriplePayload] = Field(default_factory=list)
     trace: dict[str, Any] = Field(default_factory=dict)
+    agent_trace: AgentTracePayload = Field(default_factory=AgentTracePayload)
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +134,41 @@ class ConfigUpdateRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Agents (CollaRAG Innovation 2)
+# ---------------------------------------------------------------------------
+class AgentInfo(BaseModel):
+    agent_type: str
+    cn_name: str
+    description: str
+    icon: str
+    color: str
+    tool_count: int
+    tool_names: list[str] = Field(default_factory=list)
+
+
+class ToolCategoryInfo(BaseModel):
+    category: str
+    cn_name: str
+    tools: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AgentsOverviewResponse(BaseModel):
+    enabled: bool
+    agent_count: int
+    tool_count: int
+    llm_tool_count: int
+    deterministic_tool_count: int
+    agents: list[AgentInfo] = Field(default_factory=list)
+    tool_categories: list[ToolCategoryInfo] = Field(default_factory=list)
+
+
+class ToolMatrixResponse(BaseModel):
+    matrix: dict[str, list[str]]
+    agent_types: list[str]
+    tool_totals: dict[str, int]
+
+
+# ---------------------------------------------------------------------------
 # Evaluation
 # ---------------------------------------------------------------------------
 class EvaluateRequest(BaseModel):
@@ -133,6 +183,9 @@ class EvaluateResponse(BaseModel):
 
 
 __all__ = [
+    "AgentInfo",
+    "AgentsOverviewResponse",
+    "AgentTracePayload",
     "ChunkPayload",
     "ConfigResponse",
     "ConfigUpdateRequest",
@@ -149,5 +202,7 @@ __all__ = [
     "PluginsResponse",
     "QueryRequest",
     "QueryResponse",
+    "ToolCategoryInfo",
+    "ToolMatrixResponse",
     "TriplePayload",
 ]

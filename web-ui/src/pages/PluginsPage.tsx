@@ -24,10 +24,10 @@ const PLUGIN_META: Record<
       "创新点一 — 动态粒度分块 + 分层三元组抽取 + 双重冗余剪枝，让图谱构建按语义密度自适应伸缩。",
     accent: "adagraph",
   },
-  intent_agent: {
-    cn: "IntentAgent · 意图感知智能体",
+  colla_rag: {
+    cn: "CollaRAG · 多智能体协作检索",
     tagline:
-      "创新点二 — 6 类意图分类 + 6 种检索策略 + 反思/重排/并行三个可选 Hook，查询像人一样先判断再行动。",
+      "创新点二 — 5 个专长智能体 + 31 个工具 + 10 类功能，Plan-Execute-Reflect 多跳推理 + 意图路由 + 工具权限矩阵。",
     accent: "intent",
   },
 };

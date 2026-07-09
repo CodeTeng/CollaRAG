@@ -70,6 +70,7 @@ def create_app(chimera: ChimeraRAG) -> FastAPI:
     _maybe_include_router(app, "plugins")
     _maybe_include_router(app, "config")
     _maybe_include_router(app, "evaluate")
+    _maybe_include_router(app, "agents")
 
     # ------------------------------------------------------------------
     # Static (frontend build)

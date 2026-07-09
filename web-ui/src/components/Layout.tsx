@@ -8,18 +8,20 @@ import {
   FileCog,
   History,
   Sparkles,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChimeraLogo } from "@/components/ChimeraLogo";
 
 const nav = [
-  { to: "/ingest",   label: "文档摄取",  icon: Upload,           hint: "构建知识图谱" },
-  { to: "/query",    label: "智能问答",  icon: MessageSquareText, hint: "基于图谱回答" },
-  { to: "/graph",    label: "图谱可视",  icon: Share2,            hint: "节点与关系" },
-  { to: "/evaluate", label: "数据集评测", icon: Gauge,             hint: "EM / F1 / 延迟" },
-  { to: "/plugins",  label: "插件开关",  icon: ToggleRight,       hint: "两创新点热切换" },
-  { to: "/config",   label: "在线配置",  icon: FileCog,           hint: "编辑 YAML" },
-  { to: "/trace",    label: "历史追踪",  icon: History,           hint: "每次查询详情" },
+  { to: "/ingest",   label: "文档摄取",    icon: Upload,           hint: "构建知识图谱" },
+  { to: "/query",    label: "智能问答",    icon: MessageSquareText, hint: "多智能体协作回答" },
+  { to: "/agents",   label: "智能体架构",  icon: Bot,               hint: "5 智能体 × 31 工具" },
+  { to: "/graph",    label: "图谱可视",    icon: Share2,            hint: "节点与关系" },
+  { to: "/evaluate", label: "数据集评测",  icon: Gauge,             hint: "EM / F1 / 延迟" },
+  { to: "/plugins",  label: "插件开关",    icon: ToggleRight,       hint: "两创新点热切换" },
+  { to: "/config",   label: "在线配置",    icon: FileCog,           hint: "编辑 YAML" },
+  { to: "/trace",    label: "历史追踪",    icon: History,           hint: "每次查询详情" },
 ];
 
 export function Layout() {
@@ -58,11 +60,11 @@ export function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-md border border-[var(--color-intent)]/30 bg-[var(--color-intent-soft)] px-3 py-2 text-xs">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--color-intent)]" />
+            <Bot className="h-3.5 w-3.5 text-[var(--color-intent)]" />
             <div className="flex-1 leading-tight">
-              <div className="font-semibold text-[var(--color-text)]">IntentAgent</div>
+              <div className="font-semibold text-[var(--color-text)]">CollaRAG</div>
               <div className="text-[0.65rem] text-[var(--color-text-subtle)]">
-                意图感知智能体
+                多智能体协作检索
               </div>
             </div>
           </div>

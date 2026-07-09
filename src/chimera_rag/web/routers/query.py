@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from chimera_rag import ChimeraRAG
 from chimera_rag.core.types import Query
 from chimera_rag.web.deps import get_chimera
-from chimera_rag.web.schemas import ChunkPayload, QueryRequest, QueryResponse, TriplePayload
+from chimera_rag.web.schemas import AgentTracePayload, ChunkPayload, QueryRequest, QueryResponse, TriplePayload
 
 router = APIRouter(tags=["query"])
 
@@ -49,6 +49,22 @@ def query(
         for t in retrieval.triples
     ]
 
+    trace_data = {**answer.trace, "retrieval_metadata": retrieval.metadata}
+
+    agent_trace = AgentTracePayload(
+        agent_type=trace_data.get("agent_type") or retrieval.metadata.get("agent"),
+        rewritten_query=trace_data.get("rewritten_query"),
+        original_query=trace_data.get("original_query"),
+        plan=trace_data.get("plan", []),
+        step_results=trace_data.get("step_results", []),
+        tool_call_log=trace_data.get("tool_call_log", []),
+        reflect_count=trace_data.get("reflect_count", 0),
+        quality=trace_data.get("quality"),
+        map_count=trace_data.get("map_count"),
+        web_results_count=trace_data.get("web_results_count"),
+        iterations=trace_data.get("iterations"),
+    )
+
     return QueryResponse(
         answer=answer.text,
         intent=answer.intent_label,
@@ -57,10 +73,8 @@ def query(
         evidence_chunk_ids=answer.evidence_chunk_ids,
         chunks=chunks,
         triples=triples,
-        trace={
-            **answer.trace,
-            "retrieval_metadata": retrieval.metadata,
-        },
+        trace=trace_data,
+        agent_trace=agent_trace,
     )
 
 
