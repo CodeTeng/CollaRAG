@@ -252,6 +252,8 @@ Phase 3: Reflect（反思综合）
 
 **Reflect 阶段**：所有步骤执行完毕后，调用 `assess_evidence` 评估整体证据质量。若 `quality < quality_threshold`（默认 0.6）且剩余反思预算（`reflect_retries`，默认 2），使用 `REFLECT_PROMPT` 生成反思文本，识别信息缺口，再执行一轮补充检索。最终用 `SYNTHESIZE_PROMPT` 综合所有证据生成最终答案。
 
+**Plan 阶段的失败教训规避（text-lesson fallback）**：Plan 之前，MultiHop 通过 `_recall_avoid_lessons(context.agent_memory)` 召回本桶（`multi_hop/multi_hop`）里**复发最多的失败经验**（`outcome="lesson"` 条目，按 `hit_count` 排序），渲染进 `GPER_PLAN_PROMPT` 的 `{avoid_lessons}` 槽，提示规划器**不要重复**已证实低质量的工具序列模式。这是图谱锚定 gap-lesson（3C）的**纯文本降级对应物**：graph-poor 设定下图谱缺口为空，它成为唯一可用的学习信号；graph-rich 设定下与结构化 gap-lesson 互补。召回失败或无记忆时优雅返回 `[]`，规划器无种子运行。trace 记录 `avoided_lessons` 计数。
+
 **trace 记录**：`plan`（执行计划）、`step_results`（每步结果）、`iterations`（总工具调用数）、`tool_call_log`（工具调用序列）、`reflect_count`（反思次数）、`quality`（最终质量分数）。
 
 **与旧 ReAct 循环的关键差异**：
@@ -494,17 +496,24 @@ if label == "greeting":
     tool_sequence: list[str], # 工具调用序列
     final_quality: float,     # 最终质量分数
     outcome: "success" | "lesson",
-    lesson: str | None,       # 失败教训
+    lesson: str | None,       # 失败教训（仅 outcome="lesson" 时）
     hit_count: int,           # 命中计数（用于热度排序/淘汰）
     created_at: str,          # ISO 时间戳
 }
 ```
 
-**去重合并**：同 `tool_sequence` + 同 `outcome` 的条目不重复写入，只更新 `final_quality` 和 `hit_count`。
+**失败教训的写入与召回**（`outcome="lesson"`）：
+
+- **写入**：`MultiAgentRetriever` 在每轮结束后按 `quality` 判定 `outcome`（`quality < 0.5` 记为 `lesson`），并调用 `_derive_lesson()` 从 trace 派生**结构化 lesson 文本**（不额外调用 LLM）：对 MultiHop 记录 `low_quality q=…; reflect=N; unresolved_gaps=[…]`（含 G-PER 反思产出的类型化缺口摘要），对其他 Agent 记录 `low_quality q=…; query='…'`。同一 `tool_sequence + outcome` 的条目去重合并时，`final_quality` 取最大、`hit_count` 自增、`lesson` 文本**刷新为最新一次的反思摘要**。
+- **召回**：`recall()` 返回「先 success（按质量降序）后 lesson（按 hit_count 降序）」的混合列表——失败条目不再被质量排序压到底，能真正浮出。另提供 `recall_lessons()` 只返回失败条目，按 **复发次数**（hit_count）排序，作为粗粒度相似度代理：在某 (agent, intent) 桶里失败得越多的工具模式，越可能在类似 query 上重演，故优先召回以规避。
+
+**关键修正**：旧版 `recall()` 仅按 `final_quality` 降序取 top_n，`outcome="lesson"` 的低质量条目几乎永远排不上，导致失败教训「记了不用」。新版同时浮现成功（模仿）与失败（规避）两类经验。
 
 **容量淘汰**：每桶上限 `max_per_bucket`（默认 200），超限时按 `hit_count` + `final_quality` 升序淘汰冷旧条目。
 
 **跨 Agent 不互看** — SingleHop 的经验不会被 MultiHop Agent 召回，保证消融实验中 "w/o Memory" 的粒度可以精确到单个 Agent。
+
+**记忆闭环**：MultiHop 的 Plan 阶段从本桶召回 `outcome="lesson"` 条目作为规避指引（见 §6），G-PER Reflect 产出的类型化缺口则沉淀进 `GapLessonStore`（3C）供未来预取——**普通文本 lesson（工具序列层面规避）与图谱 gap-lesson（结构层面预取修复）分工互补**，前者是后者的 graph-poor 降级路径。
 
 ### 11.3 会话记忆（SessionMemory）
 

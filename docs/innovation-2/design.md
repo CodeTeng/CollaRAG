@@ -410,12 +410,20 @@ class AgentExperienceEntry(BaseModel):
     reflection_count: int              # 反思迭代次数
     final_quality: float               # 最终质量分数
     outcome: Literal["success", "lesson"]
-    lesson: str | None                 # 失败教训（优先 LLM 反思文本）
+    lesson: str | None                 # 失败教训（Orchestrator 从 trace 派生的结构化文本，见下）
     answer_text: str | None            # 成功时保存答案
     evidence_chunk_ids: list[str]      # 证据 chunk ID
     hit_count: int = 0                 # 命中计数
     created_at: str                    # ISO 时间戳
 ```
+
+**失败教训的写入、去重与召回**（让 `outcome="lesson"` 不再"记了不用"）：
+
+- **写入**：Orchestrator 每轮按 `quality < 0.5` 判定 `outcome="lesson"`，并用 `_derive_lesson()` 从 trace 派生**结构化 lesson 文本**（不额外调用 LLM）——MultiHop 记 `low_quality q=…; reflect=N; unresolved_gaps=[…]`（含 G-PER 类型化缺口摘要），其他 Agent 记 `low_quality q=…; query='…'`。
+- **去重合并**：同 `tool_sequence + outcome` 的条目不重复写入，合并时 `final_quality` 取最大、`hit_count` 自增、`lesson` 文本**刷新为最新一次的反思摘要**（旧版只更新 quality/hit_count，丢失最新教训）。
+- **召回**：`recall()` 返回「先 success（按质量降序）后 lesson（按 hit_count 降序）」的混合列表，失败条目得以浮出；另提供 `recall_lessons()` 只返回失败条目，按 **复发次数** 排序——复发越多的工具模式越可能在类似 query 上重演，故优先召回以规避。**旧版 `recall()` 仅按 `final_quality` 降序，lesson 条目永远排不上**，这是本设计的核心修正。
+
+**记忆闭环**：MultiHop 的 Plan 阶段从本桶召回 `outcome="lesson"` 条目作为工具序列层面的**规避指引**（注入 `GPER_PLAN_PROMPT` 的 `{avoid_lessons}` 槽）；G-PER Reflect 产出的类型化缺口则沉淀进 `GapLessonStore`（3C）供未来**结构层面预取修复**。两者分工互补：普通文本 lesson 是图谱 gap-lesson 的 graph-poor 降级路径——graph-poor 设定下图谱缺口为空，文本 lesson 是唯一可用的学习信号。
 
 **跨 Agent 不互看**——SingleHop 的经验不会被 MultiHop Agent 召回，反之亦然。这保证了消融实验中"w/o Memory"的粒度可以精确到单个 Agent。
 

@@ -77,6 +77,70 @@ class NetworkXGraphStore(BaseGraphStore):
         return collected
 
     # ------------------------------------------------------------------
+    # G-PER: schema- and path-aware queries
+    # ------------------------------------------------------------------
+    def entity_exists(self, entity: str) -> bool:
+        return entity in self._g
+
+    def relations_between(self, subject: str, obj: str) -> list[str]:
+        """Predicates on directed edges ``subject -> obj`` (deduplicated)."""
+        if subject not in self._g or obj not in self._g:
+            return []
+        preds: list[str] = []
+        seen: set[str] = set()
+        for _, _, key in self._g.out_edges(subject, keys=True):
+            if self._g.has_edge(subject, obj, key):
+                if key not in seen:
+                    seen.add(key)
+                    preds.append(key)
+        return preds
+
+    def shortest_path(self, a: str, b: str, max_hops: int = 4) -> list[Triple]:
+        """Shortest directed path ``a -> ... -> b`` as a list of Triples.
+
+        Treats the graph as directed (evidence flows subject -> object). Falls
+        back to undirected BFS if no directed path exists, since a supporting
+        fact may be stored with either endpoint as subject.
+        """
+        if a not in self._g or b not in self._g or a == b:
+            return []
+        # 1. Directed path.
+        try:
+            nodes = nx.shortest_path(self._g, source=a, target=b)
+        except nx.NetworkXNoPath:
+            nodes = None
+        except nx.NodeNotFound:
+            nodes = None
+        # 2. Undirected fallback.
+        if not nodes:
+            ug = self._g.to_undirected()
+            try:
+                nodes = nx.shortest_path(ug, source=a, target=b)
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                return []
+        if not nodes or len(nodes) - 1 > max_hops:
+            return []
+        # Materialize the triples along the node path.
+        from itertools import pairwise
+
+        triples: list[Triple] = []
+        for u, v in pairwise(nodes):
+            data = self._g.get_edge_data(u, v)
+            if not data:
+                # undirected fallback: edge may be stored as v -> u
+                data = self._g.get_edge_data(v, u)
+            if not data:
+                continue
+            # MultiDiGraph: data is {key: {"triple": ...}}; pick any one edge.
+            any_key = next(iter(data))
+            triples.append(data[any_key]["triple"])
+        return triples
+
+    def schema_predicates(self) -> set[str]:
+        """The set of all predicates in the graph — the only ontology we have."""
+        return {key for _, _, key in self._g.edges(keys=True)}
+
+    # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
     def persist(self, path: str) -> None:

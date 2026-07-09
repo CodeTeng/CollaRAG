@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from chimera_rag import ChimeraRAG
 from chimera_rag.core.exceptions import DatasetError
 from chimera_rag.datasets import get_dataset_loader
-from chimera_rag.evaluation import Evaluator
+from chimera_rag.evaluation import InferenceRunner, Scorer
 from chimera_rag.web.deps import get_chimera
 from chimera_rag.web.schemas import EvaluateRequest, EvaluateResponse
 
@@ -47,10 +47,21 @@ def evaluate(
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-    result = Evaluator(metrics=chimera.config.evaluation.metrics).run(
+    # The old monolithic ``Evaluator`` was split (commit c82aeaf) into an
+    # inference stage (InferenceRunner) and an offline scoring stage (Scorer).
+    # Recompose them here: run the pipeline over the examples, then score.
+    runner = InferenceRunner()
+    per_example, meta = runner.run(
         pipeline=chimera,
         dataset_examples=examples,
         config_name=body.dataset,
+        show_progress=False,
+    )
+    result = Scorer(metrics=chimera.config.evaluation.metrics).score(
+        per_example=per_example,
+        config_name=body.dataset,
+        usage=meta.get("usage_total"),
+        elapsed_s=meta.get("elapsed_s", 0.0),
     )
     return EvaluateResponse(
         config_name=result.config_name,

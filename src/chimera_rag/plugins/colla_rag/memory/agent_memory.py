@@ -39,13 +39,50 @@ class AgentPrivateMemory:
         path.write_text(payload + ("\n" if payload else ""), encoding="utf-8")
 
     def recall(self, agent_type: str, intent: str, top_n: int = 3) -> list[dict]:
+        """Return up to ``top_n`` successes followed by up to ``top_n`` lessons.
+
+        Successes (``outcome == "success"``) rank by quality then hit count and
+        serve as *imitation* exemplars; lessons (``outcome == "lesson"``) rank
+        by hit count then quality and serve as *avoidance* exemplars, so that
+        recurring failure patterns resurface ahead of one-off ones. Each entry
+        carries its ``outcome`` tag, so a consumer can tell imitation from
+        avoidance.
+        """
         entries = self._load_bucket(agent_type, intent)
-        ranked = sorted(
-            entries,
+        successes = [e for e in entries if e.get("outcome", "success") == "success"]
+        lessons = [e for e in entries if e.get("outcome") == "lesson"]
+        successes.sort(
             key=lambda e: (e.get("final_quality", 0), e.get("hit_count", 0)),
             reverse=True,
         )
-        return ranked[:top_n]
+        lessons.sort(
+            key=lambda e: (e.get("hit_count", 0), e.get("final_quality", 0)),
+            reverse=True,
+        )
+        return successes[:top_n] + lessons[:top_n]
+
+    def recall_lessons(
+        self, agent_type: str, intent: str, top_n: int = 3,
+    ) -> list[dict]:
+        """Return only ``outcome == "lesson"`` entries, ranked by recurrence.
+
+        Recurrence (hit count) is the coarse similarity proxy for the
+        text-lesson fallback layer: the entries that have failed most often
+        on this (agent, intent) bucket are the ones most likely to recur on a
+        similar query, so they are surfaced first for avoidance. This is the
+        text-only counterpart to the graph-grounded gap-lesson recall (which
+        filters by entity overlap); it is the only learning signal available
+        in a graph-poor setting.
+        """
+        lessons = [
+            e for e in self._load_bucket(agent_type, intent)
+            if e.get("outcome") == "lesson"
+        ]
+        lessons.sort(
+            key=lambda e: (e.get("hit_count", 0), e.get("final_quality", 0)),
+            reverse=True,
+        )
+        return lessons[:top_n]
 
     def remember(self, agent_type: str, entry: dict) -> None:
         intent = entry.get("intent", "unknown")
@@ -61,6 +98,10 @@ class AgentPrivateMemory:
                 existing["final_quality"] = max(
                     existing.get("final_quality", 0), entry.get("final_quality", 0)
                 )
+                # Refresh the lesson text so the stored failure note tracks the
+                # most recent (and, for G-PER, the latest typed-gap summary).
+                if entry.get("lesson"):
+                    existing["lesson"] = entry["lesson"]
                 existing["hit_count"] = existing.get("hit_count", 0) + 1
                 merged = True
                 break

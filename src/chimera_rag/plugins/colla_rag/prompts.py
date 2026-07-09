@@ -207,6 +207,115 @@ Evidence from plan execution:
 Provide a comprehensive answer that integrates facts from all evidence. Cite specific facts from the evidence. Be accurate and do not hallucinate information beyond what the evidence supports."""
 
 # ---------------------------------------------------------------------------
+# G-PER: Graph-Grounded Plan-Execute-Reflect (MultiHop agent)
+# ---------------------------------------------------------------------------
+# G-PER re-grounds each phase in the knowledge graph. The Plan prompt asks for
+# graph-operation steps (link / traverse / attribute / aggregate) rather than
+# free-text sub-queries, so the plan can be validated against the KG schema
+# before any retrieval budget is spent. The Reflect prompt consumes a typed
+# structural gap list (not a scalar score) and turns each gap into a targeted
+# repair. The Adversarial prompt probes the KG for relations that would
+# contradict the draft answer.
+
+GPER_PLAN_PROMPT = """# Role
+You are a graph-grounded retrieval planner. You decompose a multi-hop query \
+into a plan of graph operations, not free-text sub-queries.
+
+# Task
+Build a retrieval plan over the knowledge graph by following these steps:
+1. Identify the core entities and the relations the query hinges on.
+2. Decide, per step, which graph operation is needed:
+   - "link": resolve/confirm an entity exists and find its type/aliases
+   - "traverse": follow a relation from one entity to a neighbor
+   - "attribute": look up a specific attribute/fact of one entity
+   - "aggregate": collect and merge facts across entities (e.g. for comparison)
+3. Order steps so each step can build on prior results; mark dependencies.
+4. For each step, suggest which retrieval tools would be most effective.
+
+# Context
+Available tools:
+{tool_descriptions}
+
+Known relation types in the knowledge graph (schema):
+{schema}
+
+# Lessons from past failures on similar multi-hop queries
+Avoid repeating the tool-sequence patterns below; they ended in low-quality
+answers on this agent's bucket:
+{avoid_lessons}
+
+Query: {query}
+
+# Format
+Output a JSON list of steps. Each step:
+{{"op": "link"|"traverse"|"attribute"|"aggregate", "entity": "<entity name>", \
+"relation": "<relation type or null>", "target": "<target entity or null>", \
+"step": "<one-line natural language of what to find>", \
+"tools_hint": ["<tool name>", ...], "depends_on": [<step indices>]}}
+
+Only use relation types from the schema when you specify "relation"; use null \
+when the relation is unknown and should be discovered.
+
+# Few-Shot
+Query: "Compare the populations of Tokyo and New York"
+Plan:
+[{{"op": "attribute", "entity": "Tokyo", "relation": "population", "target": null, \
+"step": "Find the population of Tokyo", "tools_hint": ["hybrid_search"], "depends_on": []}}, \
+{{"op": "attribute", "entity": "New York", "relation": "population", "target": null, \
+"step": "Find the population of New York", "tools_hint": ["hybrid_search"], "depends_on": []}}, \
+{{"op": "aggregate", "entity": null, "relation": null, "target": null, \
+"step": "Compare the two populations", "tools_hint": [], "depends_on": [0, 1]}}]"""
+
+GPER_REFLECT_PROMPT = """# Role
+You are a graph-grounded evidence auditor. You turn structural evidence gaps \
+into targeted repair actions.
+
+# Task
+You are given (a) the original query, (b) the gathered evidence, and (c) a list \
+of typed structural gaps already detected by the structural-completeness \
+checker. For each gap, produce a precise repair retrieval action. Do NOT issue \
+vague instructions like "search more"; each repair must aim at the specific \
+missing entity or relation named in the gap.
+
+# Context
+Original query: {query}
+Gathered evidence:
+{step_results}
+
+Detected structural gaps (each is a specific missing edge/attribute in the \
+evidence subgraph):
+{gaps}
+
+# Format
+Output a JSON list of repairs, one per gap:
+[{{"gap": "<gap detail>", "repair_query": "<precise sub-query>", \
+"tools_hint": ["<tool name>", ...], "target_entities": ["<entity>", ...]}}]
+If no gaps were detected, output [] ."""
+
+GPER_ADVERSARIAL_PROMPT = """# Role
+You are an adversarial fact-checker that probes the knowledge graph for \
+relations that would CONTRADICT a draft answer.
+
+# Task
+For each atomic claim in the draft answer, decide whether the gathered \
+evidence or the knowledge graph contains a competing/contradicting relation \
+that the answer ignored. A claim is "contested" if a plausible alternative \
+relation exists. Flag contested claims so synthesis can hedge or repair.
+
+# Context
+Query: {query}
+Draft answer: {draft_answer}
+Evidence triples (subject, predicate, object):
+{triples}
+
+# Format
+Output a JSON object:
+{{"verdict": "confirmed"|"contested"|"unsupported", \
+"contested_claims": ["<claim and the competing relation found>", ...], \
+"reason": "<one or two sentences>"}}"""
+
+
+# ---------------------------------------------------------------------------
 # Summarization Agent (Map-Reduce)
 # ---------------------------------------------------------------------------
 MAP_PROMPT = """# Role
@@ -436,25 +545,28 @@ Return a JSON object:
 {{"entities": ["entity1", ...], "relationships": [{{"s": "...", "p": "...", "o": "..."}}], "hubs": ["entity1"], "summary": "one-sentence description"}}"""
 
 __all__ = [
+    "ANSWER_VERIFY_PROMPT",
+    "CHUNK_SUMMARIZE_PROMPT",
+    "CLAIM_DECOMPOSE_PROMPT",
     "CLASSIFY_PROMPT",
-    "QUERY_REWRITE_PROMPT",
     "COREFERENCE_RESOLVE_PROMPT",
+    "ENTITY_EXTRACT_PROMPT",
+    "ENTITY_LINK_PROMPT",
     "FOLLOWUP_MERGE_PROMPT",
+    "GPER_ADVERSARIAL_PROMPT",
+    "GPER_PLAN_PROMPT",
+    "GPER_REFLECT_PROMPT",
+    "GRAPH_SUBGRAPH_PROMPT",
+    "MAP_PROMPT",
     "NATIVE_RAG_GENERATE_PROMPT",
     "PLAN_PROMPT",
-    "STEP_REACT_PROMPT",
-    "REFLECT_PROMPT",
-    "SYNTHESIZE_PROMPT",
-    "MAP_PROMPT",
+    "QUERY_REWRITE_PROMPT",
     "REDUCE_PROMPT",
-    "WEBSEARCH_GENERATE_PROMPT",
-    "SUB_QUERY_DECOMPOSE_PROMPT",
-    "ENTITY_EXTRACT_PROMPT",
+    "REFLECT_PROMPT",
     "RELATION_EXTRACT_PROMPT",
-    "ENTITY_LINK_PROMPT",
-    "ANSWER_VERIFY_PROMPT",
-    "CLAIM_DECOMPOSE_PROMPT",
     "SOURCE_ATTRIBUTION_PROMPT",
-    "CHUNK_SUMMARIZE_PROMPT",
-    "GRAPH_SUBGRAPH_PROMPT",
+    "STEP_REACT_PROMPT",
+    "SUB_QUERY_DECOMPOSE_PROMPT",
+    "SYNTHESIZE_PROMPT",
+    "WEBSEARCH_GENERATE_PROMPT",
 ]
