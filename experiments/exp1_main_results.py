@@ -59,7 +59,7 @@ EXP_NAME = "exp1_main_results"
 METHODS = {
     "llm_only": {
         "description": "LLM only (no retrieval)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -71,12 +71,12 @@ METHODS = {
     },
     "vanilla_rag": {
         "description": "Vanilla RAG (top-k vector retrieval)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {},
     },
     "raptor": {
         "description": "RAPTOR (hierarchical retrieval)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -88,7 +88,7 @@ METHODS = {
     },
     "tog": {
         "description": "TOG (Think-on-Graph)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -100,7 +100,7 @@ METHODS = {
     },
     "g_retriever": {
         "description": "G-Retriever (GNN-based graph retrieval)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -112,7 +112,7 @@ METHODS = {
     },
     "lightrag": {
         "description": "LightRAG (lightweight hybrid)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -124,7 +124,7 @@ METHODS = {
     },
     "graphrag": {
         "description": "GraphRAG (community summaries)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -136,7 +136,7 @@ METHODS = {
     },
     "hipporag": {
         "description": "HippoRAG (PPR-based)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -148,7 +148,7 @@ METHODS = {
     },
     "hipporag2": {
         "description": "HippoRAG2 (enhanced PPR)",
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {
                 "retriever": {
@@ -160,7 +160,7 @@ METHODS = {
     },
     "collarag": {
         "description": "CollaRAG (proposed, full system)",
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {},
     },
 }

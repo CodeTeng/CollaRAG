@@ -13,7 +13,7 @@ Usage:
 
     # single-directory scoring
     uv run python experiments/eval.py \
-        --predictions output/mock_wiki/deepseek_colla_rag_only/ \
+        --predictions output/mock_wiki/colla_rag_only/ \
         --metrics em,f1,rouge_l
 
     # multi-directory comparison

@@ -44,13 +44,13 @@ VARIANTS = {
     "collarag_full": {
         "description": "CollaRAG (Full)",
         "innovation_removed": "—",
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {},
     },
     "wo_query_triage": {
         "description": "w/o Query Triage",
         "innovation_removed": "创新点 1：Intent-Aware Query Triage",
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {
             "query": {
                 "intent_classifier": {
@@ -72,7 +72,7 @@ VARIANTS = {
     "wo_per": {
         "description": "w/o PER",
         "innovation_removed": "创新点 2：Plan-Execute-Reflect",
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {
             "plugins": {
                 "colla_rag": {
@@ -90,7 +90,7 @@ VARIANTS = {
     "wo_memory": {
         "description": "w/o Memory",
         "innovation_removed": "创新点 3：Dual-Layer Experiential Memory",
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {
             "plugins": {
                 "colla_rag": {

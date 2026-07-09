@@ -209,7 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_common_args(parser)
     parser.add_argument(
-        "--config", default="configs/deepseek_colla_rag_only.yaml",
+        "--config", default="configs/colla_rag_only.yaml",
         help="Config with TreeIntentClassifier enabled",
     )
     parser.add_argument(

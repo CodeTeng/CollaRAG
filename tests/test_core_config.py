@@ -133,15 +133,15 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
 
 
 # ---------------------------------------------------------------------------
-# Shipped configs — only the 4 deepseek variants live in configs/ now.
+# Shipped configs — only the 4 plugin-combo variants live in configs/ now.
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "filename",
     [
-        "deepseek_vanilla.yaml",
-        "deepseek_adagraph_only.yaml",
-        "deepseek_colla_rag_only.yaml",
-        "deepseek_full.yaml",
+        "vanilla.yaml",
+        "adagraph_only.yaml",
+        "colla_rag_only.yaml",
+        "full.yaml",
     ],
 )
 def test_shipped_configs_are_valid(filename: str):

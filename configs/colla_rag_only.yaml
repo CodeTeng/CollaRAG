@@ -1,11 +1,11 @@
 # ============================================================================
-# deepseek_colla_rag_only.yaml
+# colla_rag_only.yaml
 #
 # 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
 #       仅启用创新点二（多Agent意图感知检索架构）。
 #       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
 # 典型场景：
-#   - 消融实验：比较 vs deepseek_vanilla，单独衡量 CollaRAG 带来的增益
+#   - 消融实验：比较 vs vanilla，单独衡量 CollaRAG 带来的增益
 #   - 本轮演示主用配置
 # 依赖：.env 中需有 LLM_API_KEY
 # ============================================================================
@@ -13,7 +13,7 @@
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/deepseek_colla_rag_only
+  workspace_dir: ./storage/colla_rag_only
 
 logging:
   level: INFO
@@ -44,12 +44,12 @@ rerank:
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/deepseek_colla_rag_only/graph.gpickle
+    persist_path: ./storage/colla_rag_only/graph.gpickle
   vector:
     backend: faiss
     index_type: flat_ip
     metric: ip
-    persist_path: ./storage/deepseek_colla_rag_only/vectors
+    persist_path: ./storage/colla_rag_only/vectors
     top_k: 5
     hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
     ivf: { nlist: 100, nprobe: 8 }

@@ -654,10 +654,10 @@ CollaRAG **只读** `PipelineState.graph_store / vector_store / chunk_lookup`—
 
 | 文件 | AdaGraph | CollaRAG |
 |---|:---:|:---:|
-| `deepseek_vanilla.yaml` | off | off |
-| `deepseek_adagraph_only.yaml` | on | off |
-| `deepseek_colla_rag_only.yaml` | off | on |
-| `deepseek_full.yaml` | on | on |
+| `vanilla.yaml` | off | off |
+| `adagraph_only.yaml` | on | off |
+| `colla_rag_only.yaml` | off | on |
+| `full.yaml` | on | on |
 
 ---
 

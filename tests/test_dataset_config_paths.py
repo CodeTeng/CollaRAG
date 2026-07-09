@@ -119,5 +119,5 @@ def test_dataset_config_get_output_path_helper():
         output_dir="output/mock",
     )
     # output_for(config_name) -> output_dir/<config_name>.json
-    p = cfg.output_for("deepseek_full")
-    assert str(p).replace("\\", "/") == "output/mock/deepseek_full.json"
+    p = cfg.output_for("full")
+    assert str(p).replace("\\", "/") == "output/mock/full.json"

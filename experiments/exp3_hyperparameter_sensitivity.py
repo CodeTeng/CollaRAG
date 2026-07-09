@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
             _set_nested(overrides, sweep["config_path"], value)
 
             cfg = make_config(
-                base="deepseek_colla_rag_only",
+                base="colla_rag_only",
                 overrides=overrides,
                 workspace_suffix=f"exp3_{param_name}_{value}",
             )

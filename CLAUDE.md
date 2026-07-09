@@ -13,7 +13,7 @@ uv run pytest tests/test_core_config.py -q                     # Run a single te
 uv run pytest tests/test_core_config.py::test_load_missing_file -q  # Run a single test
 uv run ruff check .                 # Lint
 uv run ruff format --check .        # Format check
-uv run python main.py serve --config configs/deepseek_vanilla.yaml  # Start API server
+uv run python main.py serve --config configs/vanilla.yaml  # Start API server
 ```
 
 ### Web UI (pnpm, in `web-ui/`)
@@ -38,8 +38,8 @@ uv run python main.py serve --config <cfg>
 ### Evaluation (two-stage)
 
 ```bash
-uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset hotpotqa --limit 10
-uv run python experiments/eval.py --predictions_dir output/hotpotqa/deepseek_colla_rag_only
+uv run python main.py infer --config configs/colla_rag_only.yaml --dataset hotpotqa --limit 10
+uv run python experiments/eval.py --predictions_dir output/hotpotqa/colla_rag_only
 ```
 
 ### Experiments (paper reproduction)
@@ -121,10 +121,10 @@ Single YAML config with 11 top-level domains: `app`, `logging`, `llm`, `embeddin
 | Config | AdaGraph | CollaRAG |
 |---|:---:|:---:|
 | `default.yaml` | — | — |
-| `deepseek_vanilla.yaml` | off | off |
-| `deepseek_adagraph_only.yaml` | on | off |
-| `deepseek_colla_rag_only.yaml` | off | on |
-| `deepseek_full.yaml` | on | on |
+| `vanilla.yaml` | off | off |
+| `adagraph_only.yaml` | on | off |
+| `colla_rag_only.yaml` | off | on |
+| `full.yaml` | on | on |
 | `ollama_colla_rag_only.yaml` | off | on |
 
 Plugin toggling (`toggle_plugin`) rebuilds pipelines but preserves `PipelineState` — no re-ingestion needed.

@@ -1,18 +1,18 @@
 # ============================================================================
-# deepseek_vanilla.yaml
+# vanilla.yaml
 #
 # 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
 #       AdaGraph + CollaRAG 全部关闭（走 defaults.* 裸实现）。
 # 典型场景：
 #   - 真实端到端 baseline：衡量"裸 KG-RAG"在 DeepSeek 下的 EM/F1
-#   - 作为 deepseek_colla_rag_only / deepseek_full 的消融对照组
+#   - 作为 colla_rag_only / full 的消融对照组
 # 依赖：.env 中需有 LLM_API_KEY（或兼容的 DEEPSEEK_API_KEY）
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/deepseek_vanilla
+  workspace_dir: ./storage/vanilla
 
 logging:
   level: INFO
@@ -46,12 +46,12 @@ rerank:
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/deepseek_vanilla/graph.gpickle
+    persist_path: ./storage/vanilla/graph.gpickle
   vector:
     backend: faiss
     index_type: hnsw            # flat_ip / flat_l2 / ivf_flat / hnsw
     metric: ip                  # ip / l2
-    persist_path: ./storage/deepseek_vanilla/vectors
+    persist_path: ./storage/vanilla/vectors
     top_k: 5
     hnsw:
       M: 32

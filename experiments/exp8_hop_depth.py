@@ -42,35 +42,35 @@ DATASET = "musique"
 
 METHODS = {
     "vanilla_rag": {
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {},
     },
     "raptor": {
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {"retriever": {"params": {"top_k": 10, "neighbor_hops": 2}}},
         },
     },
     "graphrag": {
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {"retriever": {"params": {"top_k": 10, "neighbor_hops": 2, "use_community": True}}},
         },
     },
     "hipporag": {
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {"retriever": {"params": {"top_k": 10, "neighbor_hops": 2, "use_ppr": True}}},
         },
     },
     "hipporag2": {
-        "base_config": "deepseek_vanilla",
+        "base_config": "vanilla",
         "overrides": {
             "query": {"retriever": {"params": {"top_k": 10, "neighbor_hops": 3, "use_ppr": True}}},
         },
     },
     "collarag": {
-        "base_config": "deepseek_colla_rag_only",
+        "base_config": "colla_rag_only",
         "overrides": {},
     },
 }

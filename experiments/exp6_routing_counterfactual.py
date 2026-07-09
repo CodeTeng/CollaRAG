@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("=== Strategy: %s ===", strategy["description"])
 
         cfg = make_config(
-            base="deepseek_colla_rag_only",
+            base="colla_rag_only",
             overrides=strategy.get("overrides", {}),
             workspace_suffix=f"exp6_{strategy_name}",
         )

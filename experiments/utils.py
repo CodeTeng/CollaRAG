@@ -40,7 +40,7 @@ DEFAULT_TEMPERATURE = 0.0
 # Config generation
 # ---------------------------------------------------------------------------
 
-def load_base_config(config_name: str = "deepseek_colla_rag_only") -> dict[str, Any]:
+def load_base_config(config_name: str = "colla_rag_only") -> dict[str, Any]:
     path = CONFIGS_DIR / f"{config_name}.yaml"
     with open(path) as f:
         return yaml.safe_load(f)
@@ -48,7 +48,7 @@ def load_base_config(config_name: str = "deepseek_colla_rag_only") -> dict[str, 
 
 def make_config(
     *,
-    base: str = "deepseek_colla_rag_only",
+    base: str = "colla_rag_only",
     overrides: dict[str, Any] | None = None,
     workspace_suffix: str = "",
     dataset_name: str | None = None,

@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Window size for accumulation tracking (default: {DEFAULT_WINDOW_SIZE})",
     )
     parser.add_argument(
-        "--config", default="configs/deepseek_colla_rag_only.yaml",
+        "--config", default="configs/colla_rag_only.yaml",
         help="Config file with memory enabled",
     )
     return parser

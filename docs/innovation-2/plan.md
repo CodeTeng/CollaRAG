@@ -3023,7 +3023,7 @@ git commit -m "feat: add MultiAgentRetriever orchestrator facade (Task 8)"
 **Files:**
 - Modify: `src/chimera_rag/core/config.py` (extend `CollaRAGConfig` for multi-agent params)
 - Modify: `src/chimera_rag/__init__.py` (wire `MultiAgentRetriever` in `_instantiate_retriever`)
-- Create: `configs/deepseek_multi_agent.yaml`
+- Create: `configs/colla_rag_only.yaml`
 - Test: `tests/test_pipeline_multi_agent.py`
 
 **Interfaces:**
@@ -3152,7 +3152,7 @@ In `src/chimera_rag/__init__.py`, add handling for `MultiAgentRetriever` inside 
             return cls(**wiring)
 ```
 
-- [ ] **Step 5: Create `configs/deepseek_multi_agent.yaml`**
+- [ ] **Step 5: Create `configs/colla_rag_only.yaml`**
 
 ```yaml
 app:
@@ -3256,7 +3256,7 @@ Expected: All existing tests still pass, no regressions
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/chimera_rag/core/config.py src/chimera_rag/__init__.py configs/deepseek_multi_agent.yaml tests/test_pipeline_multi_agent.py
+git add src/chimera_rag/core/config.py src/chimera_rag/__init__.py configs/colla_rag_only.yaml tests/test_pipeline_multi_agent.py
 git commit -m "feat: wire MultiAgentRetriever into ChimeraRAG facade + e2e test (Task 9)"
 ```
 

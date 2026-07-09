@@ -9,10 +9,10 @@
 | 文件 | AdaGraph | CollaRAG | 检索器 | 主要用途 |
 |---|:---:|:---:|---|---|
 | `default.yaml` | — | — | — | 配置参考（不直接运行） |
-| `deepseek_vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 真实 API 基线（消融对照组） |
-| `deepseek_adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 真实 API 下单独衡量创新点一的增益 |
-| `deepseek_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 真实 API 下单独衡量创新点二的增益 |
-| `deepseek_full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 真实 API 下两创新点叠加的最终表现 |
+| `vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 真实 API 基线（消融对照组） |
+| `adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 真实 API 下单独衡量创新点一的增益 |
+| `colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 真实 API 下单独衡量创新点二的增益 |
+| `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 真实 API 下两创新点叠加的最终表现 |
 | `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Qwen3-8B 实验 |
 
 **公共部分（四份相同）**：
@@ -25,12 +25,12 @@
 ## 命名规则
 
 ```
-deepseek_<plugin_combo>.yaml
-             │
-             ├── vanilla           两创新点全关（defaults 裸基线）
-             ├── adagraph_only     仅创新点一
-             ├── colla_rag_only    仅创新点二（多Agent协作检索）
-             └── full              两创新点全开
+<plugin_combo>.yaml
+      │
+      ├── vanilla           两创新点全关（defaults 裸基线）
+      ├── adagraph_only     仅创新点一
+      ├── colla_rag_only    仅创新点二（多Agent协作检索）
+      └── full              两创新点全开
 ```
 
 ## 典型运行
@@ -40,7 +40,7 @@ deepseek_<plugin_combo>.yaml
 
 ### 单次查询
 ```bash
-uv run python main.py query --config configs/deepseek_colla_rag_only.yaml \
+uv run python main.py query --config configs/colla_rag_only.yaml \
   "Which company acquired the employer of Ada Verdant?"
 ```
 
@@ -48,32 +48,32 @@ uv run python main.py query --config configs/deepseek_colla_rag_only.yaml \
 ```bash
 # 阶段 1：推理。首次会自动构图并落盘到 storage/，之后秒级复用；加 --rebuild 可强制重建
 uv run python main.py infer \
-  --config configs/deepseek_colla_rag_only.yaml \
+  --config configs/colla_rag_only.yaml \
   --dataset mock_wiki --limit 100
-# → output/mock_wiki/deepseek_colla_rag_only/{predictions.jsonl, meta.json}
+# → output/mock_wiki/colla_rag_only/{predictions.jsonl, meta.json}
 
 # 阶段 2：打分 + 报告（0 LLM 调用）
 uv run python experiments/eval.py \
-  --predictions output/mock_wiki/deepseek_colla_rag_only/ \
+  --predictions output/mock_wiki/colla_rag_only/ \
   --metrics em,f1,rouge_l
 ```
 
 ### 多配置消融对比
 ```bash
 # 对每份配置各跑一次 infer（各自复用各自的持久化图谱）
-uv run python main.py infer --config configs/deepseek_vanilla.yaml     --dataset mock_wiki --limit 100
-uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset mock_wiki --limit 100
+uv run python main.py infer --config configs/vanilla.yaml     --dataset mock_wiki --limit 100
+uv run python main.py infer --config configs/colla_rag_only.yaml --dataset mock_wiki --limit 100
 
 # 再用 experiments/eval.py 多目录对比（自动生成 compare 报告 + 柱图/雷达图）
 uv run python experiments/eval.py \
-  --predictions output/mock_wiki/deepseek_vanilla/ \
-                output/mock_wiki/deepseek_colla_rag_only/ \
+  --predictions output/mock_wiki/vanilla/ \
+                output/mock_wiki/colla_rag_only/ \
   --out output/mock_wiki/compare/ --metrics em,f1,rouge_l
 ```
 
 ## 改 LLM 连接信息
 
-`deepseek_*.yaml` 里 `llm:` 段不写 `model / api_key_env / base_url_env`，
+`*.yaml` 里 `llm:` 段不写 `model / api_key_env / base_url_env`，
 全部从 `.env` 读（优先级 `LLM_API_KEY > DEEPSEEK_API_KEY > provider 默认`）。
 
 ```bash
@@ -147,12 +147,12 @@ def mock_full_yaml(tmp_path: Path) -> str: ...
 这些临时配置基于本目录的 yaml 派生（应用超参数覆盖、路由策略切换等），
 不需要手动维护——实验脚本会自动处理。
 
-示例：消融实验的 `w/o Memory` 变体会基于 `deepseek_colla_rag_only.yaml`
+示例：消融实验的 `w/o Memory` 变体会基于 `colla_rag_only.yaml`
 生成一份禁用双层记忆的临时配置：
 
 ```python
 cfg = make_config(
-    base="deepseek_colla_rag_only",
+    base="colla_rag_only",
     overrides={"plugins": {"colla_rag": {"multi_agent": {"memory": {"shared": {"enabled": False}}}}}},
     workspace_suffix="exp2_wo_memory_hotpotqa",
 )

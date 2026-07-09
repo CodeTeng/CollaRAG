@@ -209,10 +209,10 @@ query
 
 | 文件 | 插件开关 |
 |---|---|
-| `deepseek_vanilla.yaml` | AdaGraph=off，CollaRAG=off |
-| `deepseek_adagraph_only.yaml` | AdaGraph=on，CollaRAG=off |
-| `deepseek_colla_rag_only.yaml` | AdaGraph=off，CollaRAG=on |
-| `deepseek_full.yaml` | 两个都 on |
+| `vanilla.yaml` | AdaGraph=off，CollaRAG=off |
+| `adagraph_only.yaml` | AdaGraph=on，CollaRAG=off |
+| `colla_rag_only.yaml` | AdaGraph=off，CollaRAG=on |
+| `full.yaml` | 两个都 on |
 
 四种组合共用同一份 `QueryPipeline.run()` 代码路径，差异**只由 yaml 的 `active` 字段驱动**。
 

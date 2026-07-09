@@ -16,8 +16,8 @@ all work without extra wiring.
 Usage:
 
     uv run python experiments/eval_ragas.py \
-        --predictions output/mock_wiki/deepseek_colla_rag_only/ \
-        --config configs/deepseek_colla_rag_only.yaml
+        --predictions output/mock_wiki/colla_rag_only/ \
+        --config configs/colla_rag_only.yaml
 
 Install the extra first:
 

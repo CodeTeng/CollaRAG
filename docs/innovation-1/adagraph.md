@@ -17,7 +17,7 @@ AdaGraph 占据 `IngestionPipeline` 的**三个插槽**，分别对应 plan.md �
 | 分层四级三元组提取器 | `extractor` | `adagraph.layered` | `plugins/adagraph/layered_extractor.py` | **L1 已实装；L2-L4 TODO** |
 | 双重冗余剪枝器 | `pruner` | `adagraph.dual_redundancy` | `plugins/adagraph/dual_pruner.py` | **相似性已实装；传递性 TODO** |
 
-开关方式（摘自 `configs/deepseek_full.yaml`）：
+开关方式（摘自 `configs/full.yaml`）：
 
 ```yaml
 ingestion:
@@ -232,7 +232,7 @@ plan.md §目录结构 第 346–348 行规划的三个测试文件均已落地�
 | `tests/test_adagraph_layered_extractor.py` | `layers_enabled` 合法性；L2/L3/L4 的 TODO 兜底返回空；`max_triples_per_chunk` 截断 |
 | `tests/test_adagraph_dual_pruner.py` | 阈值门控；保留先到者顺序；`enable_transitive=True` 不抛异常 |
 
-端到端测试：`tests/test_pipeline_adagraph.py` 用 `configs/deepseek_adagraph_only.yaml` 同等配置（Mock Provider 替换 DeepSeek）跑完 `ingest → query` 验证整条链路。
+端到端测试：`tests/test_pipeline_adagraph.py` 用 `configs/adagraph_only.yaml` 同等配置（Mock Provider 替换 DeepSeek）跑完 `ingest → query` 验证整条链路。
 
 ---
 

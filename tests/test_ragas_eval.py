@@ -209,7 +209,7 @@ def test_ragas_real_smoke():
     from chimera_rag.core.config import load_config
     from chimera_rag.evaluation.ragas_eval import RagasEvaluator
 
-    config = load_config("configs/deepseek_colla_rag_only.yaml")
+    config = load_config("configs/colla_rag_only.yaml")
     rows = [
         {
             "question": "In what year was Yggdrasil AI founded?",

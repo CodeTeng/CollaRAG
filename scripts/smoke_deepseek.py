@@ -25,7 +25,7 @@ from chimera_rag.core.types import Document, Query  # noqa: E402
 def main() -> int:
     # Use the intent-only config — it uses defaults for ingestion so the
     # LLM call count is minimal (one extraction per paragraph).
-    config_path = PROJECT_ROOT / "configs" / "deepseek_colla_rag_only.yaml"
+    config_path = PROJECT_ROOT / "configs" / "colla_rag_only.yaml"
     crag = ChimeraRAG.from_config(str(config_path))
 
     # Tiny corpus: 5 paragraphs hand-picked from the mock wiki dataset.

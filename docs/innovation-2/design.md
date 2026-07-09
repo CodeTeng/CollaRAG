@@ -574,7 +574,7 @@ class MultiAgentRetriever(BaseRetriever):
 
 ---
 
-## 10. 配置示例（`configs/deepseek_multi_agent.yaml`）
+## 10. 配置示例（`configs/colla_rag_only.yaml`）
 
 ```yaml
 query:

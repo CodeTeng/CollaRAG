@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = setup_experiment(args, EXP_NAME)
 
     cfg = make_config(
-        base="deepseek_colla_rag_only",
+        base="colla_rag_only",
         workspace_suffix="exp7_routing",
     )
     config_path = write_temp_config(cfg, "collarag", out_dir)

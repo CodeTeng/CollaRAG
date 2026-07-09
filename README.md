@@ -49,7 +49,7 @@ LLM_API_KEY=sk-xxxxxxxx
 模型名、base_url 等**全部写在 `config.yaml` 中**，`.env` 只放 secret。示例：
 
 ```yaml
-# configs/deepseek_vanilla.yaml
+# configs/vanilla.yaml
 llm:
   model: deepseek-chat
   base_url: https://api.deepseek.com
@@ -71,11 +71,11 @@ rerank:
 
 ```bash
 uv run python main.py infer \
-    --config configs/deepseek_colla_rag_only.yaml \
+    --config configs/colla_rag_only.yaml \
     --dataset mock_wiki --limit 10
 
 uv run python experiments/eval.py \
-    --predictions output/mock_wiki/deepseek_colla_rag_only/ \
+    --predictions output/mock_wiki/colla_rag_only/ \
     --metrics em,f1,rouge_l
 ```
 
@@ -84,9 +84,9 @@ uv run python experiments/eval.py \
 详见 **[docs/experiments/](docs/experiments/)**，核心三步：
 
 ```bash
-uv run python main.py ingest --config configs/deepseek_colla_rag_only.yaml --dataset musique --limit 500 --rebuild
-uv run python main.py infer  --config configs/deepseek_colla_rag_only.yaml --dataset musique --limit 500
-uv run python experiments/eval.py --predictions output/musique/deepseek_colla_rag_only --metrics em,f1,rouge_l
+uv run python main.py ingest --config configs/colla_rag_only.yaml --dataset musique --limit 500 --rebuild
+uv run python main.py infer  --config configs/colla_rag_only.yaml --dataset musique --limit 500
+uv run python experiments/eval.py --predictions output/musique/colla_rag_only --metrics em,f1,rouge_l
 ```
 
 ### 6. 论文实验复现
@@ -205,10 +205,10 @@ query → Preprocessor Agent → Tree-Intent Classifier
 | 文件 | AdaGraph | CollaRAG | 用途 |
 |---|:---:|:---:|---|
 | `default.yaml` | — | — | 全字段注释模板 |
-| `deepseek_vanilla.yaml` | off | off | 裸 KG-RAG 基线 |
-| `deepseek_adagraph_only.yaml` | on | off | 仅测创新点 1 |
-| `deepseek_colla_rag_only.yaml` | off | on | 仅测创新点 2（云端 DeepSeek） |
-| `deepseek_full.yaml` | on | on | 全启用 |
+| `vanilla.yaml` | off | off | 裸 KG-RAG 基线 |
+| `adagraph_only.yaml` | on | off | 仅测创新点 1 |
+| `colla_rag_only.yaml` | off | on | 仅测创新点 2（云端 DeepSeek） |
+| `full.yaml` | on | on | 全启用 |
 | `ollama_colla_rag_only.yaml` | off | on | 仅测创新点 2（本地 Ollama，免 API 费用） |
 
 ---
@@ -266,7 +266,7 @@ chimera-rag/
 ## Web 系统
 
 ```bash
-uv run python main.py serve --config configs/deepseek_full.yaml --dataset mock_wiki
+uv run python main.py serve --config configs/full.yaml --dataset mock_wiki
 # http://localhost:8000
 ```
 
