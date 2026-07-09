@@ -1,13 +1,13 @@
 # 意图分类准确率实验（Intent Classification Accuracy）
 
-> 目的：验证 Tree-Intent Classifier 的分类质量——Query Triage 是整个 division-of-labor 架构的地基，如果分类不准，后续所有专职 Agent 的设计都无法发挥价值。
+> 目的：验证 Intent-Aware Query Triage 的分类质量——Query Triage 是整个 division-of-labor 架构的地基，如果分类不准，后续所有专职 Agent 的设计都无法发挥价值。
 > 骨干模型：Qwen3-8B（分类器与主实验使用同一 backbone）
 
 ---
 
 ## 1. 标注集构建
 
-从主实验的 7 个数据集中分层抽样构建人工标注集：
+从主实验的 6 个数据集中分层抽样构建人工标注集（另人工构造 other 与 greeting 两类）：
 
 | 来源数据集 | 抽样数量 | Ground-truth 意图标签 | 标注方式 |
 |---|---|---|---|

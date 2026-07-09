@@ -1,4 +1,4 @@
-% Makefile for CollaRAG paper
+# Makefile for CollaRAG paper
 # Usage: make pdf
 
 MAIN = main

@@ -1,4 +1,4 @@
-% CollaRAG: Collaborative Multi-Agent Retrieval via Division of Labor
+% CollaRAG: Specialist Multi-Agent Retrieval via Division of Labor
 % CCF-A Conference Format
 \documentclass[11pt,a4paper]{article}
 
@@ -44,7 +44,7 @@
 \setlength{\parskip}{0.25em}
 \setlength{\parindent}{1em}
 
-\title{CollaRAG: Collaborative Multi-Agent Retrieval \\ via Division of Labor}
+\title{CollaRAG: Specialist Multi-Agent Retrieval \\ via Division of Labor}
 
 \author{
   Anonymous Submission
@@ -59,17 +59,20 @@
 % ABSTRACT
 % ===================================================================
 \begin{abstract}
-Existing Retrieval-Augmented Generation (RAG) systems apply a uniform retrieval pipeline to all queries, regardless of whether a question demands a single fact lookup or multi-hop reasoning across documents.
-This monolithic design forces a compromise: either invest heavy computation on every query, or under-serve complex ones.
-We introduce \sys{}, a multi-agent RAG framework built on the principle of \emph{division of labor}.
+Existing Retrieval-Augmented Generation (RAG) systems apply a uniform retrieval pipeline to every query, whether it demands a single-fact lookup, multi-hop reasoning, or cross-document synthesis.
+This monolithic design over-processes simple queries while under-serving complex ones, because one pipeline cannot match both the cost and the evidence shape of every query type.
+We introduce \sys{}, a multi-agent RAG framework built on the principle of \emph{division of labor}: an intent-aware triage routes each query to a specialist agent whose tool permissions, reasoning protocol, and memory scope fit the query's demand profile.
 \sys{} makes three contributions.
-\textbf{First}, we propose \emph{Intent-Aware Query Triage}, a two-level classifier that routes each query to the best-suited specialist agent, eliminating the one-pipeline-fits-all bottleneck.
-\textbf{Second}, we design a \emph{Plan-Execute-Reflect} workflow for the multi-hop agent, which decomposes complex queries into structured retrieval sub-plans, executes each through a bounded tool-use loop, and self-reflects on evidence gaps before synthesis.
-\textbf{Third}, we introduce \emph{Dual-Layer Experiential Memory}, pairing a cross-agent shared memory (caching, routing statistics, entity aliases) with per-agent private memory that accumulates successful retrieval patterns over time.
-Five specialized agents share a pool of 22 retrieval, reasoning, and memory tools, with each agent's access governed by a static tool-permission matrix that enforces capability specialization.
-On six QA benchmarks spanning single-hop (NQ, PopQA), multi-hop (HotpotQA, 2WikiMultiHopQA, MuSiQue), and long-form summarization (ASQA) tasks, \sys{} sets new state-of-the-art results under both Qwen3-8B and Qwen3-32B backbones, outperforming the previous best method HippoRAG2~\citep{gutierrez2025hipporag2} by up to 5.7 F1 on 2WikiMultiHopQA (Qwen3-8B) and 5.1 F1 on HotpotQA (Qwen3-32B), with the largest gain of 7.2 F1 on ASQA (Qwen3-8B), where the dedicated Map-Reduce agent has no baseline counterpart.
-Ablation studies confirm that intent-aware routing is the single most impactful component, contributing 5.9--12.2 EM points when removed.
+\textbf{First}, \emph{Intent-Aware Query Triage}, a two-level classifier that routes each query to the best-suited specialist via one-shot, irreversible dispatch, replacing the one-pipeline-fits-all bottleneck and enabling clean per-agent ablation.
+\textbf{Second}, a \emph{Plan-Execute-Reflect} workflow for the multi-hop agent, which decomposes complex queries into a bounded retrieval plan, executes each step through a mini-ReAct loop~\citep{yao2023react}, and self-reflects on evidence gaps before synthesis.
+\textbf{Third}, \emph{Dual-Layer Experiential Memory}, pairing a cross-agent shared memory (QA caching, routing statistics, entity aliases) with per-agent private memory that accumulates successful retrieval patterns over time.
+Five agents---a preprocessor and four task specialists---share a pool of 22 retrieval, reasoning, and memory tools, with access governed by a static tool-permission matrix that enforces capability specialization.
+On six QA benchmarks spanning single-hop (NQ, PopQA), multi-hop (HotpotQA, 2WikiMultiHopQA, MuSiQue), and long-form summarization (ASQA), \sys{} outperforms nine baselines including the previous SOTA HippoRAG2~\citep{gutierrez2025hipporag2} under both Qwen3-8B and Qwen3-32B backbones.
+The largest gain is on ASQA, $+7.2$ F1 (Qwen3-8B), where no baseline runs a dedicated aggregation pipeline; on factoid and multi-hop sets, where baselines already retrieve well, gains come from reranking, sub-query decomposition, and reflection ($+1.8$ to $+5.7$ F1, Qwen3-8B).
+Ablation studies confirm that intent-aware routing is the single most impactful component, contributing $5.9$--$12.2$ EM points when removed.
 \end{abstract}
+
+\noindent\textbf{Keywords:} Retrieval-Augmented Generation, Multi-Agent Systems, Query Routing, Multi-hop Reasoning, Division of Labor
 
 % ===================================================================
 % 1. INTRODUCTION
@@ -142,7 +145,7 @@ Similarly, an intelligent retrieval system should route queries to specialized a
 
 % --- 6. Overview of CollaRAG ---
 
-We introduce \sys{} (\textbf{Colla}borative Multi-Agent \textbf{RAG}), a framework that replaces the monolithic retrieval pipeline with intent-conditioned specialist execution.
+We introduce \sys{}, a framework that replaces the monolithic retrieval pipeline with intent-conditioned specialist execution.
 \sys{} routes queries into five handling modes---greeting short-circuit, SingleHop, MultiHop, Summarization, and Other---supported by a Preprocessor agent and four task-specialist agents.
 An \emph{intent-aware query triage} module classifies incoming queries and dispatches each to the matching handler.
 Each task agent draws from a shared pool of 22 retrieval, reasoning, and memory tools, with access governed by a static \emph{tool-permission matrix} that enforces capability specialization.
@@ -177,7 +180,7 @@ single-hop factoid QA (NQ~\citep{kwiatkowski2019nq}, PopQA~\citep{mallen2023popq
 multi-hop reasoning (HotpotQA~\citep{yang2018hotpotqa}, 2WikiMultiHopQA~\citep{ho2020constructing}, MuSiQue~\citep{trivedi2022musique}),
 and long-form summarization (ASQA~\citep{stelmakh2022asqa}).
 This mixed-intent evaluation directly validates the core hypothesis: a system designed for division of labor should excel when queries demand different retrieval strategies.
-Using both Qwen3-8B and Qwen3-32B as backbone LLMs, \sys{} achieves state-of-the-art results across all benchmarks and backbone scales, outperforming the previous best method HippoRAG2~\citep{gutierrez2025hipporag2} by up to 5.7 F1 on 2WikiMultiHopQA under Qwen3-8B and 5.1 F1 on HotpotQA under Qwen3-32B.
+Using both Qwen3-8B and Qwen3-32B as backbone LLMs, \sys{} achieves state-of-the-art results across all benchmarks and backbone scales, outperforming the previous best method HippoRAG2~\citep{gutierrez2025hipporag2} on every dataset, with gains of 5.7 F1 on 2WikiMultiHopQA (Qwen3-8B) and 5.1 F1 on HotpotQA (Qwen3-32B), and the largest gain of 7.2 F1 on ASQA (Qwen3-8B) where the dedicated Summarization agent has no baseline counterpart.
 Comprehensive ablation studies confirm that intent-aware routing is the single most impactful component (removing it causes $-$11.7 EM on 2WikiMultiHopQA), validating the division-of-labor hypothesis.
 
 % ===================================================================
@@ -193,7 +196,7 @@ RAG~\citep{lewis2020rag} established the retrieve-then-generate paradigm, pairin
 Many vanilla RAG implementations rely on DPR-style bi-encoder retrieval~\citep{karpukhin2020dpr} for open-domain QA, and Fusion-in-Decoder~\citep{izacard2021leveraging} scaled this approach to processing many retrieved passages in parallel.
 Subsequent work has refined the retrieval stage through multiple dimensions:
 hybrid retrieval combining dense and sparse (BM25~\citep{robertson2009bm25}) signals via reciprocal rank fusion~\citep{cormack2009reciprocal};
-cross-encoder reranking~\citep{nogueira2020passage} for more precise relevance estimation;
+cross-encoder reranking~\citep{nogueira2019passage} for more precise relevance estimation;
 and query rewriting~\citep{ma2023query} for bridging the vocabulary gap between queries and documents.
 RAPTOR~\citep{sarthi2024raptor} organizes retrieval via recursive abstractive trees, enabling retrieval at multiple abstraction levels.
 These methods enhance retrieval quality but apply a uniform pipeline to all queries regardless of complexity---the monolithic limitation that \sys{} addresses.
@@ -235,8 +238,8 @@ These methods improve multi-hop reasoning within a single pipeline.
 
 The rise of LLM-based agents~\citep{xi2023rise} has introduced tool use into RAG.
 ReAct~\citep{yao2023react} interleaves reasoning and action (tool invocation) in a single loop.
-Toolformer~\citep{schick2024toolformer} teaches LLMs to decide when and how to call external tools.
-Multi-agent frameworks such as MetaGPT~\citep{hong2024metagpt} and AutoGen~\citep{wu2023autogen} enable multiple agents to collaborate through conversational protocols.
+Toolformer~\citep{schick2023toolformer} teaches LLMs to decide when and how to call external tools.
+Multi-agent frameworks such as MetaGPT~\citep{hong2024metagpt} and AutoGen~\citep{wu2024autogen} enable multiple agents to collaborate through conversational protocols.
 However, these multi-agent systems assume agents need to \emph{negotiate}---exchanging messages, debating solutions, or voting on outcomes.
 \sys{} adopts a fundamentally different \emph{dispatch} model: a classifier makes a one-shot routing decision, and the assigned specialist agent executes independently without inter-agent dialogue.
 This design prioritizes deterministic reproducibility and clean ablation boundaries over emergent collaboration, while still achieving the benefits of specialization through the tool-permission matrix.
@@ -258,7 +261,7 @@ This separation enables both collaborative knowledge sharing and isolated experi
 While most RAG systems focus on factoid QA, real-world queries often demand summarization or synthesis across many passages.
 The Map-Reduce paradigm for distributed text processing~\citep{dean2008mapreduce} has been adapted to LLM-based summarization: each passage is independently summarized (Map), then all summaries are aggregated into a coherent overview (Reduce).
 GraphRAG~\citep{edge2024graphrag} uses community-level summaries for global queries but does not offer a dedicated summarization agent.
-Existing RAG surveys~\citep{gao2024rag_survey, xu2024retrieval} identify summarization as an underserved query type in current systems.
+Existing RAG surveys~\citep{gao2024rag_survey, zhao2024retrieval} identify summarization as an underserved query type in current systems.
 \sys{} addresses this gap with a dedicated Summarization agent that implements a full Map-Reduce pipeline: broad retrieval ($k\!=\!50$), per-chunk LLM summarization, and final aggregation.
 This makes summarization a first-class routed intent within the same multi-agent RAG framework, rather than an external summarization chain or a generic retrieval mode.
 
@@ -271,13 +274,13 @@ This makes summarization a first-class routed intent within the same multi-agent
 \sys{} is built on a single thesis: a retrieval system should not push every query through the same pipeline, because queries differ in the amount of evidence, the shape of reasoning, and the kind of aggregation they require.
 We realize this thesis as an orchestrator that, for each query, decides \emph{which} specialist should handle it, equips that specialist with a bounded set of tools, and lets it follow a protocol matched to the query type.
 Figure~\ref{fig:pipeline} sketches the end-to-end flow.
-Concretely, a query passes through six stages: (i) intent classification, (ii) a greeting short-circuit, (iii) a QA-cache lookup, (iv) query preprocessing, (v) dispatch to one of five specialist agents, and (vi) post-processing that writes back to memory.
+Concretely, a query passes through six stages: (i) intent classification, (ii) a greeting short-circuit, (iii) a QA-cache lookup, (iv) query preprocessing, (v) dispatch to one of four task-specialist agents, and (vi) post-processing that writes back to memory.
 The three contributions of this paper sit at the decision points of this flow: how a query is routed (\S\ref{sec:triage}), how the hardest queries are reasoned about (\S\ref{sec:per}), and how experience accumulates across queries (\S\ref{sec:memory}).
 
 \begin{figure*}[t]
 \centering
 \fbox{\parbox{0.96\textwidth}{\centering\vspace{3.2cm}\textbf{TODO: End-to-End Pipeline of \sys{}}\\[3pt]\smallskip
-\small Left-to-right flow: a user query enters the orchestrator and passes through six stages --- (1) intent classification, (2) greeting short-circuit, (3) QA-cache lookup, (4) Preprocessor (rewrite / coreference / follow-up merge), (5) dispatch to one of five specialist agents (SingleHop / MultiHop / Summarization / Other / Greeting short-circuit), (6) post-processing (memory writes, trace). The five agents sit in a row, each drawing from a shared pool of 22 tools filtered by the tool-permission matrix; the dual-layer memory (Shared + Private + Session) sits underneath. Arrows: query $\to$ triage $\to$ agent $\to$ post-process $\to$ answer; dashed arrows from each agent to the shared tools and to shared memory; a lock icon on the dispatch arrow to mark one-shot, irreversible routing.\vspace{3.2cm}}}
+\small Left-to-right flow: a user query enters the orchestrator and passes through six stages --- (1) intent classification, (2) greeting short-circuit, (3) QA-cache lookup, (4) Preprocessor (rewrite / coreference / follow-up merge), (5) dispatch to one of four task-specialist agents (SingleHop / MultiHop / Summarization / Other), (6) post-processing (memory writes, trace). The four task-specialist agents sit in a row (the Preprocessor sits upstream), all five agents drawing from a shared pool of 22 tools filtered by the tool-permission matrix; the dual-layer memory (Shared + Private + Session) sits underneath. Arrows: query $\to$ triage $\to$ agent $\to$ post-process $\to$ answer; dashed arrows from each agent to the shared tools and to shared memory; a lock icon on the dispatch arrow to mark one-shot, irreversible routing.\vspace{3.2cm}}}
 \caption{End-to-end pipeline of \sys{}. The orchestrator routes each preprocessed query to one specialist agent; agents share a tool pool and a dual-layer memory. (Figure to be drawn.)}
 \label{fig:pipeline}
 \end{figure*}
@@ -309,7 +312,7 @@ We impose this on purpose, so that each specialist's marginal contribution can b
 \label{fig:triage}
 \end{figure}
 
-\paragraph{Five specialists.}
+\paragraph{Four task specialists.}
 Each label selects an agent whose protocol fits the query's demand profile.
 SingleHop runs one round of hybrid (dense~+~BM25) retrieval, fuses the two rank lists by reciprocal rank fusion,
 \begin{equation}
@@ -461,9 +464,9 @@ This mixed-intent benchmark suite is designed to directly test the division-of-l
 
 \subsection{Baselines}
 
-We compare against ten methods spanning four categories:
+We compare against nine baselines spanning four categories:
 
-\noindent\textbf{LLM-only}: Direct prompting without retrieval---\emph{Qwen3-8B} (8B setting) and \emph{Qwen3-32B} (32B setting).
+\noindent\textbf{LLM-only}: Direct prompting without retrieval, run under both the Qwen3-8B and Qwen3-32B backbones.
 
 \noindent\textbf{Text-based}: \emph{Vanilla RAG} (chunk + dense retrieval + generation) and \emph{RAPTOR}~\citep{sarthi2024raptor} (recursive abstractive tree retrieval).
 
@@ -481,7 +484,7 @@ Both are standard for open-domain QA~\citep{rajpurkar2016squad}.
 
 \paragraph{Retrieval quality.}
 \emph{Recall@$k$} is the fraction of queries whose top-$k$ retrieved passages contain at least one gold supporting evidence.
-We report Recall@5 and Recall@10 on the four multi-hop benchmarks.
+We report Recall@10 on the four multi-hop benchmarks.
 
 \paragraph{Faithfulness.}
 We sample 100 answers per dataset for human + automated evaluation.
@@ -550,7 +553,7 @@ LLM-only & Qwen3-32B     & .178 & .331 & .155 & .298 & .322 & .375 & .260 & .380
 Proposed & \sys{} (ours) & \best{.502} & \best{.685} & \best{.442} & \best{.627} & \best{.662} & \best{.775} & \best{.567} & \best{.721} & \best{.321} & \best{.404} & \best{.226} & \best{.337} & \best{.400} & \best{.566} \\
 \bottomrule
 \end{tabular}
-\caption{Main results across six QA benchmarks spanning three intent types (single-hop: NQ, PopQA; multi-hop: 2Wiki, HotpotQA, MuSiQue reported under answerable and full settings; summarization: ASQA) under both Qwen3-8B and Qwen3-32B backbones (500 questions per dataset, seed=42, temperature=0). Best in \textbf{bold}, second-best \underline{underlined}. \sys{} achieves the best score on every dataset under both backbones; the largest gain over the previous SOTA HippoRAG2 is on ASQA F1 (+5.6, 8B), where the dedicated Summarization agent's Map-Reduce pipeline has no baseline counterpart.}
+\caption{Main results across six QA benchmarks spanning three intent types (single-hop: NQ, PopQA; multi-hop: 2Wiki, HotpotQA, MuSiQue reported under answerable and full settings; summarization: ASQA) under both Qwen3-8B and Qwen3-32B backbones (500 questions per dataset, seed=42, temperature=0). Best in \textbf{bold}, second-best \underline{underlined}. \sys{} achieves the best score on every dataset under both backbones; the largest gain over the previous SOTA HippoRAG2 is on ASQA F1 (+7.2, 8B), where the dedicated Summarization agent's Map-Reduce pipeline has no baseline counterpart.}
 \label{tab:main}
 \end{table*}
 
@@ -601,7 +604,7 @@ This is the strongest evidence for the division-of-labor hypothesis---matching r
 \paragraph{Plan-Execute-Reflect concentrates on multi-hop.}
 Degrading the MultiHop agent to a flat ReAct loop (w/o Plan-Execute-Reflect) drops EM by 4.3 on 2Wiki and 4.3 on HotpotQA, but only 1.9 on MuSiQue-Full and 3.7 on ASQA.
 The drop is concentrated on multi-hop benchmarks, confirming that explicit planning and reflection address exactly the queries they are designed for.
-The small MuSiQue-Full drop ($-$1.9) exposes a limit: a single reflection round ($k_{\max}{=}2$) cannot always repair 4-hop evidence gaps, an avenue we discuss in limitations.
+The small MuSiQue-Full drop ($-$1.9) exposes a limit: a single reflection round ($k_{\max}{=}2$) cannot always repair 4-hop evidence gaps, an avenue we leave to future work.
 
 \paragraph{Memory gives stable, evenly distributed gains.}
 Disabling both memory layers (w/o Dual-Layer Memory) costs 3.0 on 2Wiki, 3.1 on HotpotQA, 1.8 on MuSiQue-Ans, 1.0 on MuSiQue-Full, and 2.2 on ASQA.
@@ -613,7 +616,7 @@ The drop is small but consistent across all query types because the shared QA ca
 \section{Analysis}
 \label{sec:analysis}
 
-We dissect \sys{}'s gains along six axes: retrieval quality and faithfulness, routing counterfactuals, intent classification accuracy, multi-hop depth, memory accumulation, and hyperparameter sensitivity.
+We dissect \sys{}'s gains along seven axes: retrieval quality and faithfulness, routing counterfactuals, intent classification accuracy, routing distribution, multi-hop depth, memory accumulation, and hyperparameter sensitivity. Unless noted, analyses run on the same 500-per-dataset benchmark queries as the main results (Table~\ref{tab:main}); the routing counterfactual (Table~\ref{tab:routing}) uses a separate 700-query mixed-intent set, and the intent-classification accuracy (Table~\ref{tab:intent}) a separate 430-query human-labeled set.
 
 % -------------------------------------------------------------------
 \subsection{Retrieval Quality and Faithfulness}
@@ -698,7 +701,7 @@ Weighted avg    & .895 & .893 & .894 & -- \\
 Overall accuracy & \multicolumn{3}{c|}{.893} & 430 \\
 \bottomrule
 \end{tabular}
-\caption{Tree-Intent Classifier accuracy on a 430-query human-labeled set (Qwen3-8B). Greetings are detected perfectly by the regex filter; the four semantic classes average 0.909 macro-F1.}
+\caption{Intent-Aware Query Triage accuracy on a 430-query human-labeled set (Qwen3-8B). Greetings are detected perfectly by the regex filter; the four semantic classes average 0.909 macro-F1.}
 \label{tab:intent}
 \end{table}
 
@@ -707,6 +710,40 @@ On a stratified 430-query labeled set (Table~\ref{tab:intent}), the classifier r
 Greeting is perfect (regex filter); the four semantic classes cluster between 0.872 and 0.902 F1.
 The dominant errors are boundary cases between \texttt{single\_hop} and \texttt{multi\_hop} (e.g., a question phrased with ``and'' that is in fact answerable from one passage), and a tendency to misread ``summarize the differences'' as \texttt{multi\_hop} comparison---both addressable with targeted prompt examples.
 Crucially, even misclassified queries degrade gracefully: the rule fallback and the agents' bounded tool sets prevent catastrophic failure, so the routing lever pays off well above the accuracy ceiling.
+
+% -------------------------------------------------------------------
+\subsection{Routing Distribution}
+\label{sec:analysis:distribution}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}l|ccccc|c@{}}
+\toprule
+\textbf{Dataset} & \textbf{greet} & \textbf{SH} & \textbf{MH} & \textbf{SM} & \textbf{OT} & \textbf{N} \\
+\midrule
+NQ        & 0 & 438 &  33 &  16 & 13 & 500 \\
+PopQA     & 0 & 453 &  19 &  12 & 16 & 500 \\
+HotpotQA  & 0 &  22 & 464 &   4 & 10 & 500 \\
+2Wiki     & 0 &  13 & 470 &   4 & 13 & 500 \\
+MuSiQue   & 0 &   9 & 475 &   3 & 13 & 500 \\
+ASQA      & 0 &  58 &  33 & 384 & 25 & 500 \\
+\midrule
+All       & 0 & 993 &1494 & 423 & 90 & 3000 \\
+\bottomrule
+\end{tabular}
+\caption{Per-dataset routing distribution (Qwen3-8B, $n{=}500$ per dataset). Greeting is 0 on every benchmark: none of the six QA sets contains greeting utterances, so the L1 regex never fires and 100\% of benchmark queries are handled by the L2 semantic classifier. Single-hop sets route 87.6--90.6\% to SingleHop, multi-hop sets 92.8--95.0\% to MultiHop, and ASQA 76.8\% to Summarization.}
+\label{tab:routing_dist}
+\end{table}
+
+\paragraph{Distribution matches the division-of-labor design.}
+Table~\ref{tab:routing_dist} reports how the 3000 benchmark queries are routed.
+The distribution tracks each benchmark's intent type: NQ and PopQA send 87.6--90.6\% of queries to SingleHop, the multi-hop sets send 92.8--95.0\% to MultiHop, and ASQA sends 76.8\% to Summarization.
+Two facts are worth noting.
+First, greeting is zero on every benchmark---the L1 regex never fires because none of the six QA sets contains greeting utterances, so 100\% of benchmark queries are handled by the L2 semantic classifier.
+Second, the off-diagonal rates (5--12\% on typed benchmarks, 23.2\% on ASQA) are consistent with the L2 classifier's 89.3\% overall accuracy reported in Table~\ref{tab:intent}; the higher ASQA off-diagonal reflects that its questions are phrased as ambiguous factoids and are sometimes read as multi-hop or single-hop rather than synthesis.
+The distribution also contextualizes the main results: on NQ/PopQA the SingleHop agent handles almost everything, so the $+4.7$ F1 gain there comes from its hybrid retrieval and reranking rather than from cross-agent routing, whereas on ASQA the 76.8\% that reach the Summarization agent's Map-Reduce pipeline account for the $+7.2$ F1 outlier---the clearest evidence for the division-of-labor thesis, since no baseline runs a dedicated aggregation pipeline.
 
 % -------------------------------------------------------------------
 \subsection{Multi-hop Depth Boundary}
@@ -732,12 +769,12 @@ This is the clearest signal of where future capacity should be invested.
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.96\columnwidth]{figures/fig_memory_curve.pdf}
-\caption{Memory accumulation curve on HotpotQA (Qwen3-8B). As the QA cache and private experiential memory fill, EM rises from 0.422 (cold) to 0.507 (warm) and the cache hit rate climbs to 8.5\%.}
+\caption{Memory accumulation curve on HotpotQA (Qwen3-8B). As the QA cache and private experiential memory fill, EM rises from 0.422 (cold) to 0.520 (warm) and the cache hit rate climbs to 8.5\%.}
 \label{fig:memory_curve}
 \end{figure}
 
 Figure~\ref{fig:memory_curve} tracks performance as queries accumulate in temporal order.
-EM rises from 0.422 (cold start, 1--50) to 0.507 (warm, 401--500), a 20.1\% relative gain, and F1 from 0.535 to 0.625.
+EM rises from 0.422 (cold start, 1--50) to 0.520 (warm, 401--500), a 23.2\% relative gain, and F1 from 0.535 to 0.638.
 Two mechanisms drive this.
 The shared QA cache returns high-quality answers for repeated queries, reaching an 8.5\% hit rate by window 401--500 with zero retrieval or generation cost.
 Private experiential memory fills fastest in the multi-hop bucket (112 entries, average hit count 1.8), so the same multi-hop routing patterns are reused rather than re-planned---explaining why memory's ablation impact concentrates on multi-hop (Table~\ref{tab:ablation}).
@@ -758,7 +795,7 @@ Figure~\ref{fig:hyperparam} sweeps the five governing hyperparameters.
 All defaults ($n_{\max}{=}5$, $\tau{=}0.6$, $k_{\max}{=}2$, $j_{\max}{=}3$, top-$k{=}10$) sit at or within 0.5 EM of the peak, and a one-step perturbation in either direction costs at most about 2 EM (typically under 1), so \sys{} is not tuned to a knife-edge.
 Two trends are worth noting.
 \emph{Plan length} peaks at 5 steps: shorter plans under-decompose multi-hop queries, while longer ones let the LLM hallucinate redundant steps (the valid-plan rate falls from 96.2\% at $n{=}3$ to 88.1\% at $n{=}10$).
-\emph{Reflection budget} shows diminishing returns: $k{=}0\!\to\!1$ adds 2.6 EM, $1\!\to\!2$ adds 0.5, and $2\!\to\!3$ adds 0.1---so $k_{\max}{=}2$ captures almost all available gain at one-third the worst-case cost.
+\emph{Reflection budget} shows diminishing returns: $k{=}0\!\to\!1$ adds 2.6 EM, $1\!\to\!2$ adds 0.5, and $2\!\to\!3$ adds 0.1---so $k_{\max}{=}2$ captures almost all available gain at two-thirds the worst-case cost of $k_{\max}{=}3$.
 
 % -------------------------------------------------------------------
 \paragraph{Scaling behavior.}
@@ -839,7 +876,7 @@ The 22 shared tools span six categories:
 
 \noindent\textbf{Preprocessing (3):} \tool{query\_rewrite}, \tool{coreference\_resolve}, \tool{followup\_merge}.
 
-\noindent\textbf{Memory (6):} \tool{read/write\_shared\_memory}, \tool{read/write\_agent\_memory}, \tool{read/write\_session\_context}.
+\noindent\textbf{Memory (3):} \tool{shared\_memory} (read/write), \tool{agent\_memory} (read/write), \tool{session\_context} (read/write).
 
 \noindent\textbf{Web/IO (4):} \tool{web\_search}, \tool{web\_fetch}, \tool{save\_to\_file}, \tool{load\_from\_file}.
 

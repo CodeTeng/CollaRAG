@@ -11,12 +11,12 @@
 
 | 策略 | 说明 |
 |---|---|
-| **Normal routing** | TreeIntentClassifier 正常分类 → 分派到对应 Agent（默认配置） |
+| **Normal routing** | Intent-Aware Query Triage（TreeIntentClassifier）正常分类 → 分派到对应 Agent（默认配置） |
 | **All → SingleHop** | 所有查询强制路由到 SingleHop Agent |
 | **All → MultiHop** | 所有查询强制路由到 MultiHop Agent（Plan-Execute-Reflect） |
 | **Random routing** | 每个查询随机分配到 {SingleHop, MultiHop, Summarization, Other} 之一 |
 
-评测集：从 7 个数据集各抽样 100 题，共 700 题混合查询集。
+评测集：从 6 个主实验数据集抽样（MuSiQue 取 answerable 与 full 各 100 题），共 700 题混合查询集。
 
 ---
 

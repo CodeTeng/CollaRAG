@@ -18,6 +18,6 @@
 
 **变体说明：**
 
-- **w/o Query Triage**：移除 TreeIntentClassifier，所有查询统一路由到 SingleHop Agent（单轮 hybrid search → generate）。用于量化"意图感知分诊"的贡献。
+- **w/o Query Triage**：移除 Intent-Aware Query Triage（TreeIntentClassifier），所有查询统一路由到 SingleHop Agent（单轮 hybrid search → generate）。用于量化"意图感知分诊"的贡献。
 - **w/o PER**：MultiHop Agent 的 Plan-Execute-Reflect 退化为标准 ReAct 循环（单轮 Thought→Action→Observation，移除 Plan 和 Reflect 阶段）。SingleHop/Summarization/Other Agent 不受影响。用于量化"三阶段工作流"的贡献。
 - **w/o Memory**：同时禁用 SharedMemory（QA cache、routing stats、entity aliases）和 AgentPrivateMemory。每次查询从零开始，无跨查询经验积累。用于量化"双层记忆"的贡献。
