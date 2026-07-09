@@ -4,19 +4,20 @@ This script is the second half of the split evaluation pipeline:
 
     main.py infer  →  output/<dataset>/<config_stem>/predictions.jsonl
                        + meta.json
-    eval.py        →  report.md / report.json / report.csv  (single-dir)
+    experiments/eval.py
+                   →  report.md / report.json / report.csv  (single-dir)
                       compare.md / compare.json / compare.csv
                       (+ compare_bar.png / compare_radar.png) (multi-dir)
 
 Usage:
 
     # single-directory scoring
-    uv run python eval.py \
+    uv run python experiments/eval.py \
         --predictions output/mock_wiki/deepseek_colla_rag_only/ \
         --metrics em,f1,rouge_l
 
     # multi-directory comparison
-    uv run python eval.py \
+    uv run python experiments/eval.py \
         --predictions output/mock_wiki/vanilla/ \
                       output/mock_wiki/colla_rag_only/ \
         --out output/mock_wiki/compare/ \

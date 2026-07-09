@@ -1,4 +1,4 @@
-"""Tests for the eval.py offline scoring script and CompareReporter."""
+"""Tests for the experiments/eval.py offline scoring script and CompareReporter."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _write_predictions(
 # CLI (subprocess) smoke tests
 # ----------------------------------------------------------------------
 def _run_eval(args: list[str]) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "eval.py", *args]
+    cmd = [sys.executable, "experiments/eval.py", *args]
     return subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
 
 

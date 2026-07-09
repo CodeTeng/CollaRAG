@@ -170,7 +170,7 @@ class EvalResult(BaseModel):
     # Optional run-level diagnostics populated by Evaluator.run when available.
     usage: dict[str, int] = Field(default_factory=dict)  # prompt/completion/total tokens + calls
     elapsed_s: float = 0.0  # wall-clock seconds of the evaluation loop
-    # Optional one-shot ingest cost (graph building), populated by eval.py
+    # Optional one-shot ingest cost (graph building), populated by experiments/eval.py
     # when meta.json contains an "ingest" section. None means "not reported".
     ingest: dict[str, Any] | None = None
 

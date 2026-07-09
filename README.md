@@ -74,7 +74,7 @@ uv run python main.py infer \
     --config configs/deepseek_colla_rag_only.yaml \
     --dataset mock_wiki --limit 10
 
-uv run python eval.py \
+uv run python experiments/eval.py \
     --predictions output/mock_wiki/deepseek_colla_rag_only/ \
     --metrics em,f1,rouge_l
 ```
@@ -86,7 +86,7 @@ uv run python eval.py \
 ```bash
 uv run python main.py ingest --config configs/deepseek_colla_rag_only.yaml --dataset musique --limit 500 --rebuild
 uv run python main.py infer  --config configs/deepseek_colla_rag_only.yaml --dataset musique --limit 500
-uv run python eval.py --predictions output/musique/deepseek_colla_rag_only --metrics em,f1,rouge_l
+uv run python experiments/eval.py --predictions output/musique/deepseek_colla_rag_only --metrics em,f1,rouge_l
 ```
 
 ### 6. 论文实验复现
@@ -218,13 +218,13 @@ query → Preprocessor Agent → Tree-Intent Classifier
 ```
 chimera-rag/
 ├── main.py                       # CLI 入口 (ingest/query/infer/export/serve)
-├── eval.py                       # 离线打分（EM/F1/ROUGE-L）
-├── eval_ragas.py                 # RAGAS 语义评测（忠实性/相关性/精度/召回）
 ├── configs/                      # 6 份 yaml 预设
 ├── data/                         # 数据集
 ├── docs/                         # 设计文档 + 实验结果
 ├── experiments/                  # 论文实验可复现脚本（9 项实验）
 │   ├── README.md                 # 实验说明与运行指南
+│   ├── eval.py                   # 离线打分（EM/F1/ROUGE-L）
+│   ├── eval_ragas.py             # RAGAS 语义评测（忠实性/相关性/精度/召回）
 │   ├── utils.py                  # 共享工具（配置生成/结果收集/渲染）
 │   ├── run_all.sh                # 一键运行全部实验
 │   ├── exp1_main_results.py      # 主实验 (Table 1 & 2)

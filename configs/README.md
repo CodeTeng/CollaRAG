@@ -53,7 +53,7 @@ uv run python main.py infer \
 # → output/mock_wiki/deepseek_colla_rag_only/{predictions.jsonl, meta.json}
 
 # 阶段 2：打分 + 报告（0 LLM 调用）
-uv run python eval.py \
+uv run python experiments/eval.py \
   --predictions output/mock_wiki/deepseek_colla_rag_only/ \
   --metrics em,f1,rouge_l
 ```
@@ -64,8 +64,8 @@ uv run python eval.py \
 uv run python main.py infer --config configs/deepseek_vanilla.yaml     --dataset mock_wiki --limit 100
 uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset mock_wiki --limit 100
 
-# 再用 eval.py 多目录对比（自动生成 compare 报告 + 柱图/雷达图）
-uv run python eval.py \
+# 再用 experiments/eval.py 多目录对比（自动生成 compare 报告 + 柱图/雷达图）
+uv run python experiments/eval.py \
   --predictions output/mock_wiki/deepseek_vanilla/ \
                 output/mock_wiki/deepseek_colla_rag_only/ \
   --out output/mock_wiki/compare/ --metrics em,f1,rouge_l

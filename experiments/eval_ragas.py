@@ -1,12 +1,13 @@
 """RAGAS semantic scorer for Chimera-RAG.
 
 This script is a third, optional evaluation path that complements the
-word-overlap metrics produced by ``eval.py``. It computes RAGAS's four
+word-overlap metrics produced by ``experiments/eval.py``. It computes RAGAS's four
 semantic metrics on the predictions written by ``main.py infer``:
 
     main.py infer  →  output/<dataset>/<config_stem>/predictions.jsonl
                        (must contain the `evidence_texts` field)
-    eval_ragas.py  →  ragas_report.md / ragas_report.json / ragas_report.csv
+    experiments/eval_ragas.py
+                   →  ragas_report.md / ragas_report.json / ragas_report.csv
 
 Both the judge LLM and the embedding model are built from the project
 ``config.yaml`` (--config), so DeepSeek / OpenAI / local sentence-transformers
@@ -14,7 +15,7 @@ all work without extra wiring.
 
 Usage:
 
-    uv run python eval_ragas.py \
+    uv run python experiments/eval_ragas.py \
         --predictions output/mock_wiki/deepseek_colla_rag_only/ \
         --config configs/deepseek_colla_rag_only.yaml
 

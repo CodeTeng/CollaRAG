@@ -145,7 +145,7 @@ def run_scoring(
     import subprocess
 
     cmd = [
-        "uv", "run", "python", "eval.py",
+        "uv", "run", "python", "experiments/eval.py",
         "--predictions", *[str(p) for p in predictions_dirs],
     ]
     if metrics:

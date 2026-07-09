@@ -30,7 +30,7 @@ def test_main_help_lists_all_subcommands():
     out = r.stdout + r.stderr
     for sub in ["ingest", "query", "infer", "export", "serve"]:
         assert sub in out
-    # evaluate/benchmark are intentionally removed; scoring lives in eval.py now.
+    # evaluate/benchmark are intentionally removed; scoring lives in experiments/eval.py now.
     assert "evaluate" not in out
     assert "benchmark" not in out
 

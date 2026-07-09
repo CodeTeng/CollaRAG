@@ -5,7 +5,7 @@
   - 在本地 ollama (Qwen3-8B) 与云端 DeepSeek-V3 之间做同口径对比
 
 产物与 ``main.py infer`` 相同（predictions.jsonl + meta.json），可直接喂给
-``eval.py`` 打 EM/F1/ROUGE-L。
+``experiments/eval.py`` 打 EM/F1/ROUGE-L。
 
 用法::
 
@@ -18,7 +18,7 @@
         --limit 500 --out output/llm_only/qwen3_8b/hotpotqa
 
     # 3) 打分
-    uv run python eval.py --predictions output/llm_only/qwen3_8b/hotpotqa
+    uv run python experiments/eval.py --predictions output/llm_only/qwen3_8b/hotpotqa
 
 依赖：openai>=1.0（已在 uv 主依赖里）；ollama 仅需要本地 11434 端口可访问。
 """
@@ -313,7 +313,7 @@ def main() -> int:
     print(f"  empty preds  : {n_empty}")
     print(f"  elapsed      : {elapsed_s:.1f}s  (avg {avg_latency:.2f}s / q)")
     print(f"  usage        : {usage_total}")
-    print(f"  next         : uv run python eval.py --predictions {out_dir} --metrics em,f1,rouge_l")
+    print(f"  next         : uv run python experiments/eval.py --predictions {out_dir} --metrics em,f1,rouge_l")
     print("=" * 72)
     return 0
 

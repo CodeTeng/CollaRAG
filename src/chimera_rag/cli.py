@@ -6,14 +6,14 @@ Subcommands are dispatched via :mod:`argparse`:
 * ``ingest``  — build the knowledge graph from a configured dataset
 * ``query``   — single-shot question answering
 * ``infer``   — batch-run a QA dataset and write predictions to disk
-                (no metric calculation; use ``eval.py`` for that)
+                (no metric calculation; use ``experiments/eval.py`` for that)
 * ``export``  — dump graph/vectors/stats to ``output/``
 * ``serve``   — start the FastAPI + React web UI
 
 Evaluation is now split into two stages:
 
 * ``main.py infer`` produces predictions.jsonl + meta.json
-* ``eval.py``       reads those, computes metrics, and renders the report
+* ``experiments/eval.py``       reads those, computes metrics, and renders the report
 
 This decoupling means expensive inference only runs once, while metric
 iteration and report regeneration are free.

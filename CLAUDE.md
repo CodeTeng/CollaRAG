@@ -39,7 +39,7 @@ uv run python main.py serve --config <cfg>
 
 ```bash
 uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --dataset hotpotqa --limit 10
-uv run python eval.py --predictions_dir output/hotpotqa/deepseek_colla_rag_only
+uv run python experiments/eval.py --predictions_dir output/hotpotqa/deepseek_colla_rag_only
 ```
 
 ### Experiments (paper reproduction)
