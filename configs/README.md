@@ -139,3 +139,21 @@ def mock_full_yaml(tmp_path: Path) -> str: ...
 临时 YAML 路径，workspace_dir 自动挂在 `tmp_path` 下。需要新增 Mock
 配置组合时，调用 `mock_config_yaml_builder(adagraph=..., colla_rag=...)`
 即可。
+
+## 实验专用配置
+
+论文的 9 项实验（`experiments/` 目录下的脚本）会在运行时通过 `experiments/utils.py`
+的 `make_config()` 动态生成临时配置文件，存放在 `output/experiments/<exp_name>/configs/`。
+这些临时配置基于本目录的 yaml 派生（应用超参数覆盖、路由策略切换等），
+不需要手动维护——实验脚本会自动处理。
+
+示例：消融实验的 `w/o Memory` 变体会基于 `deepseek_colla_rag_only.yaml`
+生成一份禁用双层记忆的临时配置：
+
+```python
+cfg = make_config(
+    base="deepseek_colla_rag_only",
+    overrides={"plugins": {"colla_rag": {"multi_agent": {"memory": {"shared": {"enabled": False}}}}}},
+    workspace_suffix="exp2_wo_memory_hotpotqa",
+)
+```

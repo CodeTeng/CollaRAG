@@ -42,6 +42,29 @@ uv run python main.py infer --config configs/deepseek_colla_rag_only.yaml --data
 uv run python eval.py --predictions_dir output/hotpotqa/deepseek_colla_rag_only
 ```
 
+### Experiments (paper reproduction)
+
+All 9 paper experiments live in `experiments/` with a shared `utils.py` toolkit:
+
+```bash
+bash experiments/run_all.sh --limit 50          # Smoke test all experiments (50 samples)
+bash experiments/run_all.sh --limit 500         # Full reproduction (500 samples, matches paper)
+bash experiments/run_all.sh --exp 1 2 3         # Run only specific experiments
+
+# Run individual experiments
+uv run python experiments/exp1_main_results.py --datasets nq --methods collarag --backbone qwen3-8b
+uv run python experiments/exp2_ablation.py --datasets hotpotqa --limit 100
+uv run python experiments/exp3_hyperparameter_sensitivity.py --param quality_threshold
+uv run python experiments/exp4_intent_classification.py
+uv run python experiments/exp5_retrieval_quality.py --methods collarag vanilla_rag
+uv run python experiments/exp6_routing_counterfactual.py
+uv run python experiments/exp7_routing_distribution.py
+uv run python experiments/exp8_hop_depth.py --methods collarag hipporag2
+uv run python experiments/exp9_memory_accumulation.py --window-size 50
+```
+
+Experiment output goes to `output/experiments/<exp_name>/` with `.json` + `.md` reports.
+
 ## Architecture
 
 Chimera-RAG is a pluggable knowledge-graph RAG framework with two optional research innovations that degrade gracefully when disabled.
@@ -145,6 +168,24 @@ plugins/colla_rag/
 ### Web system
 
 FastAPI at `src/chimera_rag/web/` — 7 route modules. React frontend at `web-ui/` (Vite + TypeScript + Tailwind v4 + Cytoscape). Dev: Vite on :5173 proxies `/api` to FastAPI on :8000. Production: `pnpm build` output mounted as static files.
+
+### Experiments
+
+All 9 paper experiments live in `experiments/` as standalone Python scripts. Each script corresponds to one document in `docs/experiments/`:
+
+| # | Script | What it tests |
+|---|---|---|
+| 1 | `exp1_main_results.py` | Full benchmark: 7 datasets × 10 methods × 2 backbones (Table 1 & 2) |
+| 2 | `exp2_ablation.py` | Ablation: w/o Query Triage, w/o PER, w/o Memory |
+| 3 | `exp3_hyperparameter_sensitivity.py` | Sweep 5 hyperparams on HotpotQA |
+| 4 | `exp4_intent_classification.py` | TreeIntentClassifier accuracy on 430-sample annotated set |
+| 5 | `exp5_retrieval_quality.py` | Recall@k, faithfulness, hallucination rate |
+| 6 | `exp6_routing_counterfactual.py` | 4 routing strategies (normal / all-single / all-multi / random) |
+| 7 | `exp7_routing_distribution.py` | Per-dataset intent label distribution |
+| 8 | `exp8_hop_depth.py` | MuSiQue 2/3/4-hop breakdown + decay rates |
+| 9 | `exp9_memory_accumulation.py` | Cold-start → warm-up memory flywheel curve |
+
+Shared utilities in `experiments/utils.py`: config generation, inference runner, metric computation, Markdown table rendering. Master orchestrator: `experiments/run_all.sh`. Output: `output/experiments/<exp_name>/`.
 
 ### Testing
 

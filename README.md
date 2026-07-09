@@ -89,6 +89,36 @@ uv run python main.py infer  --config configs/deepseek_colla_rag_only.yaml --dat
 uv run python eval.py --predictions output/musique/deepseek_colla_rag_only --metrics em,f1,rouge_l
 ```
 
+### 6. 论文实验复现
+
+`experiments/` 目录包含论文中所有 9 项实验的可复现脚本：
+
+```bash
+# 快速烟雾测试（每数据集 50 题）
+bash experiments/run_all.sh --limit 50
+
+# 完整实验（每数据集 500 题，对应论文结果）
+bash experiments/run_all.sh --limit 500
+
+# 运行单个实验
+uv run python experiments/exp1_main_results.py --datasets nq hotpotqa --limit 100
+uv run python experiments/exp2_ablation.py --datasets hotpotqa --limit 100
+```
+
+| # | 实验 | 脚本 | 说明 |
+|---|---|---|---|
+| 1 | 主实验 | `exp1_main_results.py` | 7 数据集 × 10 方法 × 2 骨干模型 |
+| 2 | 消融实验 | `exp2_ablation.py` | w/o Query Triage / PER / Memory |
+| 3 | 超参数敏感性 | `exp3_hyperparameter_sensitivity.py` | 5 参数扫描 |
+| 4 | 意图分类准确率 | `exp4_intent_classification.py` | 430 条标注集评测 |
+| 5 | 检索质量 | `exp5_retrieval_quality.py` | Recall@k / 忠实性 / 幻觉率 |
+| 6 | 路由反事实 | `exp6_routing_counterfactual.py` | 4 种路由策略对比 |
+| 7 | 路由分布 | `exp7_routing_distribution.py` | 各数据集意图标签分布 |
+| 8 | 多跳深度 | `exp8_hop_depth.py` | 2/3/4 跳性能衰减分析 |
+| 9 | 记忆累积 | `exp9_memory_accumulation.py` | 冷启动 → 充分预热曲线 |
+
+详见 **[experiments/README.md](experiments/README.md)**
+
 ---
 
 ## 两大创新点
@@ -189,9 +219,23 @@ query → Preprocessor Agent → Tree-Intent Classifier
 chimera-rag/
 ├── main.py                       # CLI 入口 (ingest/query/infer/export/serve)
 ├── eval.py                       # 离线打分（EM/F1/ROUGE-L）
-├── configs/                      # 5 份 yaml 预设
+├── eval_ragas.py                 # RAGAS 语义评测（忠实性/相关性/精度/召回）
+├── configs/                      # 6 份 yaml 预设
 ├── data/                         # 数据集
-├── docs/                         # 设计文档 + 实验指南
+├── docs/                         # 设计文档 + 实验结果
+├── experiments/                  # 论文实验可复现脚本（9 项实验）
+│   ├── README.md                 # 实验说明与运行指南
+│   ├── utils.py                  # 共享工具（配置生成/结果收集/渲染）
+│   ├── run_all.sh                # 一键运行全部实验
+│   ├── exp1_main_results.py      # 主实验 (Table 1 & 2)
+│   ├── exp2_ablation.py          # 消融实验
+│   ├── exp3_hyperparameter_sensitivity.py  # 超参数敏感性
+│   ├── exp4_intent_classification.py       # 意图分类准确率
+│   ├── exp5_retrieval_quality.py           # 检索质量与忠实性
+│   ├── exp6_routing_counterfactual.py      # 路由反事实
+│   ├── exp7_routing_distribution.py        # 路由分布统计
+│   ├── exp8_hop_depth.py                   # 多跳深度分析
+│   └── exp9_memory_accumulation.py         # 记忆累积效应
 │
 ├── src/chimera_rag/
 │   ├── __init__.py               # ChimeraRAG 门面
@@ -242,7 +286,8 @@ uv run python main.py serve --config configs/deepseek_full.yaml --dataset mock_w
 
 | 文档 | 说明 |
 |---|---|
-| [docs/experiments/](docs/experiments/) | **实验文档**：实验结果与实验设计 |
+| [docs/experiments/](docs/experiments/) | **实验结果**：10 份实验数据文档 |
+| [experiments/](experiments/) | **实验代码**：9 项论文实验的可复现脚本 |
 | [docs/architecture_overview.md](docs/architecture_overview.md) | 架构：注册表、插槽、依赖注入、管线数据流 |
 | [docs/innovation-1/adagraph.md](docs/innovation-1/adagraph.md) | AdaGraph 3 个子模块实装细节 |
 | [docs/innovation-2/colla-rag.md](docs/innovation-2/colla-rag.md) | CollaRAG 多Agent架构实装细节 |
