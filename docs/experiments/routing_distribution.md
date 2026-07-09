@@ -18,7 +18,7 @@ Provenance: tabulated from the per-query `intent_label` field in CollaRAG run lo
 | 2Wiki      | multi-hop      |     0 |         13 |       470 |             4 |    13 |   500 |
 | MuSiQue    | multi-hop      |     0 |          9 |       475 |             3 |    13 |   500 |
 | ASQA       | summarization  |     0 |         58 |        33 |           384 |    25 |   500 |
-| **Overall**| —              |     0 |        993 |      1497 |           423 |    90 |  3000 |
+| **Overall**| —              |     0 |        993 |      1494 |           423 |    90 |  3000 |
 
 ## Percentages
 
@@ -30,4 +30,4 @@ Provenance: tabulated from the per-query `intent_label` field in CollaRAG run lo
 | 2Wiki      |       2.6% |     94.0% |          0.8% |  2.6% |
 | MuSiQue    |       1.8% |     95.0% |          0.6% |  2.6% |
 | ASQA       |      11.6% |      6.6% |         76.8% |  5.0% |
-| **Overall**|      33.1% |     49.9% |         14.1% |  3.0% |
+| **Overall**|      33.1% |     49.8% |         14.1% |  3.0% |

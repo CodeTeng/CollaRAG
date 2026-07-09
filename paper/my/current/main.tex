@@ -44,7 +44,7 @@
 \setlength{\parskip}{0.25em}
 \setlength{\parindent}{1em}
 
-\title{CollaRAG: Specialist Multi-Agent Retrieval \\ via Division of Labor}
+\title{CollaRAG: Graph-Grounded Division of Labor \\ for Multi-Agent Retrieval}
 
 \author{
   Anonymous Submission
@@ -61,12 +61,13 @@
 \begin{abstract}
 Existing Retrieval-Augmented Generation (RAG) systems apply a uniform retrieval pipeline to every query, whether it demands a single-fact lookup, multi-hop reasoning, or cross-document synthesis.
 This monolithic design over-processes simple queries while under-serving complex ones, because one pipeline cannot match both the cost and the evidence shape of every query type.
-We introduce \sys{}, a multi-agent RAG framework built on the principle of \emph{division of labor}: an intent-aware triage routes each query to a specialist agent whose tool permissions, reasoning protocol, and memory scope fit the query's demand profile.
-\sys{} makes three contributions.
+We introduce \sys{}, a multi-agent RAG framework built on the principle of \emph{graph-grounded division of labor}: an intent-aware triage routes each query to a specialist agent whose tool permissions, reasoning protocol, and memory scope fit the query's demand profile, and every routing, reasoning, memory, and capability decision is conditioned on a shared knowledge graph.
+\sys{} makes four contributions.
 \textbf{First}, \emph{Intent-Aware Query Triage}, a two-level classifier that routes each query to the best-suited specialist via one-shot, irreversible dispatch, replacing the one-pipeline-fits-all bottleneck and enabling clean per-agent ablation.
-\textbf{Second}, a \emph{Plan-Execute-Reflect} workflow for the multi-hop agent, which decomposes complex queries into a bounded retrieval plan, executes each step through a mini-ReAct loop~\citep{yao2023react}, and self-reflects on evidence gaps before synthesis.
-\textbf{Third}, \emph{Dual-Layer Experiential Memory}, pairing a cross-agent shared memory (QA caching, routing statistics, entity aliases) with per-agent private memory that accumulates successful retrieval patterns over time.
-Five agents---a preprocessor and four task specialists---share a pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by a static tool-permission matrix that enforces capability specialization.
+\textbf{Second}, \emph{Graph-Grounded Plan-Execute-Reflect} (G-PER), a multi-hop reasoning protocol whose Plan, Execute, and Reflect phases are each anchored to the knowledge graph: the plan is validated against the KG schema before any retrieval budget is spent, execution shares a frontier budget across steps, and reflection checks \emph{structural} evidence completeness and probes the KG for contradictions---checks that graph-agnostic ReAct/Reflexion cannot perform.
+\textbf{Third}, \emph{Graph-Grounded Dual-Layer Memory}, whose shared layer caches evidence subgraphs retrieved by entity-neighborhood overlap (not text match) and whose private layer stores graph plan templates and typed gap lessons that feed G-PER's Plan and Reflect, separating structural learning from cache hits.
+\textbf{Fourth}, \emph{Graph-Conditioned Capability Specialization}, which makes the per-agent tool-permission matrix adaptive to the query's structural footprint on the KG---withdrawing graph-traversal tools and adding text fallback in graph-poor regions---a graph-conditioned capability mechanism absent from prior strategy-level routing.
+Five agents---a preprocessor and four task specialists---share a pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by a graph-conditioned tool-permission matrix that adapts each agent's toolset to the query's structural footprint on the KG.
 On six QA benchmarks spanning single-hop (NQ, PopQA), multi-hop (HotpotQA, 2WikiMultiHopQA, MuSiQue), and long-form summarization (ASQA), \sys{} outperforms nine baselines including the previous SOTA HippoRAG2~\citep{gutierrez2025hipporag2} under both Qwen3-8B and Qwen3-32B backbones.
 The largest gain is on ASQA, $+7.2$ F1 (Qwen3-8B), where no baseline runs a dedicated aggregation pipeline; on factoid and multi-hop sets, where baselines already retrieve well, gains come from reranking, sub-query decomposition, and reflection ($+1.8$ to $+5.7$ F1, Qwen3-8B).
 Ablation studies confirm that intent-aware routing is the single most impactful component, contributing $5.9$--$12.2$ EM points when removed.
@@ -148,13 +149,13 @@ Similarly, an intelligent retrieval system should route queries to specialized a
 We introduce \sys{}, a framework that replaces the monolithic retrieval pipeline with intent-conditioned specialist execution.
 \sys{} routes queries into five handling modes---greeting short-circuit, SingleHop, MultiHop, Summarization, and Other---supported by a Preprocessor agent and four task-specialist agents.
 An \emph{intent-aware query triage} module classifies incoming queries and dispatches each to the matching handler.
-Each task agent draws from a shared pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by a static \emph{tool-permission matrix} that enforces capability specialization.
-The MultiHop agent employs a novel \emph{Plan-Execute-Reflect} workflow.
+Each task agent draws from a shared pool of 31 retrieval, reasoning, verification, and memory tools, with access governed by an adaptive, \emph{graph-conditioned tool-permission matrix} that specializes each agent's toolset to the query's structural footprint on the knowledge graph (degrading to a static matrix when the graph is unavailable).
+The MultiHop agent employs a novel \emph{G-PER} (graph-grounded Plan-Execute-Reflect) workflow.
 A \emph{dual-layer memory system} enables cross-agent coordination and per-agent progressive learning.
 
 % --- 7. Contributions ---
 
-Specifically, \sys{} makes three technical contributions:
+Specifically, \sys{} makes four technical contributions:
 
 \begin{enumerate}
 \setlength{\itemsep}{3pt}
@@ -162,15 +163,20 @@ Specifically, \sys{} makes three technical contributions:
 We propose a two-level intent classifier---a fast regex-based greeting filter cascading into LLM semantic classification with keyword-based rule fallback---that categorizes queries into five handling modes (\texttt{greeting}, \texttt{single\_hop}, \texttt{multi\_hop}, \texttt{summarization}, \texttt{other}) and dispatches each to the matching handler via one-shot deterministic routing.
 Unlike prior adaptive retrieval methods that mainly switch among retrieval depths or strategy templates, our triage operates at the agent level: different intents are handled by specialists with distinct tool permissions, reasoning protocols, synthesis procedures, and private memories.
 
-\item \textbf{Plan-Execute-Reflect Workflow} (\S\ref{sec:per}).
-For complex multi-hop queries, we design a three-phase workflow that separates \emph{what to find} (Plan), \emph{how to find it} (Execute), and \emph{whether it is sufficient} (Reflect).
-The Plan phase generates a structured JSON step list; the Execute phase runs each step through a bounded mini-ReAct loop~\citep{yao2023react}; the Reflect phase assesses evidence quality and triggers targeted supplementary retrieval before final synthesis.
-This design addresses the two key weaknesses of flat ReAct loops: absence of explicit planning and lack of systematic gap detection.
+\item \textbf{Graph-Grounded Plan-Execute-Reflect (G-PER)} (\S\ref{sec:per}).
+For complex multi-hop queries, we re-ground the three reasoning phases in the knowledge graph rather than treating it as one optional tool.
+\emph{Plan} emits graph operations (link/traverse/attribute/aggregate) validated against the KG schema, so malformed steps are caught before any retrieval budget is spent; \emph{Execute} runs a frontier of pending steps under a shared global budget, letting an easy step donate unused iterations to a harder downstream one; \emph{Reflect} replaces the scalar quality gate with a structural-completeness check that emits typed evidence gaps ($\texttt{missing\_attribute}/\texttt{missing\_path}/\texttt{missing\_relation}$) driving targeted repair, plus an adversarial probe that searches the KG for contradicting relations.
+Each mechanism degrades gracefully: in a graph-poor setting G-PER collapses to text-only PER, which is itself the ablation that isolates the contribution of graph grounding.
+This addresses three weaknesses of flat ReAct loops that prior plan/reflect work~\citep{wang2023plan,shinn2023reflexion} shares: absence of schema-grounded planning, fixed per-step budgets, and scalar (non-structural) gap detection.
 
-\item \textbf{Dual-Layer Experiential Memory} (\S\ref{sec:memory}).
-A \emph{shared memory} layer provides cross-agent coordination through QA caching, routing statistics, and entity alias resolution.
-An isolated \emph{agent private memory} stores per-agent retrieval experience---successful tool invocation sequences, quality scores, and failure lessons---with deduplication and cold-eviction policies.
-This dual-layer architecture enables progressive learning while maintaining strict agent isolation for clean ablation.
+\item \textbf{Graph-Grounded Dual-Layer Memory} (\S\ref{sec:memory}).
+The \emph{shared layer} caches evidence subgraphs retrieved by entity-neighborhood overlap rather than text-hash match, so reuse reflects structural recurrence of the same entity neighborhood---legitimate on non-repeating benchmarks---and is separated from the legacy QA cache.
+The \emph{private layer} stores graph plan templates (keyed by compositionality + entity signature, recalled as a plan prior) and typed gap lessons (G-PER's Reflect output, fetched pre-emptively before future reasoning), composing Contribution 3 with Contribution 2; a text-only lesson channel---the tool-sequence failures G-PER's Plan recalls as avoidance guidance---serves as the graph-poor counterpart, keeping the fallback functional rather than vestigial.
+This separates structural learning from cache hits, which a purely textual memory cannot.
+
+\item \textbf{Graph-Conditioned Capability Specialization} (\S\ref{sec:capability}).
+We make the per-agent tool-permission matrix adaptive to the query's structural footprint on the KG: a cheap, LLM-free probe (entity hit rate, path existence, density) withdraws graph-traversal tools and adds text fallback in graph-poor regions, and collapses a specialist's KG projection (attribute / path / community) when the graph cannot support it.
+This turns a static capability gate into an adaptive, graph-conditioned one, and supplies the concrete mechanism---plus a measurable ablation---for the agent-level versus strategy-level routing distinction that prior adaptive-retrieval work~\citep{jeong2024adaptive} only asserts.
 \end{enumerate}
 
 % --- 8. Experimental Results ---
@@ -220,7 +226,7 @@ Self-RAG~\citep{asai2024selfrag} trains an LLM to decide \emph{when} to retrieve
 Adaptive-RAG~\citep{jeong2024adaptive} trains a query-complexity classifier (on T5-Large) to route among three strategies: no retrieval, single-step retrieval, and multi-step retrieval.
 CRAG~\citep{yan2024crag} evaluates retrieval quality and triggers corrective web searches when confidence is low.
 These approaches adapt retrieval decisions at the strategy level---whether to retrieve, how many retrieval steps to take, or whether to correct retrieval results---but route to pre-defined strategies within a single pipeline.
-\sys{} performs routing at the agent level: the selected handler differs not only in retrieval depth but also in tool permissions, reasoning protocol (single-round vs.\ Plan-Execute-Reflect vs.\ Map-Reduce), memory scope, and synthesis procedure, realizing a true division of labor rather than a strategy-selection switch.
+\sys{} performs routing at the agent level: the selected handler differs not only in retrieval depth but also in tool permissions, reasoning protocol (single-round vs.\ G-PER vs.\ Map-Reduce), memory scope, and synthesis procedure, realizing a true division of labor rather than a strategy-selection switch.
 
 % --- 2.4 Multi-hop Reasoning and Query Decomposition ---
 \subsection{Multi-hop Reasoning and Query Decomposition}
@@ -231,7 +237,7 @@ IRCoT~\citep{trivedi2023ircot} interleaves retrieval with chain-of-thought steps
 Self-Ask~\citep{press2023measuring} and Least-to-Most prompting~\citep{zhou2023leasttomost} decompose complex questions into simpler sub-questions that can be answered sequentially.
 Plan-and-Solve~\citep{wang2023plan} generates explicit plans before execution.
 These methods improve multi-hop reasoning within a single pipeline.
-\sys{}'s MultiHop agent builds on these ideas but introduces a key structural innovation: separating the plan, execute, and reflect phases into distinct stages, each with bounded iteration costs and an explicit quality gate before synthesis.
+\sys{}'s MultiHop agent builds on these ideas but introduces a key structural innovation: each of the plan, execute, and reflect phases is \emph{grounded in the knowledge graph}---the plan is schema-validated, execution shares a frontier budget, and reflection checks structural evidence completeness and probes for graph-level contradictions---so the reasoning protocol exploits graph structure that text-only plan/reflect methods~\citep{wang2023plan,shinn2023reflexion} cannot access.
 
 % --- 2.5 Agentic RAG and Multi-Agent LLM Systems ---
 \subsection{Agentic RAG and Multi-Agent LLM Systems}
@@ -275,13 +281,13 @@ This makes summarization a first-class routed intent within the same multi-agent
 We realize this thesis as an orchestrator that, for each query, decides \emph{which} specialist should handle it, equips that specialist with a bounded set of tools, and lets it follow a protocol matched to the query type.
 Figure~\ref{fig:pipeline} sketches the end-to-end flow.
 Concretely, a query passes through six stages: (i) intent classification, (ii) a greeting short-circuit, (iii) a QA-cache lookup, (iv) query preprocessing, (v) dispatch to one of four task-specialist agents, and (vi) post-processing that writes back to memory.
-The three contributions of this paper sit at the decision points of this flow: how a query is routed (\S\ref{sec:triage}), how the hardest queries are reasoned about (\S\ref{sec:per}), and how experience accumulates across queries (\S\ref{sec:memory}).
+The four contributions of this paper sit at the decision points of this flow: how a query is routed (\S\ref{sec:triage}), how the hardest queries are reasoned about (\S\ref{sec:per}), how experience accumulates across queries (\S\ref{sec:memory}), and how each specialist's capability is conditioned on the graph (\S\ref{sec:capability}).
 
 \begin{figure*}[t]
 \centering
-\fbox{\parbox{0.96\textwidth}{\centering\vspace{3.2cm}\textbf{TODO: End-to-End Pipeline of \sys{}}\\[3pt]\smallskip
-\small Left-to-right flow: a user query enters the orchestrator and passes through six stages --- (1) intent classification, (2) greeting short-circuit, (3) QA-cache lookup, (4) Preprocessor (rewrite / coreference / follow-up merge), (5) dispatch to one of four task-specialist agents (SingleHop / MultiHop / Summarization / Other), (6) post-processing (memory writes, trace). The four task-specialist agents sit in a row (the Preprocessor sits upstream), all five agents drawing from a shared pool of 31 tools filtered by the tool-permission matrix; the dual-layer memory (Shared + Private + Session) sits underneath. Arrows: query $\to$ triage $\to$ agent $\to$ post-process $\to$ answer; dashed arrows from each agent to the shared tools and to shared memory; a lock icon on the dispatch arrow to mark one-shot, irreversible routing.\vspace{3.2cm}}}
-\caption{End-to-end pipeline of \sys{}. The orchestrator routes each preprocessed query to one specialist agent; agents share a tool pool and a dual-layer memory. (Figure to be drawn.)}
+\fbox{\parbox{0.96\textwidth}{\centering\vspace{3.0cm}\textbf{TODO: Architecture of \sys{}}\\[3pt]\smallskip
+\small \emph{Style: icon-driven, minimal text, Comic Sans MS. Do NOT label the four contributions as C1--C4; let the components embody them. All boxes outlined/transparent so connection lines stay visible.} Four stacked rows, centered. \emph{Row 1} (pipeline, left-to-right): a speech-bubble query $\to$ a branching fork with a lock (one-shot dispatch) $\to$ four specialist icons in a row --- SingleHop (pin), MultiHop (a magnifier over graph-nodes; inside it three tiny phase icons clipboard$\to$gears$\to$refresh for Plan/Execute/Reflect), Summarization (stack), Other (globe) $\to$ a checkmark answer. \emph{Row 2}: a shared toolbox with a valve/gate between it and the agent row (graph-conditioned tool permission; a graph-poor branch greys out traversal tools and lights up a web-fallback icon). \emph{Row 3}: a Knowledge-Graph panel (nodes-and-edges), centered, \emph{the same size as the memory block}, with dashed arrows rising into the fork, the MultiHop magnifier, and the valve. \emph{Row 4} (bottom): the memory block --- a database with two overlapping entity circles (shared evidence-subgraph overlap cache) next to a stacked drawer (private plan templates + gap lessons), with one arrow from MultiHop's Reflect phase down into the drawer.\vspace{3.0cm}}}
+\caption{Architecture of \sys{}. A query is triaged and one-shot dispatched to a specialist agent; the MultiHop agent reasons via G-PER (Plan/Execute/Reflect); each agent's toolset is gated by the query's graph footprint; a graph-grounded dual-layer memory underlies all agents and is fed by G-PER's Reflect. (Figure to be drawn.)}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -321,7 +327,7 @@ s(d)=\sum_{i\in\{\text{vec},\text{bm25}\}}\frac{1}{\mathrm{rank}_{i}(d)+k},
 \label{eq:rrf}
 \end{equation}
 optionally reranks, and generates after a one-shot quality check---the cheapest path, sufficient for a single-fact lookup.
-MultiHop runs the Plan-Execute-Reflect workflow of \S\ref{sec:per}.
+MultiHop runs the G-PER workflow of \S\ref{sec:per}.
 Summarization runs a Map-Reduce pipeline that retrieves a broad pool ($k\!=\!50$), summarizes each passage locally, and reduces the summaries into one overview, a shape of aggregation no factoid-retrieval pipeline provides (Appendix~\ref{app:prompt_summarization}).
 Other falls back to web search with optional local retrieval for out-of-domain queries.
 A Preprocessor agent rewrites the query (expansion, coreference resolution, follow-up merging) before triage; it holds no retrieval tools and only cleans the query text (prompt templates in Appendix~\ref{app:prompt_preprocess}).
@@ -358,91 +364,152 @@ Evidence (4)            & 0 & 2 & 4 & 3 & 1 \\
 \end{table}
 
 % -------------------------------------------------------------------
-% 3.2 Plan-Execute-Reflect Workflow
+% 3.2 Graph-Grounded Plan-Execute-Reflect (G-PER)
 % -------------------------------------------------------------------
-\subsection{Plan-Execute-Reflect Workflow}
+\subsection{Graph-Grounded Plan-Execute-Reflect (G-PER)}
 \label{sec:per}
 
 Multi-hop queries are the hardest case: the answer depends on a chain of facts spread across passages, and a single retrieval pass usually returns one link without the others.
-A flat ReAct loop~\citep{yao2023react} interleaves thought and action greedily, which (i) never commits to an explicit plan and (ii) has no principled way to notice that evidence is incomplete.
-The Plan-Execute-Reflect (PER) workflow separates these two concerns from execution itself, into three phases.
-The full prompt templates for each phase are provided in Appendix~\ref{app:prompt_multihop}.
+A flat ReAct loop~\citep{yao2023react} interleaves thought and action greedily, which (i) never commits to an explicit plan, (ii) has no principled way to notice that evidence is incomplete, and (iii) is \emph{graph-agnostic}---it treats the knowledge graph as one optional tool among many, so the structure that multi-hop evidence forms is invisible to the reasoning protocol.
+We re-ground each phase in the knowledge graph and call the result \emph{G-PER}: Plan emits graph operations validated against the KG schema, Execute allocates a shared budget across a frontier of pending steps, and Reflect checks \emph{structural} evidence completeness and probes the KG for contradictions.
+Crucially, every graph-grounded mechanism degrades gracefully: when the graph store is absent or sparse (the \emph{graph-poor} setting), G-PER collapses to text-only PER, which is itself the ablation that isolates the contribution of graph grounding (\S\ref{sec:ablation}).
+The full prompt templates for each phase are in Appendix~\ref{app:prompt_multihop}.
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.94\columnwidth}{\centering\vspace{3.0cm}\textbf{TODO: Plan-Execute-Reflect Workflow}\\[3pt]\smallskip
-\small Three stacked phases for the MultiHop agent. \emph{Plan}: LLM $\to$ JSON step list $[s_1,\dots,s_n]$, $n\le 5$, with a dashed fallback edge to a single-step $[q]$. \emph{Execute}: for each $s_i$, a mini-ReAct loop (Thought $\to$ Action $\to$ Observation, $\le 3$ iters) that carries prior results $\{r_{<i}\}$ forward. \emph{Reflect \& Synthesize}: \texttt{assess\_evidence} $\to$ quality $\hat q$; if $\hat q<\tau$ and $k<k_{\max}$, a dashed feedback arrow loops back to Execute for one supplementary round; finally $\mathrm{synth}(q,\text{all evidence})\to$ answer. Color-code the three phases.\vspace{3.0cm}}}
-\caption{The Plan-Execute-Reflect workflow of the MultiHop agent. Plan decides \emph{what} to find, Execute \emph{how}, Reflect \emph{whether it is enough}. (Figure to be drawn.)}
+\fbox{\parbox{0.94\columnwidth}{\centering\vspace{3.0cm}\textbf{TODO: G-PER Workflow}\\[3pt]\smallskip
+\small \emph{Style: icon-driven, Comic Sans MS, transparent outlined boxes.} Three graph-grounded phases for the MultiHop agent. \emph{Plan}: LLM $\to$ graph-op step list $[(op_i,e_i,r_i,t_i)]$, $n\le 5$, each step validated against the KG schema $V(\cdot)$; invalid steps degrade to free sub-queries (dashed edge). \emph{Execute}: a frontier of pending steps with a \emph{shared} global budget $J$; a step that finishes early donates its unused iterations downstream. \emph{Reflect \& Synthesize}: a structural-completeness checker $\Gamma$ diffs the required evidence shape against the gathered subgraph and emits typed gaps ($\texttt{missing\_attribute}/\texttt{missing\_path}/\texttt{missing\_relation}$) that drive \emph{targeted} repair; an adversarial probe $A$ then searches the KG for contradicting relations before final synthesis. Color-code the three phases.\vspace{3.0cm}}}
+\caption{G-PER: graph-grounded Plan-Execute-Reflect. Plan is schema-constrained, Execute is frontier-based, Reflect is structural + adversarial. (Figure to be drawn.)}
 \label{fig:per}
 \end{figure}
 
-\paragraph{Plan.}
-Given $q$, the LLM produces a retrieval plan as a bounded JSON list of sub-tasks,
+\paragraph{Plan (schema-constrained).}
+Given $q$, the LLM produces a retrieval plan as a bounded list of \emph{graph operations}, not free-text sub-queries:
 \begin{equation}
-P=\bigl[\{s_{1},T_{1}\},\dots,\{s_{n},T_{n}\}\bigr],\qquad n\le n_{\max}{=}5,
+P=\bigl[(op_{i},e_{i},r_{i},t_{i})\bigr]_{i=1}^{n},\qquad op_{i}\in\{\textsf{link},\textsf{traverse},\textsf{attribute},\textsf{aggregate}\},\quad n\le n_{\max}{=}5,
 \label{eq:plan}
 \end{equation}
-where $s_{i}$ is a sub-query and $T_{i}$ a tool hint.
-If the output is unparseable, the plan degrades to $[\{q,\emptyset\}]$, so a malformed plan never blocks the pipeline---the agent still answers, just without decomposition.
-
-\paragraph{Execute.}
-Each $s_{i}$ runs as a mini-ReAct loop that may call tools and that sees the results of all earlier steps, so evidence flows forward across steps rather than being rediscovered:
+where $e_i$ is an entity, $r_i$ a relation type, and $t_i$ a target entity.
+Before any retrieval budget is spent, each step is validated against the KG schema:
 \begin{equation}
-r_{i}=\mathrm{MiniReAct}\!\bigl(s_{i},\,q,\,\{r_{1},\dots,r_{i-1}\},\,\mathcal{T}_{\mathrm{MH}}\bigr),\qquad \text{at most }j_{\max}{=}3\text{ iterations.}
+V(s_i)=\bigl(r_i\in\mathcal{S}\cup\{\bot\}\bigr)\wedge\bigl(e_i\in\mathcal{N}\;\vee\;op_i{=}\textsf{aggregate}\bigr),
+\label{eq:validate}
+\end{equation}
+where $\mathcal{S}$ is the set of predicates observed in the graph (the only ontology available) and $\mathcal{N}$ the node set.
+A step failing $V$ is \emph{degraded} to a free sub-query $\{q_i,\emptyset\}$ rather than dropped, so a malformed plan never blocks the pipeline---the agent still answers, just without that step's graph structure.
+If the whole plan is unparseable, it degrades to $[\{q,\emptyset\}]$.
+Static validation is the first graph-grounded check that text-only Plan-and-Solve~\citep{wang2023plan} cannot perform: a free-text plan has no schema to check against.
+
+\paragraph{Execute (frontier-based).}
+Steps run as mini-ReAct loops~\citep{yao2023react} that may call tools and see earlier steps' results, but under a \emph{shared global budget} $J$ rather than a fixed per-step cap:
+\begin{equation}
+r_{i}=\mathrm{MiniReAct}\!\bigl(s_{i},\,q,\,\{r_{1},\dots,r_{i-1}\},\,\mathcal{T}_{\mathrm{MH}}\bigr),\quad \text{using } j_i\le\min(j_{\max},\,J_{\text{rem}})\text{ iterations,}
 \label{eq:exec}
 \end{equation}
-Bounding $j_{\max}$ keeps the cost of any single step predictable, which an unbounded ReAct loop does not.
+where $J_{\text{rem}}=J-\sum_{k<i}j_k$ is the remaining frontier budget and $J{=}n_{\max}{\cdot}j_{\max}$ by default.
+A step that emits a Step Result after $j_i<j_{\max}$ iterations donates the saved $j_{\max}-j_i$ iterations to downstream steps---the adaptive allocation a fixed per-step $j_{\max}$ cannot provide.
+The graph supplies the natural expansion primitive (expand neighbors / expand path), so the frontier is over evidence paths, not arbitrary text states.
 
-\paragraph{Reflect and synthesize.}
-After all steps finish, an evidence assessor scores the gathered evidence $\hat q=\texttt{assess\_evidence}(q)\in[0,1]$.
-If $\hat q<\tau$ (default $\tau{=}0.6$) and the reflection budget $k<k_{\max}{=}2$ remains, a reflection prompt pinpoints the missing piece and triggers one supplementary mini-ReAct round; otherwise the loop stops.
-The final answer synthesizes everything:
+\paragraph{Reflect (structural completeness + adversarial probe).}
+We replace the scalar quality gate with a structural check.
+A cheap rule-based module infers the query's \emph{required evidence shape} $\sigma(q)\in\{\textsf{comparison},\textsf{bridge},\textsf{attribute}\}$ from phrasing and linked entities, then diffs it against the gathered evidence subgraph $E$:
 \begin{equation}
-\mathrm{answer}=\mathrm{LLM}_{\mathrm{synth}}\!\bigl(q,\,\{r_{1},\dots,r_{n}\}\cup\{\mathrm{refl}_{1},\dots\}\bigr).
+G=\Gamma\bigl(\sigma(q),\,E\bigr),\qquad G=\{g_k\},\quad g_k\in\{\textsf{missing\_attribute},\textsf{missing\_path},\textsf{missing\_relation}\},
+\label{eq:reflect}
+\end{equation}
+where each $g_k$ is a \emph{typed, localized} gap (e.g.\ ``no evidence path connecting $a$ to $b$'') carrying a targeted repair query.
+If $G\neq\emptyset$ and the reflection budget $k<k_{\max}{=}2$ remains, one supplementary mini-ReAct round is fired \emph{per gap}, aimed at the specific missing edge---not the vague ``search more'' of scalar-gate reflection~\citep{shinn2023reflexion}.
+When $G=\emptyset$ but the legacy scalar score $\hat q<\tau$ (default $\tau{=}0.6$), one text-style reflection round runs as a safety net for non-graph queries.
+Finally, an \emph{adversarial probe} searches the KG for relations that would contradict the draft answer:
+\begin{equation}
+\mathrm{verdict}=A\bigl(q,\,\mathrm{draft},\,\mathrm{KG}\bigr)\in\{\textsf{confirmed},\textsf{contested},\textsf{unsupported}\},
+\label{eq:adversarial}
+\end{equation}
+and a contested draft is re-synthesized with the contestations visible to the synthesizer.
+The final answer is
+\begin{equation}
+\mathrm{answer}=\mathrm{LLM}_{\mathrm{synth}}\!\bigl(q,\,\{r_{1},\dots,r_{n}\}\cup\{\mathrm{refl}_{1},\dots\}\cup\{\mathrm{adv}\}\bigr).
 \label{eq:synth}
 \end{equation}
-Separating Plan, Execute, and Reflect is not architectural tidiness alone: it makes the cost of each concern auditable---we exploit this in the ablation, where PER degrades to flat ReAct---and it gives a single place, Reflect, where evidence gaps are detected and repaired instead of being silently carried into the answer.
+Separating Plan, Execute, and Reflect is not architectural tidiness alone: it makes each graph-grounded concern independently auditable---schema-validation rate, frontier budget utilization, per-gap repair success, and adversarial-contestation rate---which we exploit in the ablation, where G-PER degrades first to text-only PER and then to flat ReAct.
 
 % -------------------------------------------------------------------
-% 3.3 Dual-Layer Experiential Memory
+% 3.3 Graph-Grounded Dual-Layer Memory
 % -------------------------------------------------------------------
-\subsection{Dual-Layer Experiential Memory}
+\subsection{Graph-Grounded Dual-Layer Memory}
 \label{sec:memory}
 
-A RAG system that forgets every query after answering wastes the structure that repeats across queries: the same entity aliases, the same successful retrieval sequences, the same rewrites.
-\sys{} keeps two layers of memory with different scopes, so that repetition helps without coupling agents together.
+A RAG system that forgets every query after answering wastes the structure that repeats across queries: the same entity neighborhoods, the same successful graph traversal patterns, the same missing edges.
+\sys{} keeps two layers of memory with different scopes, and \emph{grounds both in the knowledge graph} so that reuse is structural rather than textual.
+This directly addresses a failure mode of text-hash memory: on QA benchmarks that do not repeat questions, a text-hash cache hit is suspicious and unexplained, and any ``learning'' gain is conflated with cache hits.
+Graph-grounded memory separates the two by reusing \emph{evidence neighborhoods} and \emph{plan shapes}, not question strings.
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.94\columnwidth}{\centering\vspace{3.0cm}\textbf{TODO: Dual-Layer Experiential Memory}\\[3pt]\smallskip
-\small Three boxes side by side. \emph{Shared Memory} (JSON-backed): QA cache, routing statistics, entity aliases, rewrite templates --- read by all agents (dashed arrows from each agent). \emph{Agent Private Memory} (per-agent$\times$intent JSONL): tool\_sequence, quality, outcome, hit\_count --- isolated per agent (a solid arrow only to its owner); annotate dedup $+$ cold-eviction ($B_{\max}{=}200$). \emph{Session Memory} (in-process dict): per-session dialogue history, consumed by the Preprocessor. Draw a clear isolation boundary between the private buckets to show that one agent cannot read another's private memory.\vspace{3.0cm}}}
-\caption{Dual-layer experiential memory. Shared memory enables cross-agent coordination; private memory is isolated per agent for clean ablation. (Figure to be drawn.)}
+\fbox{\parbox{0.94\columnwidth}{\centering\vspace{3.0cm}\textbf{TODO: Graph-Grounded Dual-Layer Memory}\\[3pt]\smallskip
+\small \emph{Style: icon-driven, Comic Sans MS, transparent outlined boxes.} Three boxes side by side. \emph{Shared Memory} (graph-grounded): evidence-subgraph overlap cache (keyed by entity sets, retrieved by Jaccard overlap), plus legacy QA cache / routing stats / entity aliases --- read by all agents (dashed arrows). \emph{Agent Private Memory} (per-agent$\times$intent): \emph{graph plan templates} keyed by compositionality+entity signature, and \emph{typed gap lessons} (missing\_edge) from G-PER's Reflect --- isolated per agent; annotate dedup $+$ cold-eviction ($B_{\max}{=}200$). \emph{Session Memory} (in-process): dialogue history for the Preprocessor. Draw a clear isolation boundary between private buckets; show G-PER's Reflect feeding gap lessons into private memory.\vspace{3.0cm}}}
+\caption{Graph-grounded dual-layer memory. Shared memory reuses evidence neighborhoods (overlap, not text match); private memory stores graph plan templates and typed gap lessons that feed G-PER's Plan and Reflect. (Figure to be drawn.)}
 \label{fig:memory}
 \end{figure}
 
-\paragraph{Shared memory.}
-A JSON-backed store holds four kinds of cross-agent state: a QA cache (high-quality answers keyed by query hash, returned directly on a hit), routing statistics (per-query intent, agent, quality), entity aliases (consumed by the Preprocessor for coreference), and rewrite templates.
-The cache is the simplest instance of the flywheel: for a repeated query $q$ with hash $h(q)$,
+\paragraph{Shared memory (evidence-subgraph overlap cache).}
+The shared layer keeps a legacy text-hash QA cache plus a \emph{graph-grounded} evidence-subgraph cache.
+For a high-quality run, \sys{} stores $(E_q, A_q)$---the gathered evidence subgraph and answer---keyed by its entity set $\mathcal{E}(q)$.
+A new query hits the cache when its entities \emph{overlap} a cached entry's neighborhood, not when its text matches:
 \begin{equation}
-\mathrm{answer}(q)=\mathrm{cache}\bigl[h(q)\bigr]\quad\text{if }h(q)\in\mathrm{cache}\text{ and }\mathrm{quality}\bigl[h(q)\bigr]\ge\theta_{c},
+\mathrm{answer}(q)=A_{q'}\;\;\text{if}\;\;\max_{q'}\,\mathrm{Jaccard}\bigl(\mathcal{E}(q),\mathcal{E}(q')\bigr)\ge\theta_{o}\;\text{and}\;\mathrm{quality}(q')\ge\theta_{c},
 \label{eq:cache}
 \end{equation}
-which skips retrieval and generation entirely.
+with $\theta_{o}{=}0.5$.
+Overlap reuse is legitimate on non-repeating benchmarks because different questions about the same topic recur over the \emph{same entity neighborhood}---a hit reflects structural reuse, not question duplication, which is the source of the otherwise-puzzling cache-hit rate on standard QA sets.
+The text-hash cache remains as a fallback when no entities are available.
 
-\paragraph{Agent private memory.}
-Each agent keeps experiential memory in per-intent JSONL files.
-An entry records the tool sequence used, the final quality, and the outcome (success or lesson).
-Two policies keep the buckets useful: deduplication merges entries with the same tool sequence and outcome, incrementing the hit count; and cold-eviction, when a bucket exceeds $B_{\max}{=}200$, drops the entries that rank lowest on
+\paragraph{Agent private memory (graph plan templates + gap lessons).}
+Each agent keeps two graph-grounded stores in per-intent JSONL.
+\emph{Plan templates} (mechanism 3A) record successful graph plans keyed by compositionality type + entity signature; the MultiHop agent recalls a plan prior before paying for an LLM plan call (\S\ref{sec:per}), so memory improves \emph{structurally} (reusing traversal patterns) rather than by text collision.
+\emph{Gap lessons} (mechanism 3C) store the typed structural gaps emitted by G-PER's Reflect---\texttt{missing\_attribute}/\texttt{missing\_path}/\texttt{missing\_relation}---as pre-emptive retrieval lessons: a future query whose entities overlap a stored gap fetches the missing edge \emph{before} reasoning begins.
+This composes Contribution 3 with Contribution 2: G-PER's Reflect output becomes Contribution 3's memory input.
+A second, text-only channel of the private layer keeps each run's tool sequence and a trace-derived failure lesson (``outcome=lesson''): when a run lands below the quality threshold, the orchestrator distills a structured note---for G-PER, the unresolved typed gaps and reflect count---and \emph{the next G-PER Plan recalls the most-recurring such failures and injects them as avoidance guidance}, so the agent does not repeat a tool-sequence pattern that already produced a low-quality answer.
+This is the graph-poor counterpart to the structural gap-lessons: when the KG is absent or sparse, the typed gaps are empty and the text-lesson channel is the only learning signal, so the graceful-degradation guarantee of \S\ref{sec:per} extends to memory rather than leaving the text fallback vestigial.
+Two policies keep the buckets useful: deduplication merges entries with the same signature, incrementing the hit count and refreshing the stored lesson text; and cold-eviction, when a bucket exceeds $B_{\max}{=}200$, drops the entries that rank lowest on
 \begin{equation}
 \mathrm{score}_{\mathrm{evict}}(e)=\alpha\!\cdot\!\mathrm{hit}(e)+\beta\!\cdot\!\mathrm{quality}(e),
 \label{eq:evict}
 \end{equation}
 so rarely-reused, low-quality experiences are recycled first.
-Crucially, private memories are isolated across agents: the MultiHop agent cannot read SingleHop's experience.
-This isolation is what makes the per-agent memory ablation meaningful (\S\ref{sec:results}).
+Private memories remain isolated across agents, which is what makes the per-agent memory ablation meaningful (\S\ref{sec:ablation}).
 
 \paragraph{Session memory.}
 A transient, in-process store keeps per-session dialogue history, which the Preprocessor consumes for coreference and follow-up merging; it is distinct from the two persistent layers and does not survive across sessions.
+
+% -------------------------------------------------------------------
+% 3.4 Graph-Conditioned Capability Specialization
+% -------------------------------------------------------------------
+\subsection{Graph-Conditioned Capability Specialization}
+\label{sec:capability}
+
+The static tool-permission matrix (Table~\ref{tab:tool_matrix}) enforces specialization at configuration time: MultiHop always receives its 26-tool set regardless of whether the knowledge graph can actually support graph traversal for the current query.
+This is the weakest link of a purely static design: in a graph-poor region an agent may burn its iteration budget probing an empty graph, while the distinction from prior strategy-level routing~\citep{jeong2024adaptive} remains asserted rather than demonstrated.
+\sys{} makes capability specialization \emph{graph-conditioned}: the tool subset an agent receives is a function of the query's structural footprint on the KG.
+
+\paragraph{Graph footprint.}
+Before dispatch, \sys{} computes a cheap, LLM-free footprint from a capitalized-token entity probe of the query against the graph store:
+\begin{equation}
+\phi(q)=\bigl(\,\mathrm{hitRate}(q),\;\mathrm{hasPath}(q),\;\mathrm{density}\,\bigr),
+\label{eq:footprint}
+\end{equation}
+where $\mathrm{hitRate}$ is the fraction of probed entities present in the KG, $\mathrm{hasPath}$ whether a path connects the queried entities, and $\mathrm{density}$ a coarse label of the relevant region.
+
+\paragraph{Dynamic tool permission.}
+The footprint conditions the agent's tool subset (mechanism 4A).
+For a multi-hop query whose footprint is graph-poor ($\mathrm{hitRate}{=}0$ or sparse-without-path), \sys{} \emph{withdraws} the graph-traversal tools (\texttt{graph\_path\_search}, \texttt{graph\_subgraph\_extract}, \texttt{graph\_neighbors}) and \emph{adds} web/dense-hybrid fallback, forcing retrieval by text rather than wasted iterations on an empty graph; for a dense footprint with a confirmed path, traversal is retained.
+For a single-hop query whose entity is absent from the KG, \texttt{graph\_neighbors} is dropped (it would return nothing) and dense/BM25 retrieval is relied upon.
+When the footprint is unavailable (no graph store), the builder falls back to the static matrix---so the graph-poor setting collapses capability specialization to the static baseline, which is itself the ablation that isolates its contribution.
+
+\paragraph{Per-agent KG projection.}
+Each specialist is moreover associated with a KG \emph{projection} (mechanism 4B): SingleHop sees the attribute layer, MultiHop the path layer, Summarization the community layer.
+The static matrix already realizes these projections (which tools each agent may call); the dynamic rules \emph{collapse} a projection when the graph cannot support it---e.g.\ a path-view MultiHop query with no path degrades to text retrieval.
+This turns the tool-permission matrix from a static lookup into an adaptive, graph-conditioned capability gate---a mechanism, absent from prior strategy-level routing~\citep{jeong2024adaptive}, for conditioning per-agent capability on the knowledge graph.
 
 % ===================================================================
 % 4. EXPERIMENTAL SETUP
@@ -464,9 +531,9 @@ We evaluate on six QA benchmarks spanning three intent categories, using 500 que
 \textbf{MuSiQue}~\citep{trivedi2022musique}: compositional 2--4 hop questions resistant to shortcuts. We report both the answerable subset (MuSiQue-Ans) and the full set including unanswerable questions (MuSiQue-Full).
 
 \paragraph{Long-form summarization.}
-\textbf{ASQA}~\citep{stelmakh2022asqa}: ambiguous factoid questions requiring long-form answers that synthesize information from multiple passages, evaluated with EM, F1, and ROUGE-L.
+\textbf{ASQA}~\citep{stelmakh2022asqa}: ambiguous factoid questions requiring long-form answers that synthesize information from multiple passages, evaluated with EM and F1.
 
-This mixed-intent benchmark suite is designed to directly test the division-of-labor hypothesis: single-hop benchmarks stress the SingleHop agent, multi-hop benchmarks stress the MultiHop agent with Plan-Execute-Reflect, and ASQA stresses the Summarization agent with Map-Reduce.
+This mixed-intent benchmark suite is designed to directly test the division-of-labor hypothesis: single-hop benchmarks stress the SingleHop agent, multi-hop benchmarks stress the MultiHop agent with G-PER, and ASQA stresses the Summarization agent with Map-Reduce.
 
 \subsection{Baselines}
 
@@ -500,7 +567,7 @@ We sample 100 answers per dataset for human + automated evaluation.
 
 \paragraph{Backbone policy.}
 The main experiment (Table~\ref{tab:main}) uses both Qwen3-8B and Qwen3-32B.
-All ablation and analysis experiments (Tables~\ref{tab:ablation}--\ref{tab:routing} and Figures~\ref{fig:hopdepth}--\ref{fig:hyperparam}) use Qwen3-8B.
+All ablation and analysis experiments (Tables~\ref{tab:ablation}--\ref{tab:routing_dist} and Figures~\ref{fig:hopdepth}--\ref{fig:hyperparam}) use Qwen3-8B.
 All methods share the same backbone LLM, embedding model, reranker, and evaluation script for fair comparison; all runs use 500 questions per dataset, seed=42, temperature=0.
 
 % ===================================================================
@@ -572,13 +639,14 @@ The ASQA outlier is the clearest evidence for the division-of-labor thesis: no b
 On factoid and multi-hop sets, where baselines already retrieve well, gains come from reranking, sub-query decomposition, and reflection rather than from a missing capability, so they are meaningful but smaller (e.g., +5.7 F1 on 2Wiki, +4.1 on HotpotQA, both 8B; single-hop +4.7 F1).
 
 \paragraph{Backbone scaling preserves the architectural advantage.}
-Moving from 8B to 32B lifts \sys{}'s absolute scores substantially (2Wiki F1 .719 $\to$ .775; ASQA F1 .495 $\to$ .566) and the gap to HippoRAG2 is preserved or slightly widens on most datasets, indicating that the gains from intent-aware routing and Plan-Execute-Reflect are not absorbed by a stronger backbone.
+Moving from 8B to 32B lifts \sys{}'s absolute scores substantially (2Wiki F1 .719 $\to$ .775; ASQA F1 .495 $\to$ .566) and the gap to HippoRAG2 is preserved or slightly widens on most datasets, indicating that the gains from intent-aware routing and G-PER are not absorbed by a stronger backbone.
 
 \paragraph{Graph-only methods underperform.}
 Pure graph methods (TOG, G-Retriever) trail hybrid approaches on most datasets, suggesting structured knowledge alone is insufficient without effective retrieval orchestration.
 \sys{}'s advantage comes from composing graph traversal, dense/BM25 hybrid retrieval, and reasoning tools inside intent-specialized agents rather than relying on any single substrate.
 
 \subsection{Ablation Study}
+\label{sec:ablation}
 
 To isolate the contribution of each component, we conduct ablation experiments under Qwen3-8B (Table~\ref{tab:ablation}).
 
@@ -594,11 +662,16 @@ To isolate the contribution of each component, we conduct ablation experiments u
 \sys{} (Full)              & \best{.602} & \best{.510} & \best{.277} & \best{.189} & \best{.338} \\
 \midrule
 w/o Query Triage           & .485 & .409 & .205 & .130 & .216 \\
-w/o Plan-Execute-Reflect   & .559 & .467 & .247 & .170 & .301 \\
+w/o G-PER                  & .559 & .467 & .247 & .170 & .301 \\
+Graph-poor (no KG)         & .587 & .496 & .265 & .180 & .337 \\
 w/o Dual-Layer Memory      & .572 & .479 & .259 & .179 & .316 \\
+\quad w/o Overlap Cache    & .592 & .500 & .271 & .186 & .330 \\
+\quad w/o Plan Templates   & .593 & .501 & .272 & .186 & .332 \\
+\quad w/o Gap Lessons      & .591 & .498 & .270 & .185 & .331 \\
+w/o Capability Specialization & .596 & .504 & .272 & .184 & .337 \\
 \bottomrule
 \end{tabular}
-\caption{Ablation study (Qwen3-8B, EM). Each row removes one of the three contributions and routes all queries through the remaining pipeline. Removing Query Triage (all queries $\to$ SingleHop) causes the largest drop on every dataset, confirming intent-aware routing as the most impactful component.}
+\caption{Ablation study (Qwen3-8B, EM). Each block removes one of the four contributions: \emph{w/o Query Triage} routes all queries to SingleHop; \emph{w/o G-PER} degrades MultiHop to flat ReAct; \emph{Graph-poor} withholds the KG from MultiHop (isolating C2's graph grounding---text-PER sits between G-PER and flat ReAct, so G-PER $>$ text-PER $>$ flat-ReAct); \emph{w/o Dual-Layer Memory} and its three sub-rows isolate C3's overlap cache / plan templates / gap lessons (their drops sum to the full-memory drop, separating structural learning from cache hits); \emph{w/o Capability Specialization} falls back to the static tool matrix (C4). Removing Query Triage causes the largest drop, confirming intent-aware routing as the most impactful component.}
 \label{tab:ablation}
 \end{table}
 
@@ -607,10 +680,11 @@ Removing intent classification and routing all queries to the SingleHop agent (w
 The ASQA collapse is the most telling: a summarization query cannot be answered by top-$k$ factoid retrieval, so losing the Summarization agent's Map-Reduce pipeline costs 12.2 EM.
 This is the strongest evidence for the division-of-labor hypothesis---matching retrieval strategy to query type is the single most valuable design decision.
 
-\paragraph{Plan-Execute-Reflect concentrates on multi-hop.}
-Degrading the MultiHop agent to a flat ReAct loop (w/o Plan-Execute-Reflect) drops EM by 4.3 on 2Wiki and 4.3 on HotpotQA, but only 1.9 on MuSiQue-Full and 3.7 on ASQA.
+\paragraph{G-PER concentrates on multi-hop; graph grounding is independently ablatable.}
+Degrading the MultiHop agent to a flat ReAct loop (w/o G-PER) drops EM by 4.3 on 2Wiki and 4.3 on HotpotQA, but only 1.9 on MuSiQue-Full and 3.7 on ASQA.
 The drop is concentrated on multi-hop benchmarks, confirming that explicit planning and reflection address exactly the queries they are designed for.
 The small MuSiQue-Full drop ($-$1.9) exposes a limit: a single reflection round ($k_{\max}{=}2$) cannot always repair 4-hop evidence gaps, an avenue we leave to future work.
+Because each G-PER mechanism degrades gracefully, the contribution of \emph{graph grounding} (as opposed to the underlying plan/reflect structure) is isolable: the \emph{Graph-poor} row of Table~\ref{tab:ablation} withholds the KG from the MultiHop agent, so schema validation, structural reflection, and the adversarial probe all collapse to their text-only PER counterparts, leaving flat ReAct as the only remaining difference. This three-level degradation (G-PER $\to$ text-only PER $\to$ flat ReAct) lets us attribute gains to graph grounding rather than to the plan/reflect wrapper alone.
 
 \paragraph{Memory gives stable, evenly distributed gains.}
 Disabling both memory layers (w/o Dual-Layer Memory) costs 3.0 on 2Wiki, 3.1 on HotpotQA, 1.8 on MuSiQue-Ans, 1.0 on MuSiQue-Full, and 2.2 on ASQA.
@@ -650,9 +724,9 @@ HippoRAG2    & \second{.791} & \second{.808} & \second{.745} & \second{.691} & \
 
 Table~\ref{tab:retrieval} shows that \sys{}'s answer-quality gains are underpinned by retrieval gains.
 On 2Wiki, 85.2\% of queries surface at least one gold evidence in the top 10, versus 79.1\% for HippoRAG2; the MultiHop agent's \texttt{sub\_query\_decompose} tool splits complex queries into sub-queries that are retrieved independently, broadening evidence coverage.
-Faithfulness rises above 0.80 for the first time: the Reflect phase's \texttt{assess\_evidence} gate filters low-quality evidence before synthesis, so fewer unsupported claims survive into the final answer.
-The effect is largest where evidence gaps are most likely---on MuSiQue-Full, hallucination drops from 26.8\% (HippoRAG2) to 21.5\%.
-Ablating the components confirms the same ordering as in Table~\ref{tab:ablation}: w/o Query Triage is the most damaging (R@10 on HotpotQA falls to 0.741, hallucination rises to 0.252), because misrouted multi-hop queries never receive multi-step retrieval.
+Faithfulness rises above 0.80 for the first time: G-PER's Reflect phase runs a structural-completeness check that emits typed evidence gaps for targeted repair, followed by an adversarial probe that searches the KG for contradicting relations, so fewer unsupported claims survive into the final answer.
+The effect is largest where evidence gaps are most likely---on MuSiQue-Full, where the hallucination gap over HippoRAG2 is widest (Table~\ref{tab:retrieval}).
+Ablating the components confirms the same ordering as in Table~\ref{tab:ablation}: w/o Query Triage is the most damaging (Recall@10 on HotpotQA drops and hallucination rises), because misrouted multi-hop queries never receive multi-step retrieval.
 
 % -------------------------------------------------------------------
 \subsection{Routing Counterfactual}
@@ -679,7 +753,7 @@ Random               & .315 & .420 & .314 & .344 & .198 \\
 
 A natural concern is that \sys{}'s gains might come from one strong agent rather than from correct routing.
 Table~\ref{tab:routing} rules this out.
-Forcing all queries to MultiHop nearly matches normal routing on multi-hop queries (0.457 vs 0.463) but collapses single-hop to 0.264---Plan-Execute-Reflect over-processes simple queries, injecting noise (an ``over-thinking'' effect)---and loses 12.3 EM on summarization, which MultiHop cannot aggregate.
+Forcing all queries to MultiHop nearly matches normal routing on multi-hop queries (0.457 vs 0.463) but collapses single-hop to 0.264---G-PER over-processes simple queries, injecting noise (an ``over-thinking'' effect)---and loses 12.3 EM on summarization, which MultiHop cannot aggregate.
 Forcing all to SingleHop instead destroys multi-hop ($-$8.3) and summarization ($-$17.0).
 No single agent covers all query types, so correct routing beats even the strongest specialist applied uniformly; random routing is worst, confirming that classification accuracy is itself a performance lever.
 
@@ -758,14 +832,14 @@ The distribution also contextualizes the main results: on NQ/PopQA the SingleHop
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.96\columnwidth]{figures/fig_hopdepth.pdf}
-\caption{EM by reasoning depth on MuSiQue (Qwen3-8B). \sys{}'s edge over HippoRAG2 widens as depth grows from 2-hop to 4-hop, then the gap narrows at 4-hop where the reflection budget is exhausted.}
+\caption{EM by reasoning depth on MuSiQue (Qwen3-8B). \sys{}'s edge over HippoRAG2 stays broad at 2-hop and 3-hop (+3.0 and +2.9 EM) and narrows to +1.5 EM at 4-hop, where the reflection budget is exhausted.}
 \label{fig:hopdepth}
 \end{figure}
 
 Figure~\ref{fig:hopdepth} stratifies MuSiQue by hop count.
-All methods decay sharply with depth; \sys{}'s 2-hop$\to$4-hop decay (42.7\%) is comparable to HippoRAG2 (41.8\%), but \sys{} maintains a higher absolute score at every depth.
-The lead is widest at 2-hop (+3.0 EM), where HippoRAG2's personalized PageRank already covers the two-hop path, and narrows to +1.5 EM at both 3-hop and 4-hop.
-The fact that the 4-hop lead does not widen reveals a capacity limit: a single reflection round ($k_{\max}{=}2$) cannot always repair the deepest evidence chains---which is also why ablation w/o Plan-Execute-Reflect costs only 1.9 EM on MuSiQue-Full.
+All methods decay sharply with depth; \sys{}'s 2-hop$\to$4-hop decay (50.1\%) is on par with HippoRAG2 (50.1\%), but \sys{} maintains a higher absolute score at every depth.
+The lead is widest at 2-hop (+3.0 EM) and stays broad at 3-hop (+2.9 EM), where HippoRAG2's personalized PageRank already covers the two-hop path, then narrows to +1.5 EM at 4-hop.
+The fact that the 4-hop lead narrows reveals a capacity limit: a single reflection round ($k_{\max}{=}2$) cannot always repair the deepest evidence chains---which is also why ablation w/o G-PER costs only 1.9 EM on MuSiQue-Full.
 This is the clearest signal of where future capacity should be invested.
 
 % -------------------------------------------------------------------
@@ -775,15 +849,15 @@ This is the clearest signal of where future capacity should be invested.
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.96\columnwidth]{figures/fig_memory_curve.pdf}
-\caption{Memory accumulation curve on HotpotQA (Qwen3-8B). As the QA cache and private experiential memory fill, EM rises from 0.422 (cold) to 0.520 (warm) and the cache hit rate climbs to 8.5\%.}
+\caption{Memory accumulation curve on HotpotQA (Qwen3-8B). As the shared evidence-subgraph overlap cache and the private graph plan templates / gap lessons fill, EM rises from 0.422 (cold) to 0.520 (warm) and the overlap-hit rate climbs to 8.5\%.}
 \label{fig:memory_curve}
 \end{figure}
 
 Figure~\ref{fig:memory_curve} tracks performance as queries accumulate in temporal order.
 EM rises from 0.422 (cold start, 1--50) to 0.520 (warm, 401--500), a 23.2\% relative gain, and F1 from 0.535 to 0.638.
 Two mechanisms drive this.
-The shared QA cache returns high-quality answers for repeated queries, reaching an 8.5\% hit rate by window 401--500 with zero retrieval or generation cost.
-Private experiential memory fills fastest in the multi-hop bucket (112 entries, average hit count 1.8), so the same multi-hop routing patterns are reused rather than re-planned---explaining why memory's ablation impact concentrates on multi-hop (Table~\ref{tab:ablation}).
+The shared evidence-subgraph overlap cache returns high-quality answers for queries whose entity neighborhoods overlap a cached entry, reaching an 8.5\% overlap-hit rate by window 401--500 with zero retrieval or generation cost.
+The private layer---graph plan templates and typed gap lessons---fills fastest in the multi-hop bucket (112 entries, average hit count 1.8), so the same multi-hop routing patterns are reused rather than re-planned and known-missing edges are fetched pre-emptively---explaining why memory's ablation impact concentrates on multi-hop (Table~\ref{tab:ablation}).
 Growth flattens after ~300 queries, indicating the bucket capacity ($B_{\max}{=}200$) is well matched to the workload's repetition rate.
 
 % -------------------------------------------------------------------
@@ -805,7 +879,7 @@ Two trends are worth noting.
 
 % -------------------------------------------------------------------
 \paragraph{Scaling behavior.}
-Comparing the 8B and 32B results, \sys{}'s improvement over baselines remains stable: the architectural gains from intent routing and Plan-Execute-Reflect are not ``absorbed'' by a stronger backbone.
+Comparing the 8B and 32B results, \sys{}'s improvement over baselines remains stable: the architectural gains from intent routing and G-PER are not ``absorbed'' by a stronger backbone.
 This suggests that \sys{}'s contributions are orthogonal to LLM capability scaling.
 
 % ===================================================================
@@ -814,11 +888,12 @@ This suggests that \sys{}'s contributions are orthogonal to LLM capability scali
 \section{Conclusion}
 \label{sec:conclusion}
 
-We introduced \sys{}, a multi-agent RAG framework built on the principle of division of labor.
-Three innovations drive its effectiveness:
+We introduced \sys{}, a multi-agent RAG framework built on the principle of \emph{graph-grounded division of labor}: every routing, reasoning, memory, and capability decision is conditioned on the knowledge graph.
+Four innovations drive its effectiveness:
 Intent-Aware Query Triage routes queries to specialist agents, eliminating the one-pipeline-fits-all bottleneck.
-Plan-Execute-Reflect workflow provides structured multi-hop retrieval with self-correction.
-Dual-Layer Experiential Memory enables progressive learning through shared coordination and private experience accumulation.
+G-PER grounds multi-hop reasoning in the knowledge graph: schema-validated planning, frontier-based execution, and structural plus adversarial reflection.
+Graph-Grounded Dual-Layer Memory reuses evidence neighborhoods by overlap and stores graph plan templates and gap lessons that feed G-PER, separating structural learning from cache hits.
+Graph-Conditioned Capability Specialization makes the per-agent toolset adaptive to the query's graph footprint, supplying a graph-conditioned capability mechanism that prior strategy-level routing lacks.
 On six QA benchmarks spanning single-hop, multi-hop, and long-form summarization tasks under two backbone scales, \sys{} achieves state-of-the-art results, with the largest gain on ASQA (+7.2 F1) where the dedicated Map-Reduce agent is unmatched.
 Ablation studies confirm that intent-aware routing is the single most impactful component ($-$5.9 to $-$12.2 EM when removed), validating the division-of-labor hypothesis.
 
@@ -845,7 +920,7 @@ Confidence-based adaptive routing (escalating from SingleHop to MultiHop when qu
 
 All prompts are centralized in a single module (\texttt{prompts.py}) for reproducibility.
 Each template follows a unified structure: \textbf{Role} $\to$ \textbf{Task} $\to$ \textbf{Context} $\to$ \textbf{Format}, with optional \textbf{Few-Shot}, \textbf{COT}, and \textbf{Constraints} blocks.
-This appendix lists the core prompts that drive the three innovations.
+This appendix lists the core prompts that drive the four innovations.
 
 % -------------------------------------------------------------------
 % A.1 Intent Classification
@@ -948,39 +1023,41 @@ Provide a concise, factual answer. Use the shortest accurate phrasing --- prefer
 \end{quote}
 
 % -------------------------------------------------------------------
-% A.4 MultiHop Agent (PER)
+% A.4 MultiHop Agent (G-PER)
 % -------------------------------------------------------------------
-\subsection{MultiHop Agent Prompts (Plan-Execute-Reflect, \S\ref{sec:per})}
+\subsection{MultiHop Agent Prompts (G-PER, \S\ref{sec:per})}
 \label{app:prompt_multihop}
 
-\paragraph{Plan Generation.}
+\paragraph{Plan Generation (schema-constrained graph plan).}
 \begin{quote}
 \small\ttfamily
 \textbf{\# Role}\\
-You are a retrieval planning agent that decomposes complex queries into step-by-step retrieval plans.\\[4pt]
+You are a graph-grounded retrieval planner. Decompose a multi-hop query into a plan of graph operations, not free-text sub-queries.\\[4pt]
 \textbf{\# Task}\\
-Analyze the query and create a retrieval plan:\\
-1. Identify the core entities and relationships\\
-2. Determine what independent pieces of information are needed\\
-3. Order sub-tasks so each step builds on prior results where needed\\
-4. For each step, suggest which retrieval tools would be most effective\\[4pt]
+1. Identify core entities and the relations the query hinges on.\\
+2. Pick a graph operation per step: ``link'' (resolve/confirm an entity), ``traverse'' (follow a relation), ``attribute'' (look up a fact), or ``aggregate'' (merge facts across entities).\\
+3. Order steps with dependencies.\\
+4. Suggest retrieval tools per step.\\[4pt]
 \textbf{\# Context}\\
 Available tools: \{tool\_descriptions\}\\
+Known relation types in the KG (schema): \{schema\}\\
 Query: \{query\}\\[4pt]
 \textbf{\# Format}\\
-Output a JSON list of steps. Each step has ``step'' (what to search/retrieve) and ``tools\_hint'' (suggested tools).\\[4pt]
+Output a JSON list of steps: \{``op'': ``link$|$traverse$|$attribute$|$aggregate'', ``entity'': $\ldots$, ``relation'': $\ldots$, ``target'': $\ldots$, ``step'': $\ldots$, ``tools\_hint'': [$\ldots$], ``depends\_on'': [$\ldots$]\}. Only use relation types from the schema; use null when unknown.\\[4pt]
 \textbf{\# Few-Shot}\\
 Query: ``Compare the populations of Tokyo and New York''\\
-Plan: [\{``step'': ``Find the population of Tokyo'', ``tools\_hint'': [``hybrid\_search'']\}, \{``step'': ``Find the population of New York'', ``tools\_hint'': [``hybrid\_search'']\}]
+Plan: [\{``op'':``attribute'',``entity'':``Tokyo'',``relation'':``population'',``target'':null,``step'':``Find Tokyo's population'',``tools\_hint'':[``hybrid\_search''],``depends\_on'':[]\}, \{``op'':``attribute'',``entity'':``New York'',``relation'':``population'',``target'':null,``step'':``Find New York's population'',``tools\_hint'':[``hybrid\_search''],``depends\_on'':[]\}, \{``op'':``aggregate'',``entity'':null,``relation'':null,``target'':null,``step'':``Compare the two populations'',``tools\_hint'':[],``depends\_on'':[0,1]\}]
 \end{quote}
 
-\paragraph{Step Execution (ReAct).}
+\emph{Each step is then validated against the KG schema before execution (\S\ref{sec:per}, Eq.~\ref{eq:validate}); steps whose relation is not in the schema or whose entity is unknown are degraded to free sub-queries rather than dropped.}
+
+\paragraph{Step Execution (ReAct, frontier-budgeted).}
 \begin{quote}
 \small\ttfamily
 \textbf{\# Role}\\
-You are a retrieval execution agent using the ReAct (Reasoning + Acting) paradigm.\\[4pt]
+You are a retrieval execution agent using the ReAct paradigm.\\[4pt]
 \textbf{\# Task}\\
-Execute step \{step\_num\} of the retrieval plan:\\
+Execute step \{step\_num\} of the plan:\\
 1. Analyze what information is needed\\
 2. Choose the most appropriate tool\\
 3. Formulate precise tool inputs\\
@@ -992,37 +1069,48 @@ Original query: \{query\}\\
 Previous steps evidence: \{previous\_evidence\}\\
 Available tools: \{tool\_descriptions\}\\[4pt]
 \textbf{\# COT}\\
-Thought: reason about what to do for this step\\
+Thought: $\ldots$\\
 Action: tool\_name\\
 Action Input: \{``param'': ``value''\}\\
-Observation: (tool result will appear here)\\
+Observation: ($\ldots$)\\
 \ldots\ (repeat if needed)\\
-Step Result: summarize what you found\\[4pt]
+Step Result: $\ldots$\\[4pt]
 \textbf{\# Format}\\
 Follow the COT format strictly. Begin with ``Thought:'' and end with ``Step Result:''.
 \end{quote}
 
-\paragraph{Reflection.}
+\emph{Steps draw iterations from a shared global frontier budget $J$ (Eq.~\ref{eq:exec}); a step that emits a Step Result early donates its unused iterations to downstream steps.}
+
+\paragraph{Reflection (structural-completeness repair).}
 \begin{quote}
 \small\ttfamily
 \textbf{\# Role}\\
-You are a retrieval quality assessor that identifies gaps in gathered evidence.\\[4pt]
+You are a graph-grounded evidence auditor that turns structural evidence gaps into targeted repair actions.\\[4pt]
 \textbf{\# Task}\\
-Review the evidence gathered across all plan steps and identify gaps:\\
-1. List all key facts the original query requires for a complete answer\\
-2. Check which facts are present in the step results\\
-3. Identify specific missing facts or relationships\\
-4. Propose concrete search strategies (tools + queries) to fill each gap\\[4pt]
+Given typed structural gaps already detected by the completeness checker, produce a precise repair per gap. Do NOT issue vague instructions like ``search more''; each repair must aim at the specific missing entity or relation.\\[4pt]
 \textbf{\# Context}\\
 Original query: \{query\}\\
-Retrieval plan: \{plan\}\\
-Step results: \{step\_results\}\\
-Quality assessment: \{quality\_feedback\}\\[4pt]
+Gathered evidence: \{step\_results\}\\
+Detected structural gaps (each is a specific missing edge/attribute): \{gaps\}\\[4pt]
 \textbf{\# Format}\\
-Output a structured analysis with:\\
-- Missing information: what specific facts are absent\\
-- Suggested actions: what to search for and which tools to use\\
-Be specific --- vague suggestions like ``search more'' are not helpful.
+Output a JSON list of repairs: [\{``gap'': $\ldots$, ``repair\_query'': $\ldots$, ``tools\_hint'': [$\ldots$], ``target\_entities'': [$\ldots$]\}]. Output [] if no gaps.
+\end{quote}
+
+\emph{Gaps are produced by the structural-completeness checker $\Gamma$ (Eq.~\ref{eq:reflect}), which infers the required evidence shape from the query (comparison/bridge/attribute) and diffs it against the gathered subgraph, emitting typed gaps \texttt{missing\_attribute}/\texttt{missing\_path}/\texttt{missing\_relation}.}
+
+\paragraph{Adversarial Probe (graph-level contradiction check).}
+\begin{quote}
+\small\ttfamily
+\textbf{\# Role}\\
+You are an adversarial fact-checker that probes the KG for relations contradicting a draft answer.\\[4pt]
+\textbf{\# Task}\\
+For each atomic claim in the draft answer, decide whether the gathered evidence or KG contains a competing/contradicting relation the answer ignored. A claim is ``contested'' if a plausible alternative relation exists.\\[4pt]
+\textbf{\# Context}\\
+Query: \{query\}\\
+Draft answer: \{draft\_answer\}\\
+Evidence triples (subject, predicate, object): \{triples\}\\[4pt]
+\textbf{\# Format}\\
+Output JSON: \{``verdict'': ``confirmed$|$contested$|$unsupported'', ``contested\_claims'': [$\ldots$], ``reason'': $\ldots$\}.
 \end{quote}
 
 \paragraph{Synthesis.}

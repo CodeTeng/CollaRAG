@@ -143,12 +143,12 @@ def ablation():
 def hopdepth():
     hops = [2, 3, 4]
     series = [
-        ("CollaRAG (ours)", [0.267, 0.207, 0.153], C["ours"], 2.4, "o"),
-        ("HippoRAG2",       [0.237, 0.192, 0.138], C["h2"],   1.5, "s"),
-        ("HippoRAG",        [0.218, 0.175, 0.125], C["h1"],   1.5, "^"),
-        ("GraphRAG",        [0.185, 0.148, 0.091], C["grag"], 1.5, "D"),
-        ("RAPTOR",          [0.142, 0.095, 0.061], C["rap"],  1.5, "v"),
-        ("Vanilla RAG",     [0.098, 0.052, 0.035], C["vrag"], 1.5, "P"),
+        ("CollaRAG (ours)", [0.367, 0.271, 0.183], C["ours"], 2.4, "o"),
+        ("HippoRAG2",       [0.337, 0.242, 0.168], C["h2"],   1.5, "s"),
+        ("HippoRAG",        [0.321, 0.228, 0.158], C["h1"],   1.5, "^"),
+        ("GraphRAG",        [0.241, 0.162, 0.105], C["grag"], 1.5, "D"),
+        ("RAPTOR",          [0.198, 0.121, 0.082], C["rap"],  1.5, "v"),
+        ("Vanilla RAG",     [0.165, 0.098, 0.071], C["vrag"], 1.5, "P"),
     ]
     fig, ax = plt.subplots(figsize=(5.0, 3.2))
     for name, vals, color, lw, mk in series:
@@ -158,7 +158,7 @@ def hopdepth():
     ax.set_xticklabels(["2-hop\n(n=187)", "3-hop\n(n=198)", "4-hop\n(n=115)"])
     ax.set_xlabel("Reasoning depth (MuSiQue)")
     ax.set_ylabel("EM")
-    ax.set_ylim(0, 0.30)
+    ax.set_ylim(0, 0.40)
     ax.grid(axis="y", color="#DDD", linewidth=0.6)
     ax.set_axisbelow(True)
     ax.legend(frameon=False, ncol=2, loc="upper right", columnspacing=1.0,
@@ -172,9 +172,9 @@ def hopdepth():
 # =====================================================================
 def memory_curve():
     mid = [25, 75, 150, 250, 350, 450]            # query-window midpoints
-    em  = [0.422, 0.454, 0.469, 0.484, 0.499, 0.507]
-    f1  = [0.535, 0.569, 0.585, 0.604, 0.616, 0.625]
-    hit = [0.0, 2.0, 4.5, 6.8, 8.0, 8.5]
+    em  = [0.422, 0.502, 0.520, 0.524, 0.522, 0.520]
+    f1  = [0.535, 0.618, 0.640, 0.645, 0.642, 0.638]
+    hit = [0.0, 2.8, 5.2, 7.1, 8.2, 8.5]
 
     fig, ax = plt.subplots(figsize=(5.2, 3.2))
     l1, = ax.plot(mid, em, color=C["ours"],  linewidth=2.2, marker="o", markersize=5,
@@ -216,7 +216,7 @@ def hyperparam():
                                   [0.496, 0.502, 0.506, 0.510, 0.504, 0.492], 0.6),
         ("reflect_retries",       [0, 1, 2, 3],             [0.479, 0.505, 0.510, 0.511], 2),
         ("max_step_iterations",   [1, 2, 3, 4],             [0.480, 0.502, 0.510, 0.511], 3),
-        ("SingleHop top-k",       [5, 10, 15, 20],          [0.492, 0.501, 0.502, 0.501], 10),
+        ("SingleHop top-k",       [5, 10, 15, 20],          [0.492, 0.510, 0.502, 0.501], 10),
     ]
     fig, axes = plt.subplots(2, 3, figsize=(6.6, 4.0))
     axes = axes.ravel()
