@@ -110,7 +110,6 @@ src/chimera_rag/web/static/
 *.nav
 *.snm
 *.vrb
-*.bak
 *.run.xml
 *.bcf
 *-blx.bib
@@ -127,5 +126,3 @@ data/musique/_musique_release.zip
 .chimera_memory/
 .codegraph/
 .superpowers/
-# ---------- Local backups ----------
-*.bak
