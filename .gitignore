@@ -127,3 +127,5 @@ data/musique/_musique_release.zip
 .chimera_memory/
 .codegraph/
 .superpowers/
+# ---------- Local backups ----------
+*.bak
