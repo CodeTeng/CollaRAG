@@ -126,3 +126,5 @@ data/musique/_musique_release.zip
 .chimera_memory/
 .codegraph/
 .superpowers/
+.codebuddy/
+.ruff_cache
