@@ -11,7 +11,7 @@
 **意图分类:** single_hop → SingleHop Agent
 
 **CollaRAG 执行（SingleHop Agent）:**
-hybrid\_search(query, top\_k=10) → RRF 融合（向量 + BM25）→ rerank → 一次性 quality check → LLM 生成。单轮检索，无 ReAct 循环，无反思，是全系统最便宜的路径。
+hybrid\_search(query, top\_k=10) → RRF 融合（向量 + BM25）→ rerank → 一次性 quality check → LLM 生成。单轮 ReAct（通常一次 hybrid search 即收敛），无 Plan / Reflect 阶段，是全系统最便宜的路径。
 
 **各方法对比：**
 
@@ -79,12 +79,12 @@ hybrid\_search(query, top\_k=10) → RRF 融合（向量 + BM25）→ rerank →
 | Plan | LLM 分解为 3 步：Turing→大学→搜索引擎→公司总部国 | — | — |
 | 第1跳 | 图扩展检索 "Alan Turing" + "university" | King's College, Cambridge / Princeton | quality=0.72 |
 | 第2跳 | 图扩展检索 "Cambridge" + "search engine" | 无直接关联 | quality=0.31 |
-| **反思触发** | quality < τ(0.6) 且 k < k_max(2)，LLM 重新规划 | 改为检索 "university search engine provider" | — |
+| **反思触发** | 结构完备性检查发现 `missing_path`（"Cambridge" 与 "search engine" 间无证据路径）且 k < k_max(2)，针对该缺口发起定向补充检索 | 改为检索 "university search engine provider" | — |
 | 第2跳(重试) | 文本检索 "Cambridge university default search engine" | Google (via university IT policy) | quality=0.68 |
 | 第3跳 | 图扩展 "Google" + "headquarters country" | United States | quality=0.85 |
 | Synthesize | 综合三跳证据 | "United States" | ✓ |
 
-**对比：** HippoRAG 在第2跳卡住，最终返回 "United Kingdom"（误将大学所在国当作答案）。HippoRAG2 通过增强的路径探索在第2跳找到了部分关联，但仍未能完成完整的三跳推理，返回 "Cambridge"（停留在中间节点）。**w/o Reflect 变体**（移除反思阶段）在第2跳 quality=0.31 时不触发重试，基于残缺证据直接生成，返回 "United Kingdom"——这正是 Reflect 阶段对证据缺口"先检测后修复"的价值。
+**对比：** HippoRAG 在第2跳卡住，最终返回 "United Kingdom"（误将大学所在国当作答案）。HippoRAG2 通过增强的路径探索在第2跳找到了部分关联，但仍未能完成完整的三跳推理，返回 "Cambridge"（停留在中间节点）。**w/o G-PER 变体**（MultiHop 退化为 flat ReAct，Plan 与 Reflect 均被移除）没有结构缺口检查，第2跳的缺失路径不会被识别，于是基于残缺证据直接生成，返回 "United Kingdom"——这正是 Reflect 阶段对证据缺口"先检测后修复"的价值。
 
 ---
 
@@ -103,7 +103,7 @@ hybrid\_search(query, top\_k=10) → RRF 融合（向量 + BM25）→ rerank →
 - 执行路径: Big Ben → UK → Prime Minister → Spouse ✓
 - 跳过了 LLM 策略规划步骤，减少 1 次 LLM 调用
 
-**对比：** w/o Memory 变体处理 Query B 时需要重新由 LLM 规划策略（额外 ~200 token 开销），且在第2跳尝试了文本检索（效率较低）后才切换到图扩展。这正是记忆飞轮效应的微观体现（参见 memory-accumulation.md 的累积曲线）。
+**对比：** w/o Dual-Layer Memory 变体处理 Query B 时需要重新由 LLM 规划策略（额外 ~200 token 开销），且在第2跳尝试了文本检索（效率较低）后才切换到图扩展。这正是记忆飞轮效应的微观体现（参见 memory-accumulation.md 的累积曲线）。
 
 ---
 
@@ -158,5 +158,5 @@ hybrid\_search(query, top\_k=10) → RRF 融合（向量 + BM25）→ rerank →
 | 意图 | 案例 | 数据集 | 主力 Agent | CollaRAG 优势来源 |
 |---|---|---|---|---|
 | 单跳 (single\_hop) | 案例1 | PopQA | SingleHop | 轻量 hybrid + rerank，避免过度思考 |
-| 多跳 (multi\_hop) | 案例2/3/4 | HotpotQA / 2Wiki / MuSiQue | MultiHop (PER) | Plan 显式分解 + Reflect 证据缺口修复 |
+| 多跳 (multi\_hop) | 案例2/3/4 | HotpotQA / 2Wiki / MuSiQue | MultiHop (G-PER) | Plan 显式分解 + Reflect 结构缺口修复 |
 | 总结 (summarization) | 案例6 | ASQA | Summarization | Map-Reduce 全局聚合，baseline 无此能力 |

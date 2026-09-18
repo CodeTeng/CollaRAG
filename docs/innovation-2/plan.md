@@ -1,5 +1,14 @@
 # Multi-Agent RAG Architecture Implementation Plan
 
+> ⚠️ **历史施工计划，非当前文档**：本文档是 C1「Intent-Aware Query Triage」那轮重构的**逐步施工计划**（含 TDD 勾选项），保留作为实现过程记录。
+>
+> 与现状的已知差异：
+> - **编排顺序**：本文写的是 `Preprocessor → Tree-Intent Classifier`，但**实装是反过来的**——`orchestrator.py::retrieve()` 先分类（对原始 query），再做缓存短路与预处理。以代码为准。
+> - **未覆盖 C2 / C3 / C4**（G-PER、图接地双层记忆、图条件化能力特化），这三项是后续加入的，见 `colla-rag.md`。
+> - 文中提到的 LangGraph 编排方案**已废弃**，现为纯 Python 编排。
+>
+> 想看当前实装，请直接读 `colla-rag.md` 或 `src/chimera_rag/plugins/colla_rag/`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the existing CollaRAG (M-R-D-E + 6 strategies + LangGraph) with a multi-Agent architecture that routes queries to specialized Agents (Preprocessor → TreeIntent Classifier → SingleHop / MultiHop / Summarization / Other), backed by a shared tool layer and dual-layer memory system.

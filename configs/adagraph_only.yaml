@@ -1,11 +1,12 @@
 # ============================================================================
 # adagraph_only.yaml
 #
-# 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
-#       仅启用创新点一（AdaGraph：动态分块 + 分层抽取 + 双重剪枝）。
+# 用途：DeepSeek 真实调用 + 云端 text-embedding-3-small embedding，
+#       仅启用构建侧前置基线（AdaGraph：动态分块 + 分层抽取 + 双重剪枝）。
+#       注意：AdaGraph 是创新点一的落点与对照物，本身不构成宣称的创新点。
 #       查询侧（intent_classifier / retriever / generator）走 defaults.*。
 # 典型场景：
-#   - 消融实验：比较 vs vanilla，单独衡量 AdaGraph 带来的增益
+#   - 消融实验：比较 vs vanilla，单独衡量构建侧基线带来的增益
 #   - 观察知识图谱节点/边数量 与 EM/F1 的关联性
 # 依赖：.env 中需有 LLM_API_KEY
 # ============================================================================

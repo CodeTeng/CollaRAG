@@ -1,6 +1,6 @@
 """Chimera-RAG unified entry point.
 
-All six subcommands (ingest / query / evaluate / benchmark / export / serve)
+All five subcommands (ingest / query / infer / export / serve)
 are dispatched from here to :mod:`chimera_rag.cli`.
 
 Run ``python main.py <cmd> --help`` for details. Each subcommand is

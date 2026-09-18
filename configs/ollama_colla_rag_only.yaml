@@ -1,13 +1,12 @@
 # ============================================================================
 # ollama_colla_rag_only.yaml
 #
-# 用途：本地 Ollama（Qwen3-8B 等）+ 本地 sentence-transformers embedding，
-#       仅启用创新点二（多Agent意图感知检索架构）。
+# 用途：本地 Ollama（Qwen3-8B 等 LLM + nomic-embed-text embedding），
+#       仅启用创新点二（CollaRAG 多Agent意图感知检索架构）。
 #       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
 # 典型场景：
-#   - 本地实验：docs/experiment_guide.md 「方式 A」流程的默认配置
-#   - 免 API 费用的多跳数据集（HotpotQA/2Wiki/MuSiQue）批量实验
-# 依赖：.env 中需有 LLM_API_KEY=ollama / LLM_BASE_URL / LLM_MODEL
+#   - 本地实验：免 API 费用的多跳数据集（HotpotQA/2Wiki/MuSiQue）批量实验
+# 依赖：.env 中需有 LLM_API_KEY=ollama（Ollama 对任意 key 均放行）
 # ============================================================================
 
 app:

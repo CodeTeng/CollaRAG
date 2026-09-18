@@ -2,10 +2,14 @@
 
 Two research innovations are optional plugins, controlled by ``config.yaml``:
 
-- **AdaGraph** (Adaptive Graph Construction) — dynamic chunking + layered
-  triple extraction + dual redundancy pruning.
-- **CollaRAG** — intent-aware agent with Memory / Reasoning / Decision /
-  Execution stages plus pluggable Reflection / Reranking / ParallelPool hooks.
+- **AdaGraph** (build-side baseline) — dynamic chunking + layered
+  triple extraction + dual redundancy pruning. NOTE: this is the
+  engineering baseline reserved for innovation #1 (a novel chunking
+  method, not yet implemented), not itself a claimed contribution.
+- **CollaRAG** (innovation #2) — graph-grounded multi-agent retrieval
+  with four sub-contributions: intent-aware query triage (C1),
+  G-PER plan-execute-reflect (C2), graph-grounded dual-layer memory
+  (C3), and graph-conditioned capability specialization (C4).
 
 With both plugins disabled the framework degrades gracefully to a working
 "vanilla" KG-RAG baseline.

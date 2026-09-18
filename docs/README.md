@@ -4,13 +4,25 @@
 
 ## 文档清单
 
+### 两个创新点
+
+| # | 创新点 | 阶段 | 状态 |
+|---|---|---|---|
+| 一 | 面向知识构建的**新型分块方法** | Ingestion | 🚧 **规划中，尚未实装** |
+| 二 | **CollaRAG** —— 图谱锚定的多 Agent 检索分工 | Query | ✅ 已实装（4 个子贡献 C1–C4） |
+
+> ⚠️ `plugins/adagraph/` 是构建侧的**前置基线**，为创新点一提供插槽承载，**不等于创新点一**。
+> 它的实装细节记录在 `innovation-1/adagraph.md`，但请按"基线"而非"创新点"来读。
+
+### 文件清单
+
 | 文件 | 用途 |
 |------|------|
 | `architecture_overview.md` | **架构总览**：分层、接口插槽、注册表机制、`ChimeraRAG` 门面装配流程、多Agent内部架构、四种部署组合 |
-| `innovation-1/` | **创新点一：AdaGraph** 文档 |
-| `innovation-1/adagraph.md` | AdaGraph 实装细节：DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner |
+| `innovation-1/` | **创新点一** 相关文档 |
+| `innovation-1/adagraph.md` | 构建侧前置基线实装细节：DynamicChunker / LayeredTripleExtractor / DualRedundancyPruner（含 TODO 清单） |
 | `innovation-2/` | **创新点二：CollaRAG** 文档 |
-| `innovation-2/colla-rag.md` | CollaRAG 多Agent架构实装细节 |
+| `innovation-2/colla-rag.md` | CollaRAG 多Agent架构实装细节（含四大子贡献 C1–C4、G-PER、图接地记忆） |
 | `innovation-2/design.md` | 多Agent架构设计文档（5 Agent + 31 工具 + 双层记忆） |
 | `innovation-2/plan.md` | 多Agent架构实现计划 |
 | `experiments/` | **实验结果**文档（10 份实验数据表） |

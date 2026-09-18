@@ -2,8 +2,21 @@
 
 > 日期：2026-07-07
 > 作者：Teng Li
-> 状态：设计中
-> 范围：重构创新点二（CollaRAG），从"M-R-D-E + 6策略 + LangGraph动态编排"演化为"多Agent协作 + 共享工具层 + 双层记忆"架构。创新点一（AdaGraph）不受影响。
+> 状态：已实装（本文档为设计稿，描述的是 **C1「Intent-Aware Query Triage」** 那次重构）
+> 范围：重构创新点二（CollaRAG），从"M-R-D-E + 6策略 + LangGraph动态编排"演化为"多Agent协作 + 共享工具层 + 双层记忆"架构。
+
+> ⚠️ **时效说明**：本文档写于 2026-07-07，**尚未覆盖后续加入的 C2 / C3 / C4**：
+>
+> | 子贡献 | 是否有设计稿 | 实装在哪 |
+> |---|---|---|
+> | C1 Query Triage | ✅ 本文档 | `classifier.py` · `agents/` · `agent_factory.py` |
+> | C2 G-PER | ❌ 本文未覆盖 | `agents/multi_hop.py` · `gper/completeness.py` |
+> | C3 图接地双层记忆 | ❌ 本文未覆盖 | `memory/graph_memory.py` · `memory/memory_manager.py` |
+> | C4 图条件化能力特化 | ❌ 本文未覆盖 | `agent_factory.py`（`GraphFootprint`） |
+>
+> **以 `colla-rag.md` 为准**（该文档已同步 C1–C4）。本文的 §7「双层记忆」描述的是 C3 加入**之前**的文本哈希版本。
+>
+> 另：本文提到的 "LangGraph 动态编排" 属于**已废弃**的早期方案（原 `plugins/intent_agent/`，已连同死代码一并清理），不再使用。
 
 ---
 

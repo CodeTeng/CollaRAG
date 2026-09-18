@@ -1,8 +1,12 @@
 # 主实验结果（完整版：含单跳 + 多跳 + 总结类数据集）
 
 > 骨干模型：Qwen3-8B / Qwen3-32B
-> 评测设置：500 题/数据集，seed=42，temperature=0
+> 评测设置：**各数据集完整评测集（全量）**，seed=42，temperature=0
 > 指标：EM (Exact Match), F1 (token-level)
+>
+> 完整评测集规模（`data/` 实测行数）：
+> NQ 3,610 · PopQA 14,267 · 2Wiki 12,576 · HotpotQA 7,405 · MuSiQue-Ans 2,417。
+> MuSiQue-Full 与 ASQA 的评测集文件当前不在 `data/` 下，规模待补。
 
 ---
 

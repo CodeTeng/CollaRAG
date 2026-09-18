@@ -1,42 +1,48 @@
 # Chimera-RAG 配置文件索引
 
-本目录保留 **6 份配置**，覆盖两个创新点的四种组合，加上一份完整字段注释模板。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
+本目录保留 **6 份配置**，覆盖"构建侧基线 × 创新点二"的四种组合，加上一份完整字段注释模板与一份本地 Ollama 变体。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
 
 运行任意子命令都需要用 `--config configs/<name>.yaml` 指定其一。
 
 ## 速查表
 
-| 文件 | AdaGraph | CollaRAG | 检索器 | 主要用途 |
+| 文件 | 构建侧基线 | CollaRAG | 检索器 | 主要用途 |
 |---|:---:|:---:|---|---|
-| `default.yaml` | — | — | — | 配置参考（不直接运行） |
-| `vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 真实 API 基线（消融对照组） |
-| `adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 真实 API 下单独衡量创新点一的增益 |
-| `colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 真实 API 下单独衡量创新点二的增益 |
-| `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 真实 API 下两创新点叠加的最终表现 |
-| `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Qwen3-8B 实验 |
+| `default.yaml` | — | — | — | 全字段注释模板（**注意：其中 `plugins.colla_rag.enabled` 为 `true`，是模板示例值，不直接运行**） |
+| `vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 裸 KG-RAG 基线（消融对照组） |
+| `adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 单独衡量**构建侧前置基线**的增益（**不是创新点一**） |
+| `colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 单独衡量**创新点二**的增益（云端 DeepSeek） |
+| `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 构建侧基线 + 创新点二叠加 |
+| `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Ollama Qwen3-8B（免 API 费用） |
 
-**公共部分（四份相同）**：
-- LLM：`deepseek`（model 从 `.env` 的 `LLM_MODEL` 读，默认 `deepseek-chat`）
-- Embedding：本地 `sentence-transformers/all-MiniLM-L6-v2`（384 维，`./models/` 下）
+**公共部分（三份云端配置相同）**：
+- LLM：`deepseek-chat` @ `https://api.deepseek.com`
+- Embedding：`text-embedding-3-small` @ `https://api.openai.com/v1`，**1536 维**（云端）
 - 向量索引：`hnsw`（M=32 / efConstruction=200 / efSearch=64）
-- Device：`cpu`
 - 数据集：`mock_wiki`（100 条合成 wiki-style 多跳 QA）
+
+**`ollama_colla_rag_only.yaml` 不同**：`qwen3:8b` + `nomic-embed-text`（768 维）@ `http://localhost:11434/v1`。
+
+**`default.yaml` 不同**：走阿里云 DashScope（`qwen` + `text-embedding-v4` 1536 维 + `qwen3-rerank`），是字段齐全的注释模板。
 
 ## 命名规则
 
 ```
 <plugin_combo>.yaml
       │
-      ├── vanilla           两创新点全关（defaults 裸基线）
-      ├── adagraph_only     仅创新点一
-      ├── colla_rag_only    仅创新点二（多Agent协作检索）
-      └── full              两创新点全开
+      ├── vanilla                      开关全关（defaults 裸基线）
+      ├── adagraph_only                仅构建侧前置基线
+      ├── colla_rag_only               仅创新点二（多Agent协作检索）
+      └── full                         两者全开
 ```
 
 ## 典型运行
 
-> 前置：`.env` 中配置 `LLM_API_KEY`（可选 `LLM_BASE_URL`、`LLM_MODEL`）；
-> 本地模型已通过 `scripts/download_embedding_model.py` 下载。
+> 前置：`.env` 中配置 `LLM_API_KEY`。
+>
+> 说明：3 份云端配置用的是**云端 embedding**（`text-embedding-3-small`），不需要本地模型。
+> 早期本地 embedding 方案的 `models/` 目录已作为遗留物清理；如需本地模型，
+> `scripts/download_embedding_model.py` 可重新下载（当前配置均未引用它）。
 
 ### 单次查询
 ```bash
@@ -73,15 +79,25 @@ uv run python experiments/eval.py \
 
 ## 改 LLM 连接信息
 
-`*.yaml` 里 `llm:` 段不写 `model / api_key_env / base_url_env`，
-全部从 `.env` 读（优先级 `LLM_API_KEY > DEEPSEEK_API_KEY > provider 默认`）。
+**模型名与 base_url 写在 yaml 里**（`llm.model` / `llm.base_url`），**`.env` 只放 secret**——key 的环境变量名由 `llm.api_key_env` 指定，默认 `LLM_API_KEY`。
+
+```yaml
+# configs/colla_rag_only.yaml
+llm:
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+  # api_key_env 默认 LLM_API_KEY
+```
 
 ```bash
-# .env
+# .env（只需一行）
 LLM_API_KEY=sk-xxx
-LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=deepseek-chat
 ```
+
+优先级：**只读 `cfg.api_key_env` 指定的那一个变量**，找不到直接抛 `ProviderError`（`providers/llm.py` 里就是一句 `os.getenv(cfg.api_key_env)`，没有多级回退）。
+`embedding` / `rerank` 可各自设 `api_key_env` 用不同的 key；`.env` 的加载是**非破坏性**的（`core/env_loader.py`，已存在的环境变量不会被覆盖）。
+
+⚠️ **`model` 与 `base_url` 只从 yaml 读，不支持环境变量覆盖**（见 `tests/test_llm_env_override.py` 的文档串）。想换模型就改 yaml。
 
 ## 改向量算法 / device / 数据集只改 yaml
 
@@ -90,13 +106,24 @@ LLM_MODEL=deepseek-chat
 | 向量检索算法 | `storage.vector.index_type` (`flat_ip` / `flat_l2` / `ivf_flat` / `hnsw`) |
 | HNSW 超参 | `storage.vector.hnsw.{M,ef_construction,ef_search}` |
 | IVF 超参 | `storage.vector.ivf.{nlist,nprobe,train_size}` |
-| Embedding device | `embedding.device` (`cpu` / `cuda` / `mps` / `auto`) |
+| Embedding 批大小 / 归一化 | `embedding.batch_size` / `embedding.normalize`（**无 `embedding.device` 字段**） |
 | 数据集路径 | `datasets.<name>.{corpus_path, qa_path, output_dir}` |
+| 抽取并发度 | `ingestion.extractor.params.extract_workers`（默认 1 = 串行；调大可显著缩短构图时间） |
+| 检索 top_k | `storage.vector.top_k` 或 `query.retriever.params.top_k` |
 
 ## 可用数据集
 
-`configs/default.yaml` 注册了以下数据集（`--dataset <name>` 选用）。
-GraphRAG 评测常用的 5 个公开数据集已通过脚本下载到 `data/` 并提供两种格式：
+**各配置注册的数据集并不一致**（`--dataset <name>` 只能选当前配置里声明过的）：
+
+| 配置 | 注册的 datasets |
+|---|---|
+| `default.yaml` | `hotpotqa` · `two_wiki` · `musique` · `nq` · `popqa`（**不含 `mock_wiki`**） |
+| `vanilla.yaml` / `adagraph_only.yaml` / `colla_rag_only.yaml` / `full.yaml` | 仅 `mock_wiki` |
+| `ollama_colla_rag_only.yaml` | `mock_wiki` · `hotpotqa` · `two_wiki` · `musique` |
+
+跑真实数据集（HotpotQA / 2Wiki / MuSiQue 等）时，建议以 `default.yaml` 为底改出实验配置，或把数据集条目补进目标配置。
+
+`data/` 下已通过脚本下载好 5 个公开数据集，并提供两种格式：
 
 | name | 格式 | loader | 来源 / 说明 |
 |---|---|---|---|
@@ -107,6 +134,9 @@ GraphRAG 评测常用的 5 个公开数据集已通过脚本下载到 `data/` �
 | `popqa` / `popqa_mw` | 原始 / mock_wiki | `generic_jsonl` / `mock_wiki` | PopQA test，14267 条；开放域无语料 |
 | `mock_wiki` | mock_wiki | `mock_wiki` | 100 条合成多跳 QA（默认/测试用） |
 
+> ⚠️ `*_mw` 是 `data/` 里**文件目录**的命名（统一的 `corpus.txt` + `qa.jsonl` 布局），
+> 目前 **`configs/*.yaml` 只注册了不带 `_mw` 的那一份**。要用 `_mw` 布局需自行补一条 dataset 条目并指向 `./data/<name>_mw/`。
+
 - **`*_mw` 变体**：统一的 `corpus.txt`（空行分隔段落）+ `qa.jsonl`（`{question,answer,qid}`）布局，
   走 `mock_wiki` loader，便于统一摄取/评测流程。
 - **`nq` / `popqa`** 为开放域，`*_mw` 的 `corpus.txt` 为空占位（数据集本身不带语料）。
@@ -114,8 +144,8 @@ GraphRAG 评测常用的 5 个公开数据集已通过脚本下载到 `data/` �
 下载与转换脚本（详见各脚本 docstring）：
 
 ```bash
-.venv/bin/python scripts/download_datasets.py        # 下载 5 个数据集到 data/
-.venv/bin/python scripts/convert_to_mock_wiki.py     # 转成 corpus.txt + qa.jsonl
+uv run python scripts/download_datasets.py        # 下载 5 个数据集到 data/
+uv run python scripts/convert_to_mock_wiki.py     # 转成 corpus.txt + qa.jsonl
 ```
 
 ## Mock 配置哪里去了？

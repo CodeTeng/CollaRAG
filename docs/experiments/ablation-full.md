@@ -1,7 +1,7 @@
 # 消融实验
 
 > 骨干模型：Qwen3-8B
-> 评测设置：500 题/数据集，seed=42，temperature=0
+> 评测设置：各数据集完整评测集（全量），seed=42，temperature=0
 > 指标：EM (Exact Match)
 > 本文档为消融实验的唯一汇总来源，覆盖四个创新点及其子机制。
 
@@ -41,8 +41,9 @@ Map-Reduce 流水线代价最高——这是 division-of-labor 假设的最强�
 
 - **w/o G-PER**：MultiHop Agent 的 Plan-Execute-Reflect 退化为标准 ReAct 循环（单轮
   Thought→Action→Observation，移除 Plan 和 Reflect 阶段）。SingleHop/Summarization/Other Agent 不受影响。
-  降幅集中于多跳（2Wiki −9.1、HotpotQA −8.8、MuSiQue-A −5.3），MuSiQue-F −3.3 为多跳集中最小，反映
-  单次反射 k_max=2 修不动最深 4-hop 证据链，ASQA −6.5。
+  降幅在多跳集上最大（2Wiki −9.1、HotpotQA −8.8、MuSiQue-A −5.3、MuSiQue-F −3.3），
+  ASQA 亦有 −6.5（仅次于 2Wiki 的第二大降幅）。MuSiQue-F −3.3 为多跳集中最小，反映
+  反射预算 k_max=2 修不动最深 4-hop 证据链。
 - **Graph-poor (no KG)**：向 MultiHop Agent 传入 `graph_store=None`，关闭图接地，但保留 plan/reflect 结构。
   此时 G-PER 的三个图接地机制各自退化为文本对应物（Plan 失去 schema 校验、Reflect 失去结构完备性检查
   与对抗式图验证），即 graph-poor G-PER ≡ text-only PER。用于把"图接地"与底层"plan/reflect 结构"分离。
@@ -53,10 +54,10 @@ Map-Reduce 流水线代价最高——这是 division-of-labor 假设的最强�
 
 ### C3：w/o Dual-Layer Memory 及三子机制
 
-- **w/o Dual-Layer Memory**：同时禁用 SharedMemory（QA cache、routing stats、entity aliases）和
-  AgentPrivateMemory。每次查询从零开始，无跨查询经验积累。降幅小但稳定（2Wiki −3.0、HotpotQA −3.1、
-  MuSiQue-A −1.8、MuSiQue-F −1.0、ASQA −2.2）——shared QA cache 帮助所有意图，private 经验记忆
-  最惠及重复性高的多跳路由模式。
+- **w/o Dual-Layer Memory**：同时禁用 SharedMemory（证据子图重叠 cache，以及遗留 text-hash QA cache、
+  routing stats、entity aliases）和 AgentPrivateMemory。每次查询从零开始，无跨查询经验积累。
+  降幅小但稳定（2Wiki −3.0、HotpotQA −3.1、MuSiQue-A −1.8、MuSiQue-F −1.0、ASQA −2.2）——shared 层的
+  证据子图重叠 cache 帮助所有意图，private 经验记忆最惠及重复性高的多跳路由模式。
 - **w/o Overlap Cache**：仅关闭 shared 层的"证据子图重叠 cache"（退回文本 hash cache），
   保留 private 层图计划模板与缺口 lesson。隔离"结构化复用"贡献。
 - **w/o Plan Templates**：仅关闭 private 层"图计划模板"，隔离"计划先验复用"贡献（多跳路由模式复用）。

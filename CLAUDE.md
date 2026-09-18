@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Python (uv-managed, Python 3.11+)
 
 ```bash
-uv sync --all-extras --dev          # Install all dependencies
+uv sync --extra web --extra agent --extra llm --extra vec --dev   # agent / ragas extras conflict — do NOT use --all-extras
 uv run pytest -q                    # Run all tests (fake providers, no API keys needed)
 uv run pytest tests/test_core_config.py -q                     # Run a single test file
 uv run pytest tests/test_core_config.py::test_load_missing_file -q  # Run a single test
@@ -39,7 +39,7 @@ uv run python main.py serve --config <cfg>
 
 ```bash
 uv run python main.py infer --config configs/colla_rag_only.yaml --dataset hotpotqa --limit 10
-uv run python experiments/eval.py --predictions_dir output/hotpotqa/colla_rag_only
+uv run python experiments/eval.py --predictions output/hotpotqa/colla_rag_only
 ```
 
 ### Experiments (paper reproduction)
@@ -48,7 +48,7 @@ All 9 paper experiments live in `experiments/` with a shared `utils.py` toolkit:
 
 ```bash
 bash experiments/run_all.sh --limit 50          # Smoke test all experiments (50 samples)
-bash experiments/run_all.sh --limit 500         # Full reproduction (500 samples, matches paper)
+bash experiments/run_all.sh --limit 500         # Larger run (500 samples/dataset; the paper's numbers come from the full eval sets)
 bash experiments/run_all.sh --exp 1 2 3         # Run only specific experiments
 
 # Run individual experiments
@@ -73,7 +73,7 @@ Chimera-RAG is a pluggable knowledge-graph RAG framework with two optional resea
 
 | Layer | Location | Role |
 |---|---|---|
-| Entry | `main.py` + `cli.py` | Six argparse subcommands (ingest/query/infer/export/serve) |
+| Entry | `main.py` + `cli.py` | Five argparse subcommands (ingest/query/infer/export/serve) |
 | Facade | `src/chimera_rag/__init__.py::ChimeraRAG` | Assembles all slots, exposes `ingest`/`query`/`stats`/`toggle_plugin` |
 | Core | `core/` | `types.py`, `config.py`, `registry.py`, `pipeline.py`, `logging.py`, `exceptions.py`, `env_loader.py` |
 | Interfaces | `interfaces/` | ABCs — all slot abstractions (`BaseChunker`, `BaseRetriever`, `BaseIntentClassifier`, `BaseAgent`, etc.) |
@@ -81,6 +81,17 @@ Chimera-RAG is a pluggable knowledge-graph RAG framework with two optional resea
 | Plugins | `plugins/adagraph/` + `plugins/colla_rag/` | Two innovations, registered as `<plugin>.*` |
 
 **Critical rule**: `core/` never imports from `defaults/` or `plugins/`. The dependency direction is one-way: core → interfaces, defaults/plugins → interfaces + core.
+
+### Innovation status (keep this framing in mind)
+
+The repo targets **two claimed innovations**:
+
+1. **Innovation #1 — a novel chunking method (build side). NOT YET IMPLEMENTED.** The existing `plugins/adagraph/` is the build-side *baseline* that reserves the slots for it — do not present AdaGraph as a claimed contribution.
+2. **Innovation #2 — CollaRAG (query side). Implemented.** Four sub-contributions:
+   - **C1 Intent-Aware Query Triage** — `classifier.py` (tree intent classifier), `agents/`
+   - **C2 G-PER** (Graph-Grounded Plan-Execute-Reflect) — `agents/multi_hop.py`, `gper/completeness.py` (schema-validated graph-op plans, frontier-budget execution, structural completeness check with typed gaps, adversarial probe)
+   - **C3 Graph-Grounded Dual-Layer Memory** — `memory/graph_memory.py` (evidence-subgraph overlap cache 3B, plan templates 3A, gap lessons 3C)
+   - **C4 Graph-Conditioned Capability Specialization** — `agent_factory.py` (`GraphFootprint` dynamically grows/shrinks each agent's tool subset)
 
 ### Plugin system: Registry + Slots
 
@@ -92,19 +103,19 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
 - **QueryPipeline**: `query → intent_classifier → retriever → generator → Answer`
 - Both share `PipelineState` (graph_store, vector_store, chunk_lookup).
 
-### The two innovations
+### The two slots packages
 
-1. **AdaGraph** — occupies 3 ingestion slots: `chunker` (adaptive size based on complexity/density), `extractor` (4-layer extraction L1-L4), `pruner` (similarity + transitive redundancy removal)
+1. **AdaGraph (build-side baseline, NOT a claimed innovation)** — occupies 3 ingestion slots: `chunker` (adaptive size based on complexity/density), `extractor` (4-layer extraction, L1 implemented / L2-L4 TODO), `pruner` (similarity implemented / transitive TODO)
 
-2. **CollaRAG (Multi-Agent Architecture)** — occupies 2 query slots (`intent_classifier` as `colla_rag.tree`, `retriever` as `colla_rag.multi_agent`). Inside the `MultiAgentRetriever` facade:
-   - **Preprocessor Agent**: query rewriting, coreference resolution, follow-up merging
+2. **CollaRAG (innovation #2)** — occupies 2 query slots (`intent_classifier` as `colla_rag.tree`, `retriever` as `colla_rag.multi_agent`). Inside the `MultiAgentRetriever` facade:
+   - **Preprocessor Agent**: query rewriting, coreference resolution, follow-up merging (runs AFTER classification, on the original query; only the dispatched agent sees the rewritten query)
    - **Tree-Intent Classifier**: Level-1 greeting filter → Level-2 LLM + rule-fallback classification into `greeting | single_hop | multi_hop | summarization | other`
    - **SingleHop Agent**: single-round hybrid retrieval for simple factual queries
-   - **MultiHop Agent**: Plan-Execute-Reflect architecture — LLM generates step plan, each step runs mini ReAct loop, then reflect + synthesize for multi-hop/comparative/exploratory queries
+   - **MultiHop Agent**: G-PER — schema-validated graph-op plan (link/traverse/attribute/aggregate), frontier-budget execution, structural completeness check emitting typed gaps (missing_attribute/path/relation) + adversarial contradiction probe; degrades to text-only PER when graph_store is None
    - **Summarization Agent**: retrieve → map (per-chunk LLM summary) → reduce (final synthesis) for summarization queries
    - **Other Agent**: DuckDuckGo search + optional local knowledge for out-of-scope queries
-   - **Shared Tool Layer**: 22 tools (vector/BM25/hybrid/graph retrieval, entity/relation extraction, entity linking, sub-query decompose, assess evidence, rerank, query rewrite, memory read/write, web search, file IO)
-   - **Dual-Layer Memory**: SharedMemory (QA cache, routing stats, entity aliases) + AgentPrivateMemory (per-agent per-intent JSONL experience store)
+   - **Shared Tool Layer**: 34 tools built across 10 modules (retrieval/entity/reasoning/preprocess/memory/web/io/verification/graph-advanced/evidence); all 34 enter `TOOL_MATRIX`. Memory offers read+write variants for session context / shared / agent memory; write variants are granted to the specialists that produce the corresponding data (SH/MH/SM for shared, SH/MH/SM/OT for agent-private, PP/MH for session context)
+   - **Dual-Layer Memory**: SharedMemory (routing stats, QA cache, entity aliases, rewrite templates) + AgentPrivateMemory (per-agent per-intent JSONL) + graph-grounded layers (EvidenceSubgraphStore, PlanTemplateStore, GapLessonStore)
 
 ### Key design patterns (CollaRAG)
 
@@ -116,7 +127,7 @@ The `Registry` (`core/registry.py`) is a two-level map `slot → name → class`
 
 ### Configuration
 
-Single YAML config with 11 top-level domains: `app`, `logging`, `llm`, `embedding`, `rerank`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Six config variants in `configs/`:
+Single YAML config with 12 top-level domains: `app`, `logging`, `llm`, `embedding`, `rerank`, `storage`, `datasets`, `ingestion`, `query`, `plugins`, `web`, `evaluation`. Six config variants in `configs/`:
 
 | Config | AdaGraph | CollaRAG |
 |---|:---:|:---:|
@@ -140,34 +151,40 @@ All cross-layer types in `core/types.py`: `Document`, `Chunk`, `Triple`, `Entity
 ```
 plugins/colla_rag/
 ├── __init__.py              # Plugin entry, triggers @register
-├── prompts.py               # Centralized prompt templates (13 prompts)
+├── prompts.py               # Centralized prompt templates (24)
 ├── classifier.py            # TreeIntentClassifier (greeting + LLM + rule fallback)
 ├── orchestrator.py          # MultiAgentRetriever facade
-├── agent_factory.py         # AgentFactory + ToolSetBuilder + TOOL_MATRIX
+├── agent_factory.py         # AgentFactory + ToolSetBuilder + TOOL_MATRIX + GraphFootprint
 ├── agents/                  # 5 specialized agents
 │   ├── preprocessor.py      # PreprocessorAgent
 │   ├── single_hop.py        # SingleHopAgent
-│   ├── multi_hop.py         # MultiHopAgent (Plan-Execute-Reflect)
+│   ├── multi_hop.py         # MultiHopAgent (G-PER: Plan-Execute-Reflect)
 │   ├── summarization.py     # SummarizationAgent
 │   └── other.py             # OtherAgent
-├── tools/                   # 22 shared tools
-│   ├── retrieval_tools.py   # vector/BM25/hybrid/graph (+ BM25Index, ToolAccumulator)
-│   ├── entity_tools.py      # entity_extract/relation_extract/entity_link
-│   ├── reasoning_tools.py   # sub_query_decompose/assess_evidence/rerank
-│   ├── preprocess_tools.py  # query_rewrite/coreference_resolve/followup_merge
-│   ├── memory_tools.py      # read/write session/shared/agent memory
-│   ├── web_tools.py         # web_search/web_fetch
-│   ├── io_tools.py          # save_to_file/load_from_file
-│   └── quality_evaluator.py # HeuristicQualityEvaluator
-└── memory/                  # Dual-layer memory
+├── tools/                   # 34 tools built over 10 modules; all 34 enter TOOL_MATRIX
+│   ├── retrieval_tools.py      # vector/BM25/hybrid/graph (+ BM25Index, ToolAccumulator)
+│   ├── entity_tools.py         # entity_extract/relation_extract/entity_link
+│   ├── reasoning_tools.py      # sub_query_decompose/assess_evidence/rerank
+│   ├── preprocess_tools.py     # query_rewrite/coreference_resolve/followup_merge
+│   ├── memory_tools.py         # 3 read + 3 write (session/shared/agent); write_* in no matrix
+│   ├── web_tools.py            # web_search/web_fetch
+│   ├── io_tools.py             # save_to_file/load_from_file
+│   ├── verification_tools.py   # answer_verify/claim_decompose/source_attribution
+│   ├── graph_advanced_tools.py # graph_subgraph_extract/graph_statistics
+│   ├── evidence_tools.py       # temporal_filter/evidence_dedup/chunk_summarize/confidence_calibrate
+│   └── quality_evaluator.py    # HeuristicQualityEvaluator (helper class, not a tool)
+├── gper/                    # G-PER structural completeness (C2)
+│   └── completeness.py      # ShapeSpec + typed EvidenceGap (attribute/path/relation)
+└── memory/                  # Dual-layer memory (C3)
     ├── shared_memory.py     # SharedMemory (JSON-backed)
     ├── agent_memory.py      # AgentPrivateMemory (JSONL per-agent per-intent)
+    ├── graph_memory.py      # EvidenceSubgraphStore / PlanTemplateStore / GapLessonStore
     └── memory_manager.py    # MemoryManager facade + SessionMemory
 ```
 
 ### Web system
 
-FastAPI at `src/chimera_rag/web/` — 7 route modules. React frontend at `web-ui/` (Vite + TypeScript + Tailwind v4 + Cytoscape). Dev: Vite on :5173 proxies `/api` to FastAPI on :8000. Production: `pnpm build` output mounted as static files.
+FastAPI at `src/chimera_rag/web/` — 8 route modules, 12 endpoints. React frontend at `web-ui/` (Vite + TypeScript + Tailwind v4 + Cytoscape). Dev: Vite on :5173 proxies `/api` to FastAPI on :8000. Production: `pnpm build` output mounted as static files.
 
 ### Experiments
 
@@ -190,6 +207,6 @@ Shared utilities in `experiments/utils.py`: config generation, inference runner,
 ### Testing
 
 All tests use `FakeLLMProvider` + `FakeEmbeddingProvider` (test-only doubles in
-`tests/conftest.py`) — no real API keys needed. Tests cover: registry, config,
+`tests/_fakes.py`, wired in by `tests/conftest.py`) — no real API keys needed. Tests cover: registry, config,
 types, pipeline end-to-end (vanilla/AdaGraph/CollaRAG/full), individual
 defaults, agents, tools, memory, stores, datasets, and evaluation.

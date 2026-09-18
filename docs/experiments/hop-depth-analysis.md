@@ -1,15 +1,15 @@
 # 多跳深度分析（Hop Depth Analysis）
 
-> 目的：分析 CollaRAG 在不同推理深度（hop 数）下的表现，揭示 PER 架构在极端多跳场景下的能力边界。
+> 目的：分析 CollaRAG 在不同推理深度（hop 数）下的表现，揭示 G-PER 架构在极端多跳场景下的能力边界。
 > 骨干模型：Qwen3-8B
-> 数据集：MuSiQue-Ans（answerable subset，500 题，按 hop 数拆分：2-hop 187 题 / 3-hop 198 题 / 4-hop 115 题）
+> 数据集：MuSiQue-Ans（answerable subset，**完整评测集，全量**，按 hop 数拆分：2-hop / 3-hop / 4-hop）
 > 指标：EM
 
 ---
 
 ## 1. 按 Hop 深度拆分的性能对比
 
-| 方法 | 2-hop (n=187) | 3-hop (n=198) | 4-hop (n=115) | 总体 (n=500) |
+| 方法 | 2-hop | 3-hop | 4-hop | 总体 |
 |---|---|---|---|---|
 | Vanilla RAG | 0.165 | 0.098 | 0.071 | 0.113 |
 | RAPTOR | 0.198 | 0.121 | 0.082 | 0.132 |
@@ -31,6 +31,6 @@
 | HippoRAG2 | −28.2% | −30.6% | −50.1% |
 | **CollaRAG** | **−26.2%** | **−32.5%** | **−50.1%** |
 
-**分析**：CollaRAG 在 2-hop→3-hop 的衰减率低于 HippoRAG2（−26.2% vs −28.2%），但在 3-hop→4-hop 的衰减率略高（−32.5% vs −30.6%）。总体来看，CollaRAG 在 2-hop→4-hop 的总衰减率与 HippoRAG2 持平（−50.1%），但 CollaRAG 在所有 hop 深度上均保持更高的绝对 EM。2-hop 领先 +3.0 EM，3-hop 和 4-hop 各领先约 +1.5 EM，4-hop 的领先幅度没有进一步扩大——这暴露了 PER 的深度上限：单次反射（$k_{\max}{=}2$）对 4-hop 证据链的修复能力有限，与正文 §6.4 的分析一致。
+**分析**：CollaRAG 在 2-hop→3-hop 的衰减率低于 HippoRAG2（−26.2% vs −28.2%），但在 3-hop→4-hop 的衰减率略高（−32.5% vs −30.6%）。总体来看，CollaRAG 在 2-hop→4-hop 的总衰减率与 HippoRAG2 持平（−50.1%），但 CollaRAG 在所有 hop 深度上均保持更高的绝对 EM。领先幅度在 2-hop 最宽（+3.0 EM），3-hop 仍然宽阔（+2.9 EM），到 4-hop 收窄至 +1.5 EM，没有进一步扩大——这暴露了 G-PER 的深度上限：反射预算 $k_{\max}{=}2$ 对 4-hop 证据链的修复能力有限（这也与消融一致：w/o G-PER 在 MuSiQue-Full 上的降幅是所有多跳集中最小的，−3.3 EM），与正文 §6.5 的分析一致。
 
 ---

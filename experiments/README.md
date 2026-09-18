@@ -21,8 +21,8 @@
 ### 前置条件
 
 ```bash
-# 1. 安装依赖
-uv sync --all-extras --dev
+# 1. 安装依赖（agent 与 ragas 互斥，不要用 --all-extras）
+uv sync --extra web --extra agent --extra llm --extra vec --dev
 
 # 2. 配置环境变量（.env 文件）
 #    LLM_API_KEY=<your-api-key>
@@ -30,6 +30,12 @@ uv sync --all-extras --dev
 # 3. 下载数据集
 uv run python scripts/download_datasets.py
 ```
+
+**可选数据集名**（`--datasets` 的 choices，见 `utils.py`）：
+`nq` · `popqa` · `hotpotqa` · `two_wiki` · `musique` · `asqa`
+
+> ⚠️ 注意是 `two_wiki` 而不是 `2wiki`。
+> ⚠️ `asqa` 出现在 `DATASETS_ALL` / `exp1` 的 choices 里，但 `data/` 下**没有**对应目录，也没在 `scripts/download_datasets.py` 的下载列表内——用它之前需先补数据。
 
 ### 运行单个实验
 
@@ -43,7 +49,7 @@ uv run python experiments/exp1_main_results.py \
 
 # 例：运行消融实验
 uv run python experiments/exp2_ablation.py \
-    --datasets hotpotqa 2wiki \
+    --datasets hotpotqa two_wiki \
     --limit 500
 ```
 
@@ -77,5 +83,8 @@ output/experiments/
 
 ## 共享工具
 
-- `utils.py`：通用工具函数（配置生成、结果收集、Markdown 表格生成）
-- `configs/`：实验专用配置文件（由脚本动态生成，也可手动复用）
+- `utils.py`：通用工具函数（`make_config()` 动态生成临时配置、结果收集、Markdown 表格生成）
+- `eval.py` / `eval_ragas.py`：离线打分（EM/F1/ROUGE-L 与 RAGAS 语义指标）
+
+> 注：实验用的配置**不**以独立目录形式存在，而是由 `utils.py::make_config()` 在运行时
+> 基于 `configs/*.yaml` 派生，落到 `output/experiments/<exp_name>/configs/`。

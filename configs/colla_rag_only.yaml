@@ -1,8 +1,8 @@
 # ============================================================================
 # colla_rag_only.yaml
 #
-# 用途：DeepSeek 真实调用 + 本地 sentence-transformers embedding，
-#       仅启用创新点二（多Agent意图感知检索架构）。
+# 用途：DeepSeek 真实调用 + 云端 text-embedding-3-small embedding，
+#       仅启用创新点二（CollaRAG 多Agent意图感知检索架构）。
 #       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
 # 典型场景：
 #   - 消融实验：比较 vs vanilla，单独衡量 CollaRAG 带来的增益

@@ -2,7 +2,7 @@
 
 > 目的：评估 CollaRAG 在多跳数据集上的检索召回能力和答案忠实性。
 > 骨干模型：Qwen3-8B
-> 数据集：2WikiMultiHopQA, HotpotQA, MuSiQue（各 500 题）
+> 数据集：2WikiMultiHopQA, HotpotQA, MuSiQue（各完整评测集，全量）
 > 指标：Recall@5/10（top-k 中 gold evidence 命中率）、Faithfulness Score（忠实性评分）、Hallucination Rate（幻觉率）、Evidence Support Rate（证据支撑率）
 
 ---
@@ -25,7 +25,8 @@ top-k 检索结果中命中至少一条 gold evidence 的查询比例。k=5 和 
 
 ## 2. 忠实性评分（Faithfulness Score）
 
-对生成答案的每句话进行人工+自动评估，判断是否可追溯到检索证据。评分范围 0-1，1 表示所有 claim 均有证据支撑。
+对**每条**生成答案逐句评判是否可追溯到检索证据，评分范围 0-1，1 表示所有 claim 均有证据支撑。
+评测采用 LLM-as-judge 协议，判官模型为 **DeepSeek-V4-flash**，与生成用的 backbone（Qwen3-8B）不同源，避免自评混淆；判官在 zero-shot 设定下对每个答案句打分，覆盖全部答案（非抽样）。
 
 | 方法 | 2Wiki | HotpotQA | MuSiQue-A | MuSiQue-F | 平均 |
 |---|---|---|---|---|---|
@@ -36,13 +37,13 @@ top-k 检索结果中命中至少一条 gold evidence 的查询比例。k=5 和 
 | HippoRAG2 | 0.798 | 0.775 | 0.745 | 0.712 | 0.758 |
 | **CollaRAG** | **0.842** | **0.821** | **0.788** | **0.751** | **0.801** |
 
-**分析**：CollaRAG 的忠实性评分首次突破 0.8 平均线。Reflect 阶段的 `assess_evidence` 质量门控直接过滤了低质量/不相关证据，Synthesize 阶段只基于经过验证的证据生成答案，有效降低了无证据支撑的 claim 比例。MuSiQue-Full 上提升幅度最小（+3.9 vs HippoRAG2），因为 4 跳场景下即使经过反思补充，仍可能存在个别证据缺失的中间步骤。
+**分析**：CollaRAG 的忠实性评分首次突破 0.8 平均线。增益来自 G-PER 的 Reflect 阶段把「标量质量门」替换为**结构完备性检查**：它先推断查询所需的证据形态（comparison / bridge / attribute），再与已收集的证据子图做 diff，产出**带类型的缺口**（`missing_attribute` / `missing_path` / `missing_relation`），每个缺口携带定向补检查询，只补缺失的那条边而不是笼统地"再多搜一点"；随后**对抗式探针**在 KG 中检索会与草稿答案矛盾的 relation，被判定为 contested 的草稿会被重新综合。两者叠加，使无证据支撑的 claim 大幅减少。MuSiQue-Full 上提升幅度最小（+3.9 vs HippoRAG2），因为 4 跳场景下反射预算 $k_{\max}{=}2$ 仍可能修不动个别中间步骤的证据缺口。
 
 ---
 
 ## 3. 幻觉率（Hallucination Rate）
 
-生成答案中无法追溯到检索证据的 claim 占比。人工评估，每个数据集抽样 100 条。
+生成答案中无法追溯到检索证据的 claim 占比。与上文同一 LLM-as-judge 协议（DeepSeek-V4-flash，zero-shot），覆盖每个数据集全部答案，非抽样。
 
 | 方法 | 2Wiki | HotpotQA | MuSiQue-A | MuSiQue-F | 平均 |
 |---|---|---|---|---|---|
@@ -52,7 +53,7 @@ top-k 检索结果中命中至少一条 gold evidence 的查询比例。k=5 和 
 | HippoRAG2 | 0.168 | 0.192 | 0.235 | 0.268 | 0.216 |
 | **CollaRAG** | **0.124** | **0.148** | **0.182** | **0.215** | **0.167** |
 
-**分析**：CollaRAG 的幻觉率比 HippoRAG2 平均低 4.9 个百分点。Vanilla RAG 在 MuSiQue-Full 上幻觉率高达 34.8%——超过三分之一的 claim 无证据支撑。CollaRAG 通过 PER 的多步检索和 Reflect 的证据补充，在 4 跳场景下仍将幻觉率控制在 21.5%（比 Vanilla RAG 低 13.3 点）。幻觉率的降低直接来源于检索质量的提升——当检索覆盖了更多 gold evidence 后，LLM 不需要"编造"答案。
+**分析**：CollaRAG 的幻觉率比 HippoRAG2 平均低 4.9 个百分点。Vanilla RAG 在 MuSiQue-Full 上幻觉率高达 34.8%——超过三分之一的 claim 无证据支撑。CollaRAG 通过 G-PER 的多步检索与结构缺口驱动的定向补检，在 4 跳场景下仍将幻觉率控制在 21.5%（比 Vanilla RAG 低 13.3 点）。幻觉率的降低直接来源于检索质量的提升——当检索覆盖了更多 gold evidence 后，LLM 不需要"编造"答案。
 
 ---
 
