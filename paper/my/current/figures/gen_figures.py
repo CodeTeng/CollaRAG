@@ -3,7 +3,7 @@
 
 Outputs (in this directory):
   fig_radar.pdf         - performance radar (Qwen3-8B, 4 multi-hop datasets)
-  fig_ablation.pdf      - ablation grouped bar (Qwen3-32B, 5 datasets)
+  fig_ablation.pdf      - ablation grouped bar (Qwen3-8B, 5 datasets)
   fig_hopdepth.pdf      - EM vs hop depth (Qwen3-8B, MuSiQue)
   fig_memory_curve.pdf  - memory accumulation curve (Qwen3-8B, HotpotQA)
   fig_hyperparam.pdf    - hyperparameter sensitivity small-multiples (Qwen3-8B, HotpotQA)
@@ -64,32 +64,36 @@ def _key(name):
 
 
 # =====================================================================
-# 2. Ablation grouped bar (Qwen3-32B, EM, 5 datasets)
+# 2. Ablation grouped bar (Qwen3-8B, EM, 5 datasets)
 # =====================================================================
 def ablation():
     datasets = ["2Wiki", "HotpotQA", "MuSi-A", "MuSi-F", "ASQA"]
+    # Values match Table 2 of main.tex exactly (Qwen3-8B, EM).
     variants = [
-        ("Full",            [0.602, 0.510, 0.277, 0.189, 0.338], C["ours"]),
-        ("w/o Query Triage",[0.485, 0.409, 0.205, 0.130, 0.216], C["h2"]),
-        ("w/o PER",         [0.559, 0.467, 0.247, 0.170, 0.301], C["grag"]),
-        ("w/o Memory",      [0.572, 0.479, 0.259, 0.179, 0.316], C["rap"]),
+        ("Full",                           [0.602, 0.510, 0.277, 0.189, 0.338], C["ours"]),
+        ("w/o Query Triage",               [0.485, 0.409, 0.205, 0.130, 0.216], C["h2"]),
+        ("w/o G-PER",                      [0.511, 0.422, 0.224, 0.156, 0.273], C["grag"]),
+        ("Graph-poor (no KG)",             [0.587, 0.496, 0.265, 0.180, 0.337], C["h1"]),
+        ("w/o Dual-Layer Memory",          [0.572, 0.479, 0.259, 0.179, 0.316], C["rap"]),
+        ("w/o Capability Specialization",  [0.553, 0.475, 0.249, 0.172, 0.320], C["tog"]),
     ]
     x = np.arange(len(datasets))
-    w = 0.2
-    fig, ax = plt.subplots(figsize=(6.2, 3.2))
+    n = len(variants)
+    w = 0.135
+    fig, ax = plt.subplots(figsize=(7.0, 3.4))
     for i, (name, vals, color) in enumerate(variants):
-        offset = (i - 1.5) * w
+        offset = (i - (n - 1) / 2) * w
         bars = ax.bar(x + offset, vals, w, label=name, color=color,
-                      edgecolor="white", linewidth=0.5)
+                      edgecolor="white", linewidth=0.4)
         for b, v in zip(bars, vals):
             ax.text(b.get_x() + b.get_width()/2, v + 0.006, f"{v:.3f}"[1:],
-                    ha="center", va="bottom", fontsize=6.5, rotation=90)
+                    ha="center", va="bottom", fontsize=5.2, rotation=90)
     ax.set_xticks(x)
     ax.set_xticklabels(datasets)
     ax.set_ylabel("EM")
     ax.set_ylim(0, 0.72)
-    ax.legend(frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.13),
-              columnspacing=1.2, handletextpad=0.4)
+    ax.legend(frameon=False, ncol=6, loc="upper center", bbox_to_anchor=(0.5, 1.16),
+              columnspacing=0.8, handletextpad=0.3, fontsize=7.0)
     ax.grid(axis="y", color="#DDD", linewidth=0.6)
     ax.set_axisbelow(True)
     fig.savefig(os.path.join(OUT, "fig_ablation.pdf"))
@@ -130,7 +134,7 @@ def hopdepth():
                         fontsize=6.0, color=color)
     ax.set_xlim(1.7, 4.6)
     ax.set_xticks(hops)
-    ax.set_xticklabels(["2-hop\n(n=187)", "3-hop\n(n=198)", "4-hop\n(n=115)"])
+    ax.set_xticklabels(["2-hop", "3-hop", "4-hop"])
     ax.set_xlabel("Reasoning depth (MuSiQue)")
     ax.set_ylabel("EM")
     ax.set_ylim(0, 0.42)
@@ -156,11 +160,11 @@ def memory_curve():
                   markeredgecolor="white", markeredgewidth=0.6, label="EM")
     l2, = ax.plot(mid, f1, color=C["h2"],    linewidth=2.0, marker="s", markersize=5,
                   markeredgecolor="white", markeredgewidth=0.6, label="F1")
-    ax.set_xlabel("Query index (window midpoint)")
+    ax.set_xlabel("Query window (temporal order)")
     ax.set_ylabel("Answer quality (EM / F1)")
     ax.set_ylim(0.38, 0.65)
     ax.set_xticks(mid)
-    ax.set_xticklabels(["1-50", "51-100", "101-200", "201-300", "301-400", "401-500"],
+    ax.set_xticklabels(["W1", "W2", "W3", "W4", "W5", "W6"],
                        rotation=0, fontsize=8)
     ax.grid(axis="y", color="#EEE", linewidth=0.6)
     ax.set_axisbelow(True)
@@ -244,17 +248,18 @@ def hyperparam():
 
 
 # =====================================================================
-# 6. Routing distribution (Qwen3-8B, 6 datasets, n=500 each)
+# 6. Routing distribution (Qwen3-8B, 6 datasets, full evaluation set)
 # =====================================================================
 def routing_dist():
     # greeting = 0 on every benchmark (L1 regex never fires); dropped from the
     # composition. Order places SH-dominant sets at top, SM-dominant (ASQA) at
     # bottom so the intent<->route alignment reads as a downward color gradient.
+    # Proportions are computed over the full evaluation set of each benchmark.
     datasets = ["NQ", "PopQA", "HotpotQA", "2Wiki", "MuSiQue", "ASQA"]
-    sh = np.array([438, 453,  22,  13,   9,  58]) / 500 * 100
-    mh = np.array([ 33,  19, 464, 470, 475,  33]) / 500 * 100
-    sm = np.array([ 16,  12,   4,   4,   3, 384]) / 500 * 100
-    ot = np.array([ 13,  16,  10,  13,  13,  25]) / 500 * 100
+    sh = np.array([87.6, 90.6,  4.4,  2.6,  1.8, 11.6])
+    mh = np.array([ 6.6,  3.8, 92.8, 94.0, 95.0,  6.6])
+    sm = np.array([ 3.2,  2.4,  0.8,  0.8,  0.6, 76.8])
+    ot = np.array([ 2.6,  3.2,  2.0,  2.6,  2.6,  5.0])
     segs = [
         ("SH", sh, C["h1"],   "SingleHop"),
         ("MH", mh, C["grag"], "MultiHop"),
@@ -274,7 +279,7 @@ def routing_dist():
                         color="white" if color != C["vrag"] else "#444")
         left += vals
     ax.set_yticks(y)
-    ax.set_yticklabels([f"{d} (n=500)" for d in datasets])
+    ax.set_yticklabels(list(datasets))
     ax.set_xlabel("Routing proportion (%)")
     ax.set_xlim(0, 100)
     ax.set_xticks([0, 25, 50, 75, 100])
