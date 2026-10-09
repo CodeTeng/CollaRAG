@@ -58,12 +58,16 @@ Thumbs.db
 *.key
 
 # ---------- Project 运行产物 ----------
-# 只忽略根目录下的 data/（大数据集），不忽略 examples/data/ 等子目录
-# /data/
-# !/data/README.md
-# # mock_wiki 是项目自带的 100 条合成 QA，必须入库
-# !/data/mock_wiki/
-# !/data/mock_wiki/**
+# 忽略根目录下的 data/（真实数据集体积大，不入库）
+# 注意：必须用 /data/* 而非 /data/，git 不会进入被忽略的目录，否定规则才生效
+/data/*
+!/data/README.md
+# mock_wiki 是项目自带的 100 条合成 QA（端到端 demo 依赖），必须入库
+!/data/mock_wiki/
+# docs/ 为本地设计与实验文档（含创新点规划），不随代码发布
+/docs/
+# 旧 README 含两个创新点的整体规划（创新点一未实装），发布版仅用根 README.md
+/README_chimera.md
 # output/
 logs/
 runs/
@@ -120,6 +124,11 @@ texput.log
 .certs/
 data/musique/_musique_release.zip
 
+# ---------- 运行产物 / 论文 / 汇报（不入库） ----------
+/output/
+/paper/
+/Chimera-RAG创新点进展汇报/
+
 # ---------- AI / Agent 工具 ----------
 .agentix/
 .aone_copilot/
@@ -129,3 +138,7 @@ data/musique/_musique_release.zip
 .codebuddy/
 .ruff_cache
 .workbuddy/
+.tmp_pdf_text/
+# Claude Code 配置与计划草稿（含项目内部规划，不随代码发布）
+.claude/
+/CLAUDE.md

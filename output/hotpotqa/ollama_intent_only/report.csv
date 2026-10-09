@@ -1,4 +1,0 @@
-qid,intent_label,strategy_name,question,reference,prediction,em,f1,rouge_l,confidence,latency_s,prompt_tokens,completion_tokens,total_tokens,llm_calls
-5a8b57f25542995d1e6f1371,comparative,parallel,Were Scott Derrickson and Ed Wood of the same nationality?,yes,American,0.0,0.0,0.0,1.0,3.1299,1385,46,1431,3
-5a8c7595554299585d9e36b6,factual,direct,What government position was held by the woman who portrayed Corliss Archer in the film Kiss and Tell?,Chief of Protocol,Chief of Protocol,1.0,1.0,1.0,1.0,1.9317,1089,46,1135,3
-5a85ea095542994775f606a8,factual,direct,"What science fantasy young adult series, told in first person, has a set of companion books narrating the stories of enslaved worlds and alien species?",Animorphs,Animorphs,1.0,1.0,1.0,1.0,2.3668,1610,46,1656,3
