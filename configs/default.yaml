@@ -1,0 +1,251 @@
+# ============================================================================
+# default.yaml — Chimera-RAG 全字段配置参考模板（NOT FOR RUN）
+# ----------------------------------------------------------------------------
+# 用途：
+#   列出所有可配置字段 + 中文注释，供查阅、学习、派生新配置使用。
+#   本文件本身不作为运行 config；实际运行请选 configs/*.yaml 之一。
+#
+# 项目结构三层：
+#   1) LLM / Embedding / Storage / Datasets     —— 基础设施层
+#   2) ingestion (chunker/extractor/pruner)     —— 知识构建阶段（创新点一）
+#      query (intent_classifier/retriever/...)  —— 查询阶段（创新点二）
+#   3) plugins.adagraph / plugins.colla_rag  —— 两创新点独立开关 + 子配置
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# 应用元信息
+# --------------------------------------------------------------------------
+app:
+  name: chimera-rag
+  version: 0.1.0
+  # 所有运行产物（索引、图谱持久化、日志）写入的工作区目录
+  workspace_dir: ./storage/default
+
+# --------------------------------------------------------------------------
+# 日志
+# --------------------------------------------------------------------------
+logging:
+  level: INFO              # DEBUG / INFO / WARNING / ERROR
+  format: rich             # rich / plain / json
+  file: null               # null = 只输出到 stdout；否则为日志文件路径
+
+# --------------------------------------------------------------------------
+# LLM 提供者
+# --------------------------------------------------------------------------
+# 连接凭据优先从 .env 读（LLM_API_KEY / LLM_BASE_URL / LLM_MODEL），本段只填
+# provider + 业务参数（温度、超时、重试等）。
+llm:
+  model: deepseek-chat         # OpenAI-compatible 模型名，必填
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1              # null = 使用 OpenAI 默认地址；DeepSeek 填 https://api.deepseek.com
+  api_key_env: LLM_API_KEY     # 从 .env 中读取 API Key 的环境变量名
+  temperature: 0.1
+  max_tokens: 1024
+  timeout: 30
+  retry:
+    max_attempts: 3
+    initial_wait: 1.0
+    max_wait: 10.0
+
+# --------------------------------------------------------------------------
+# Embedding 提供者（OpenAI 兼容 /v1/embeddings 端点）
+# --------------------------------------------------------------------------
+embedding:
+  model: text-embedding-v4
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  dim: 1536
+  batch_size: 10
+  normalize: true
+  api_key_env: LLM_API_KEY     # 默认与 LLM 共用 key；可单独设置
+
+# --------------------------------------------------------------------------
+# Rerank 提供者（可选，OpenAI 兼容 /rerank 端点）
+# --------------------------------------------------------------------------
+rerank:
+  enabled: false               # 设为 true 启用跨编码器重排序
+  model: qwen3-rerank
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api_key_env: LLM_API_KEY
+  top_n: 5
+  timeout: 30.0
+  retry:
+    max_attempts: 3
+    initial_wait: 1.0
+    max_wait: 10.0
+
+# --------------------------------------------------------------------------
+# 存储层
+# --------------------------------------------------------------------------
+storage:
+  graph:
+    backend: networkx            # networkx / neo4j
+    persist_path: ./storage/default/graph.gpickle
+    # 仅 neo4j 后端使用：
+    neo4j_uri: bolt://localhost:7687
+    neo4j_user: neo4j
+    neo4j_password_env: NEO4J_PASSWORD
+  vector:
+    backend: faiss
+    # 向量检索算法：
+    #   flat_ip / flat_l2  —— 暴力精确检索（≤1k 向量，推荐；100% 召回）
+    #   ivf_flat           —— 倒排索引（10k~1M 级别，需 nlist 个训练点）
+    #   hnsw               —— 图索引（10k+ 级别，召回-速度曲线最好）
+    index_type: hnsw
+    metric: ip                   # 配合 normalize=true 等价于余弦相似度
+    persist_path: ./storage/default/vectors
+    top_k: 5                     # 全局默认 top-k（retriever 可覆盖）
+    hnsw:
+      M: 32                      # 节点最大连接度（8~64，越大召回越高、内存越多）
+      ef_construction: 200       # 构建期搜索宽度
+      ef_search: 64              # 查询期搜索宽度（可在线调整）
+    ivf:
+      nlist: 100                 # 粗聚类桶数（最少要有 nlist 个向量才能训练）
+      nprobe: 8                  # 每次查询探测的桶数（越大召回越高）
+      train_size: null           # null = 用所有向量训练；或指定整数
+
+# --------------------------------------------------------------------------
+# 数据集（命名注册；由 main.py --dataset <name> 选用）
+# --------------------------------------------------------------------------
+datasets:
+  hotpotqa:
+    loader: mock_wiki
+    corpus_path: ./data/hotpotqa/corpus.txt
+    qa_path: ./data/hotpotqa/qa.jsonl
+    output_dir: ./output/hotpotqa
+  two_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/two_wiki/corpus.txt
+    qa_path: ./data/two_wiki/qa.jsonl
+    output_dir: ./output/two_wiki
+  musique:
+    loader: mock_wiki
+    corpus_path: ./data/musique/corpus.txt
+    qa_path: ./data/musique/qa.jsonl
+    output_dir: ./output/musique
+  nq:
+    loader: mock_wiki
+    corpus_path: ./data/nq/corpus.txt
+    qa_path: ./data/nq/qa.jsonl
+    output_dir: ./output/nq
+  popqa:
+    loader: mock_wiki
+    corpus_path: ./data/popqa/corpus.txt
+    qa_path: ./data/popqa/qa.jsonl
+    output_dir: ./output/popqa
+
+# --------------------------------------------------------------------------
+# 摄取阶段（构建知识图谱）——创新点一 AdaGraph 插件入口在这里
+# --------------------------------------------------------------------------
+ingestion:
+  chunker:
+    active: defaults.fixed         # defaults.fixed / adagraph.dynamic
+    params:
+      chunk_size: 300
+      overlap: 50
+  extractor:
+    active: defaults.simple_llm    # defaults.simple_llm / adagraph.layered
+    params:
+      prompt_template: default
+      max_triples_per_chunk: 30
+  pruner:
+    active: defaults.noop          # defaults.noop / adagraph.dual_redundancy
+    params: {}
+
+# --------------------------------------------------------------------------
+# 查询阶段——创新点二 CollaRAG 多Agent架构入口
+# --------------------------------------------------------------------------
+query:
+  intent_classifier:
+    active: defaults.rule          # defaults.rule / colla_rag.tree
+    params: {}
+  retriever:
+    active: defaults.direct        # defaults.direct / colla_rag.multi_agent
+    params:
+      top_k: 5
+      neighbor_hops: 1             # 图上邻居扩展跳数（仅 defaults.direct 使用）
+  generator:
+    active: defaults.prompt
+    params:
+      prompt_template: default
+
+# --------------------------------------------------------------------------
+# 插件开关与子配置
+# --------------------------------------------------------------------------
+plugins:
+  # 创新点一：自适应知识图谱构建
+  adagraph:
+    enabled: false
+    dynamic_chunker:
+      min_chunk_size: 100
+      max_chunk_size: 500
+      base_chunk_size: 300
+      complexity_weight: 0.5       # 文本复杂度权重
+      density_weight: 0.5          # 实体密度权重（两者之和必须=1）
+    layered_extractor:
+      layers_enabled: [L1]         # L1=显式三元组；L2/L3/L4 保留位
+    dual_pruner:
+      similarity_threshold: 0.85   # 相似性冗余剪枝阈值（Jaccard）
+      enable_transitive: false     # 传递性冗余（保留位，暂不实装）
+
+  # 创新点二：多Agent意图感知检索
+  colla_rag:
+    enabled: true
+    multi_agent:
+      # 树形意图分类器
+      classifier:
+        confidence_threshold: 0.7    # LLM 分类置信度阈值
+        rule_fallback: true          # LLM 输出无效时回退到规则分类
+
+      # 预处理 Agent
+      preprocessor:
+        enable_rewrite: true         # 查询改写
+        enable_coreference: true     # 指代消解
+        enable_followup_merge: true  # 追问拼接
+
+      # Native RAG Agent（单跳查询）
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4      # 低于此值标记 low_confidence
+
+      # ReAct Agent（多跳/比较/探索查询）
+      react:
+        max_iterations: 3           # ReAct 循环最大轮数
+        quality_threshold: 0.6      # 反思退出阈值
+
+      # Map-Reduce Agent（归纳总结查询）
+      map_reduce:
+        retrieve_top_k: 50          # 检索候选 chunk 数量
+        map_concurrency: 5          # Map 阶段并发数
+
+      # WebSearch + LLM Agent（超出知识库范围的查询）
+      web_search:
+        search_backend: duckduckgo  # duckduckgo / serpapi
+        max_results: 5
+        supplement_local: true      # 是否同时查本地知识库
+
+      # 双层记忆
+      memory:
+        shared:
+          path: .chimera_memory/shared
+          qa_cache_ttl: 3600
+          max_qa_cache: 1000
+        agent_private:
+          max_per_bucket: 200
+
+# --------------------------------------------------------------------------
+# Web 服务
+# --------------------------------------------------------------------------
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins:
+    - http://localhost:5173
+  static_dir: src/chimera_rag/web/static
+
+# --------------------------------------------------------------------------
+# 评测
+# --------------------------------------------------------------------------
+evaluation:
+  metrics: [em, f1, rouge_l]       # em / f1 / rouge_l / bertscore
+  max_samples: 100
+  parallel: 1
+  bertscore_lang: en

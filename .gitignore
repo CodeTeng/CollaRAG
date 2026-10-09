@@ -1,0 +1,144 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---------- uv / venv ----------
+.venv/
+venv/
+env/
+ENV/
+# NOTE: uv.lock 必须提交到版本库，保证可复现构建
+# !uv.lock
+
+# ---------- Testing / Coverage ----------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ---------- IDE / Editor ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- macOS / Windows ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Env / Secrets ----------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ---------- Project 运行产物 ----------
+# 忽略根目录下的 data/（真实数据集体积大，不入库）
+# 注意：必须用 /data/* 而非 /data/，git 不会进入被忽略的目录，否定规则才生效
+/data/*
+!/data/README.md
+# mock_wiki 是项目自带的 100 条合成 QA（端到端 demo 依赖），必须入库
+!/data/mock_wiki/
+# docs/ 为本地设计与实验文档（含创新点规划），不随代码发布
+/docs/
+# 旧 README 含两个创新点的整体规划（创新点一未实装），发布版仅用根 README.md
+/README_chimera.md
+# output/
+logs/
+runs/
+*.faiss
+*.pkl
+*.gpickle
+storage/
+
+# Model weights downloaded by scripts/download_embedding_model.py (~90MB each)
+/models/
+
+# ---------- Frontend (web-ui) ----------
+web-ui/node_modules/
+web-ui/dist/
+web-ui/.vite/
+web-ui/*.local
+web-ui/npm-debug.log*
+web-ui/yarn-debug.log*
+web-ui/yarn-error.log*
+web-ui/pnpm-debug.log*
+
+# Frontend build output mounted by FastAPI — rebuilt from web-ui/ on demand
+src/chimera_rag/web/static/
+
+# ---------- CodeBuddy ----------
+# 保留 .codebuddy 目录（它存储项目相关数据，不是临时缓存）
+# 但忽略 plan 草稿，避免污染提交历史
+.codebuddy/plans/
+
+# ---------- LaTeX ----------
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.pdfsync
+*.nav
+*.snm
+*.vrb
+*.run.xml
+*.bcf
+*-blx.bib
+texput.log
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+.certs/
+data/musique/_musique_release.zip
+
+# ---------- 运行产物 / 论文 / 汇报（不入库） ----------
+/output/
+/paper/
+/Chimera-RAG创新点进展汇报/
+
+# ---------- AI / Agent 工具 ----------
+.agentix/
+.aone_copilot/
+.chimera_memory/
+.codegraph/
+.superpowers/
+.codebuddy/
+.ruff_cache
+.workbuddy/
+.tmp_pdf_text/
+# Claude Code 配置与计划草稿（含项目内部规划，不随代码发布）
+.claude/
+/CLAUDE.md

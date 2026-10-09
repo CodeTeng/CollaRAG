@@ -1,0 +1,130 @@
+# ============================================================================
+# ollama_colla_rag_only.yaml
+#
+# 用途：本地 Ollama（Qwen3-8B 等 LLM + nomic-embed-text embedding），
+#       仅启用创新点二（CollaRAG 多Agent意图感知检索架构）。
+#       知识构建侧（chunker/extractor/pruner）走 defaults.*，和 vanilla 相同。
+# 典型场景：
+#   - 本地实验：免 API 费用的多跳数据集（HotpotQA/2Wiki/MuSiQue）批量实验
+# 依赖：.env 中需有 LLM_API_KEY=ollama（Ollama 对任意 key 均放行）
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/ollama_colla_rag_only
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  model: qwen3:8b
+  base_url: http://localhost:11434/v1
+  temperature: 0.1
+  max_tokens: 2048
+  timeout: 120
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
+
+embedding:
+  model: nomic-embed-text
+  base_url: http://localhost:11434/v1
+  dim: 768
+  batch_size: 32
+  normalize: true
+
+rerank:
+  enabled: false
+  # 如需启用 rerank，将 enabled 改为 true 并配置 rerank 端点：
+  # model: bge-reranker-v2-m3
+  # base_url: http://localhost:9997/v1
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/ollama_colla_rag_only/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: flat_ip
+    metric: ip
+    persist_path: ./storage/ollama_colla_rag_only/vectors
+    top_k: 5
+    hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
+    ivf: { nlist: 100, nprobe: 8 }
+
+datasets:
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
+  hotpotqa:
+    loader: hotpotqa
+    path: ./data/hotpotqa/hotpotqa.json
+    output_dir: ./output/hotpotqa
+    split: dev
+  two_wiki:
+    loader: two_wiki
+    path: ./data/two_wiki/dev.json
+    output_dir: ./output/two_wiki
+  musique:
+    loader: musique
+    path: ./data/musique/musique_ans_v1.0_dev.jsonl
+    output_dir: ./output/musique
+
+# AdaGraph OFF — ingestion 走 defaults (和 vanilla 相同)
+ingestion:
+  chunker:
+    active: defaults.fixed
+    params: { chunk_size: 300, overlap: 30 }
+  extractor:
+    active: defaults.simple_llm
+    params: { extract_workers: 4 }
+  pruner:
+    active: defaults.noop
+    params: {}
+
+# CollaRAG ON — 多Agent架构
+query:
+  intent_classifier:
+    active: colla_rag.tree
+    params: {}
+  retriever:
+    active: colla_rag.multi_agent
+    params: {}
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: false
+  colla_rag:
+    enabled: true
+    multi_agent:
+      classifier:
+        confidence_threshold: 0.7
+        rule_fallback: true
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4
+      react:
+        max_iterations: 3
+        quality_threshold: 0.6
+      map_reduce:
+        retrieve_top_k: 50
+      web_search:
+        search_backend: duckduckgo
+        max_results: 5
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 500
+  parallel: 1

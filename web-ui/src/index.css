@@ -1,0 +1,110 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+ * Chimera-RAG · 学术研究 × 神话怪兽 主题
+ *
+ * 深空墨黑 + 丹青金（Chimera 龙/狮/蛇三色呼应）
+ *   - AdaGraph  创新点一：青铜黄金 gold      (#d4af37 线)
+ *   - IntentAgent 创新点二：古拙丹砂 crimson (#c43c3c 线)
+ * ------------------------------------------------------------------ */
+@theme {
+  /* 画布：深墨 */
+  --color-bg: oklch(0.14 0.01 260);
+  --color-bg-soft: oklch(0.17 0.012 260);
+  --color-surface: oklch(0.21 0.012 260);
+  --color-surface-hi: oklch(0.26 0.015 260);
+  --color-border: oklch(0.32 0.02 260);
+  --color-border-hi: oklch(0.42 0.03 260);
+
+  /* 文字 */
+  --color-text: oklch(0.96 0.006 260);
+  --color-text-muted: oklch(0.72 0.01 260);
+  --color-text-subtle: oklch(0.54 0.01 260);
+
+  /* 主色：丹青金 */
+  --color-accent: oklch(0.78 0.13 82);
+  --color-accent-soft: oklch(0.66 0.09 82);
+  --color-accent-fg: oklch(0.17 0.015 260);
+
+  /* 两创新点的语义色 */
+  --color-adagraph: oklch(0.72 0.14 82);      /* 金 */
+  --color-adagraph-soft: oklch(0.72 0.14 82 / 0.12);
+  --color-intent: oklch(0.64 0.20 20);        /* 丹砂 */
+  --color-intent-soft: oklch(0.64 0.20 20 / 0.14);
+
+  /* 状态色 */
+  --color-success: oklch(0.72 0.16 155);
+  --color-warning: oklch(0.82 0.15 85);
+  --color-danger: oklch(0.66 0.22 20);
+  --color-info: oklch(0.74 0.12 220);
+
+  /* 字体 */
+  --font-sans: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Helvetica Neue", sans-serif;
+  --font-serif: "Noto Serif SC", "Songti SC", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, monospace;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv02";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+/* 背景氛围：细密网格 + 顶部浅晕 */
+body {
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, oklch(0.78 0.13 82 / 0.07) 0%, transparent 60%),
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: auto, 64px 64px, 64px 64px;
+  background-position: top center, center, center;
+  background-blend-mode: normal, overlay, overlay;
+}
+
+/* 选中高亮 */
+::selection {
+  background: oklch(0.78 0.13 82 / 0.35);
+  color: var(--color-text);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-hi); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 印章式的标题下划线 — 用于主标题 */
+.title-seal {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.25rem;
+}
+.title-seal::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 2.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-accent), transparent);
+}
+
+/* 统计数字卡片的 ticker 动画 */
+@keyframes ticker-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ticker-in { animation: ticker-in 0.4s ease-out both; }

@@ -1,0 +1,137 @@
+# ============================================================================
+# full.yaml
+#
+# 用途：DeepSeek 真实调用 + 云端 text-embedding-3-small embedding，
+#       构建侧前置基线（AdaGraph）+ 创新点二（多Agent CollaRAG）全部启用。
+# 典型场景：
+#   - 最终演示配置：展示两者叠加后的 EM / F1 / ROUGE-L 最高分
+#   - 与 vanilla 对比展示完整增益
+# 依赖：.env 中需有 LLM_API_KEY
+# ============================================================================
+
+app:
+  name: chimera-rag
+  version: 0.1.0
+  workspace_dir: ./storage/full
+
+logging:
+  level: INFO
+  format: rich
+  file: null
+
+llm:
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+  temperature: 0.1
+  max_tokens: 512
+  timeout: 60
+  retry: { max_attempts: 3, initial_wait: 1.0, max_wait: 15.0 }
+
+embedding:
+  model: text-embedding-3-small
+  base_url: https://api.openai.com/v1
+  dim: 1536
+  batch_size: 32
+  normalize: true
+
+rerank:
+  enabled: false
+  # 如需启用 rerank，将 enabled 改为 true 并配置 rerank 端点：
+  # model: bge-reranker-v2-m3
+  # base_url: http://localhost:9997/v1
+
+storage:
+  graph:
+    backend: networkx
+    persist_path: ./storage/full/graph.gpickle
+  vector:
+    backend: faiss
+    index_type: hnsw
+    metric: ip
+    persist_path: ./storage/full/vectors
+    top_k: 5
+    hnsw: { M: 32, ef_construction: 200, ef_search: 64 }
+    ivf: { nlist: 100, nprobe: 8 }
+
+datasets:
+  mock_wiki:
+    loader: mock_wiki
+    corpus_path: ./data/mock_wiki/corpus.txt
+    qa_path: ./data/mock_wiki/qa.jsonl
+    output_dir: ./output/mock_wiki
+
+# AdaGraph ON
+ingestion:
+  chunker:
+    active: adagraph.dynamic
+    params:
+      min_chunk_size: 120
+      max_chunk_size: 500
+      base_chunk_size: 300
+  extractor:
+    active: adagraph.layered
+    params:
+      layers_enabled: [L1]
+  pruner:
+    active: adagraph.dual_redundancy
+    params:
+      similarity_threshold: 0.85
+      enable_transitive: false
+
+# CollaRAG ON — 多Agent架构
+query:
+  intent_classifier:
+    active: colla_rag.tree
+    params: {}
+  retriever:
+    active: colla_rag.multi_agent
+    params: {}
+  generator:
+    active: defaults.prompt
+    params: {}
+
+plugins:
+  adagraph:
+    enabled: true
+    dynamic_chunker:
+      min_chunk_size: 120
+      max_chunk_size: 500
+      base_chunk_size: 300
+    layered_extractor:
+      layers_enabled: [L1]
+    dual_pruner:
+      similarity_threshold: 0.85
+      enable_transitive: false
+  colla_rag:
+    enabled: true
+    multi_agent:
+      classifier:
+        confidence_threshold: 0.7
+        rule_fallback: true
+      native_rag:
+        top_k: 10
+        quality_threshold: 0.4
+      react:
+        max_iterations: 3
+        quality_threshold: 0.6
+      map_reduce:
+        retrieve_top_k: 50
+      web_search:
+        search_backend: duckduckgo
+        max_results: 5
+      memory:
+        shared:
+          path: .chimera_memory/shared
+        agent_private:
+          max_per_bucket: 200
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: [http://localhost:5173]
+  static_dir: src/chimera_rag/web/static
+
+evaluation:
+  metrics: [em, f1, rouge_l]
+  max_samples: 100
+  parallel: 1
