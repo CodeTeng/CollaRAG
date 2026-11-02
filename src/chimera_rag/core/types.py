@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Allowed intent labels (keep in sync with CollaRAG plugin).
 IntentLabel = Literal[
@@ -28,6 +28,31 @@ MultiAgentIntentLabel = Literal[
     "summarization",
     "other",
 ]
+
+# PrismRAG (innovation #1) granularity layers. ``unified`` is the default and
+# reproduces the behaviour of every non-PrismRAG chunker: the chunk is both
+# extracted and indexed. ``fine`` chunks feed the extractor only; ``coarse``
+# chunks feed the vector store only. See docs/innovation-1/design.md §4.1.
+ChunkGranularity = Literal["unified", "fine", "coarse"]
+
+# Which granularities each ingestion stage consumes.
+EXTRACTED_GRANULARITIES: frozenset[str] = frozenset({"unified", "fine"})
+INDEXED_GRANULARITIES: frozenset[str] = frozenset({"unified", "coarse"})
+
+# Typed chunk defects (PrismRAG contribution 2). Each code carries exactly one
+# repair action, so a detected defect is already a directed instruction —
+# the ingestion-side mirror of CollaRAG's typed evidence gaps.
+DefectCode = Literal["D1", "D2", "D3", "D4", "D5", "D6"]
+RepairAction = Literal["split", "extend_left", "bind", "merge_up", "split_by_topic"]
+
+DEFECT_REPAIR_ACTION: dict[str, RepairAction] = {
+    "D1": "split",
+    "D2": "extend_left",
+    "D3": "bind",
+    "D4": "merge_up",
+    "D5": "split",
+    "D6": "split_by_topic",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -49,13 +74,86 @@ class Document(BaseModel):
 
 
 class Chunk(BaseModel):
-    """A chunk produced by a Chunker and fed to the Extractor."""
+    """A chunk produced by a Chunker and fed to the Extractor.
+
+    ``granularity`` decides which ingestion stages consume the chunk; see
+    :data:`EXTRACTED_GRANULARITIES` / :data:`INDEXED_GRANULARITIES`.
+    ``parent_chunk_id`` binds a ``fine`` extraction unit to the ``coarse``
+    retrieval unit that covers it, so a retrieval hit on the coarse chunk can
+    be walked back to the high-purity triples of all its fine children.
+    """
 
     chunk_id: str
     doc_id: str
     index: int = Field(ge=0, description="0-based chunk order within its document")
     text: str
+    granularity: ChunkGranularity = "unified"
+    parent_chunk_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _parent_only_on_fine(self) -> Chunk:
+        if self.parent_chunk_id is not None and self.granularity != "fine":
+            raise ValueError(
+                f"parent_chunk_id is only meaningful on granularity='fine'; "
+                f"got granularity={self.granularity!r} with "
+                f"parent_chunk_id={self.parent_chunk_id!r}"
+            )
+        return self
+
+
+class ChunkDefect(BaseModel):
+    """A typed chunking defect detected by auditing extraction output.
+
+    PrismRAG contribution 2: chunk quality is formalised as a closed set of
+    structurally detectable defect types, needing no human ground truth. Each
+    defect carries its own directed repair action, mirroring the typed
+    evidence gaps CollaRAG's Reflect stage emits on the query side.
+    """
+
+    code: DefectCode
+    chunk_id: str
+    action: RepairAction
+    detail: str = ""
+    # Other chunks implicated in the same defect (D3 straddles a pair).
+    related_chunk_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _action_matches_code(self) -> ChunkDefect:
+        expected = DEFECT_REPAIR_ACTION[self.code]
+        if self.action != expected:
+            raise ValueError(
+                f"defect {self.code} must carry action {expected!r}, got {self.action!r}"
+            )
+        return self
+
+    @property
+    def repair_driving(self) -> bool:
+        """Whether this defect may trigger a repair, or is record-only.
+
+        Risk R3: a repair loop amplifies detector noise, so a detector that
+        could not falsify its own candidate marks it ``confidence="low"`` and
+        the pipeline must not act on it. Putting the rule here means every
+        consumer honours it without knowing the confidence vocabulary.
+        """
+        return self.metadata.get("confidence") != "low"
+
+
+class RepairOutcome(BaseModel):
+    """Result of one repair round: a re-segmented chunk list plus bookkeeping.
+
+    ``chunks`` replaces the round's input wholesale — repairs are *boundary
+    changes*, so a split or a merge renumbers the layer rather than editing a
+    chunk in place. ``defects_deferred`` counts defects that could not be acted
+    on (a split on a single-sentence chunk, an ``extend_left`` at the start of a
+    document), which is what lets the pipeline stop instead of looping forever.
+    """
+
+    chunks: list[Chunk] = Field(default_factory=list)
+    defects_applied: int = Field(default=0, ge=0)
+    defects_deferred: int = Field(default=0, ge=0)
+    actions: dict[str, int] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +306,15 @@ class AgentExperienceEntry(BaseModel):
 
 
 __all__ = [
+    "DEFECT_REPAIR_ACTION",
+    "EXTRACTED_GRANULARITIES",
+    "INDEXED_GRANULARITIES",
     "AgentExperienceEntry",
     "Answer",
     "Chunk",
+    "ChunkDefect",
+    "ChunkGranularity",
+    "DefectCode",
     "Document",
     "Entity",
     "EvalResult",
@@ -222,6 +326,8 @@ __all__ = [
     "QualityFeedback",
     "Query",
     "ReasoningPlan",
+    "RepairAction",
+    "RepairOutcome",
     "RetrievalResult",
     "Triple",
 ]

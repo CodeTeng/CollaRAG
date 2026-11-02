@@ -2,10 +2,13 @@
 
 Two research innovations are optional plugins, controlled by ``config.yaml``:
 
-- **PrismRAG** (innovation #1, in progress) — construction-side chunking
-  aimed at the knowledge graph rather than at text layout. Currently
-  ships the adaptive-size chunker; dual-granularity output and the
-  typed-defect audit/repair loop are still to come.
+- **PrismRAG** (innovation #1) — construction-side chunking aimed at the
+  knowledge graph rather than at text layout. Emits two independent
+  segmentations of each document (a ``fine`` extraction layer and a
+  ``coarse`` retrieval layer, bound by ``Chunk.parent_chunk_id``), detects
+  typed chunk defects D1–D6 from the triples and the graph without any
+  ground truth, and repairs them in a closed loop that only ever moves
+  chunk boundaries.
 - **CollaRAG** (innovation #2) — graph-grounded multi-agent retrieval
   with four sub-contributions: intent-aware query triage (C1),
   G-PER plan-execute-reflect (C2), graph-grounded dual-layer memory
@@ -121,6 +124,12 @@ class ChimeraRAG:
         # ingest wall-clock against slow local LLMs (e.g. ollama 8B).
         extract_workers = int(cfg.ingestion.extractor.params.get("extract_workers", 1))
 
+        # k_max for PrismRAG's audit/repair loop. Lives in the *chunker* params
+        # because it configures the chunker's audit capability, and is read here
+        # rather than passed to the ctor because the loop itself runs in the
+        # pipeline. Chunkers without that capability ignore it.
+        audit_rounds = int(cfg.ingestion.chunker.params.get("audit_rounds", 2))
+
         self._ingest = IngestionPipeline(
             chunker=chunker,
             extractor=extractor,
@@ -128,6 +137,7 @@ class ChimeraRAG:
             embedder=self.embedder,
             state=self.state,
             extract_workers=extract_workers,
+            audit_rounds=audit_rounds,
         )
         self._query = QueryPipeline(
             intent_classifier=intent_classifier,

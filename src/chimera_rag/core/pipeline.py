@@ -10,12 +10,22 @@ classes themselves. This keeps ``core`` decoupled from ``defaults`` and
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from chimera_rag.core.types import Answer, Chunk, Document, Query, Triple
-from chimera_rag.interfaces.chunker import BaseChunker
+from chimera_rag.core.types import (
+    EXTRACTED_GRANULARITIES,
+    INDEXED_GRANULARITIES,
+    Answer,
+    Chunk,
+    ChunkDefect,
+    Document,
+    Query,
+    Triple,
+)
+from chimera_rag.interfaces.chunker import BaseChunkAuditor, BaseChunker
 from chimera_rag.interfaces.embedding_provider import BaseEmbeddingProvider
 from chimera_rag.interfaces.extractor import BaseTripleExtractor
 from chimera_rag.interfaces.generator import BaseAnswerGenerator
@@ -49,8 +59,32 @@ class PipelineState:
 # ---------------------------------------------------------------------------
 # IngestionPipeline
 # ---------------------------------------------------------------------------
+def _reattribute(triples: list[Triple], chunk_id: str) -> list[Triple]:
+    """Re-stamp cached triples so they cite the chunk they are handed to.
+
+    A cache hit means the text was extracted under a *different* chunk id (an
+    overlapping duplicate, or a segment a repair left untouched while
+    renumbering its neighbours). Without re-stamping, the graph would carry
+    provenance pointing at a chunk that may no longer exist, and retrieval-time
+    citation would silently resolve to the wrong passage.
+    """
+    return [
+        t if t.source_chunk_id == chunk_id else t.model_copy(update={"source_chunk_id": chunk_id})
+        for t in triples
+    ]
+
+
 class IngestionPipeline:
-    """documents -> chunks -> triples -> (graph_store, vector_store)."""
+    """documents -> chunks -> triples -> (graph_store, vector_store).
+
+    When the resolved chunker also implements :class:`BaseChunkAuditor`,
+    extraction becomes a loop rather than a single pass: the extractor's output
+    is audited for typed defects (D1–D6), the repair-driving ones re-cut the
+    chunk boundaries, and only the re-cut segments are extracted again. This
+    runs at most ``audit_rounds`` times and stops early as soon as a round
+    yields no actionable defect. Chunkers that do not opt in keep the legacy
+    single-pass behaviour bit for bit.
+    """
 
     def __init__(
         self,
@@ -62,6 +96,7 @@ class IngestionPipeline:
         state: PipelineState,
         extract_workers: int = 1,
         show_progress: bool = True,
+        audit_rounds: int = 2,
     ) -> None:
         self.chunker = chunker
         self.extractor = extractor
@@ -77,6 +112,9 @@ class IngestionPipeline:
         # the slowest, most opaque part of ingestion. Disabled automatically
         # when tqdm is unavailable so the core stays dependency-soft.
         self.show_progress = show_progress
+        # k_max for the audit/repair loop. 0 disables it, which is also the
+        # E2 ablation switch for "PrismRAG without the closed loop".
+        self.audit_rounds = max(0, int(audit_rounds))
 
     # ------------------------------------------------------------------
     def _progress(self, iterable: Any, *, total: int, desc: str) -> Any:
@@ -96,37 +134,38 @@ class IngestionPipeline:
     def run(self, documents: list[Document]) -> dict[str, Any]:
         all_chunks: list[Chunk] = []
         for doc in self._progress(documents, total=len(documents), desc="切分文档"):
-            chunks = self.chunker.chunk(doc)
-            all_chunks.extend(chunks)
-            for ch in chunks:
-                self.state.chunk_lookup[ch.chunk_id] = ch
+            all_chunks.extend(self.chunker.chunk(doc))
 
-        logger.info("ingested %d documents -> %d chunks", len(documents), len(all_chunks))
+        all_chunks, triples_by_chunk, defects, rounds, repairs = self._extract_with_audit(
+            all_chunks
+        )
 
-        # Embed chunks and push to vector store.
-        if all_chunks:
-            vecs = self.embedder.encode([c.text for c in all_chunks])
-            self.state.vector_store.add([c.chunk_id for c in all_chunks], vecs)
+        # Populated after the loop: a repair renumbers chunk ids, so binding
+        # lookups earlier would leave dangling entries for pre-repair ids.
+        for ch in all_chunks:
+            self.state.chunk_lookup[ch.chunk_id] = ch
 
-        # Extract + prune triples. Each chunk triggers one (slow) LLM call,
-        # so we fan out across a thread pool when extract_workers > 1.
-        # ThreadPoolExecutor.map preserves input order, so the resulting
-        # triple order is identical to the legacy serial path.
-        raw_triples: list[Triple] = []
-        if all_chunks:
-            workers = min(self.extract_workers, len(all_chunks))
-            if workers <= 1:
-                for ch in self._progress(
-                    all_chunks, total=len(all_chunks), desc="抽取三元组"
-                ):
-                    raw_triples.extend(self.extractor.extract(ch))
-            else:
-                with ThreadPoolExecutor(max_workers=workers) as pool:
-                    mapped = pool.map(self.extractor.extract, all_chunks)
-                    for triples in self._progress(
-                        mapped, total=len(all_chunks), desc="抽取三元组"
-                    ):
-                        raw_triples.extend(triples)
+        logger.info(
+            "ingested %d documents -> %d chunks (%d audit rounds, %d repairs)",
+            len(documents),
+            len(all_chunks),
+            rounds,
+            repairs,
+        )
+
+        # Granularity routing: `fine` chunks never reach the vector index and
+        # `coarse` chunks never reach the extractor. `unified` — the default
+        # every baseline chunker emits — reaches both, so for them this is a
+        # no-op and the ablation stays fair.
+        to_index = [c for c in all_chunks if c.granularity in INDEXED_GRANULARITIES]
+
+        if to_index:
+            vecs = self.embedder.encode([c.text for c in to_index])
+            self.state.vector_store.add([c.chunk_id for c in to_index], vecs)
+
+        raw_triples = [
+            t for ch in all_chunks for t in triples_by_chunk.get(ch.chunk_id, [])
+        ]
 
         pruned_triples = self.pruner.prune(raw_triples)
         for t in pruned_triples:
@@ -141,7 +180,111 @@ class IngestionPipeline:
             "chunks": len(all_chunks),
             "triples_raw": len(raw_triples),
             "triples_pruned": len(pruned_triples),
+            "audit_rounds": rounds,
+            "repairs_applied": repairs,
+            "defects": len(defects),
+            "defects_by_code": dict(Counter(d.code for d in defects)),
         }
+
+    # ------------------------------------------------------------------
+    def _extract_with_audit(
+        self, chunks: list[Chunk]
+    ) -> tuple[list[Chunk], dict[str, list[Triple]], list[ChunkDefect], int, int]:
+        """Run extraction, optionally looping through audit + boundary repair.
+
+        Returns the final chunk list (post-repair), the triples keyed by the
+        final chunk ids, every defect seen across all rounds, the number of
+        repair rounds actually performed, and the number of repairs applied.
+        """
+        auditor = self.chunker if isinstance(self.chunker, BaseChunkAuditor) else None
+        by_text: dict[str, list[Triple]] = {}
+        triples_by_chunk: dict[str, list[Triple]] = {}
+        all_defects: list[ChunkDefect] = []
+        rounds = repairs = 0
+
+        while True:
+            triples_by_chunk = self._extract_new(chunks, by_text, reuse=rounds > 0)
+            if auditor is None or rounds >= self.audit_rounds:
+                break
+
+            found = auditor.audit(chunks, triples_by_chunk, self.state.graph_store)
+            all_defects.extend(found)
+            # Risk R3: a repair loop amplifies detector noise, so defects the
+            # detector itself could not falsify are recorded but never acted on.
+            driving = [d for d in found if d.repair_driving]
+            if not driving:
+                break
+
+            outcome = auditor.repair(driving, chunks)
+            if outcome.defects_applied == 0 or not outcome.chunks:
+                break
+
+            chunks = outcome.chunks
+            rounds += 1
+            repairs += outcome.defects_applied
+
+        return chunks, triples_by_chunk, all_defects, rounds, repairs
+
+    def _extract_new(
+        self, chunks: list[Chunk], by_text: dict[str, list[Triple]], *, reuse: bool
+    ) -> dict[str, list[Triple]]:
+        """Extract *chunks*, reusing earlier rounds' output where the text matches.
+
+        The cache is keyed by text, not id, because a repair renumbers ids: text
+        identity is the only stable way to tell a re-cut segment from an
+        untouched one, which is what keeps round 2's cost near the marginal
+        segments instead of the whole corpus (risk R2).
+
+        Reuse is off on the first round so that a chunker emitting two chunks
+        with identical text — routine once overlap is involved — still pays for
+        two extractions, exactly as the single-pass pipeline always did.
+        """
+        pending = [
+            ch
+            for ch in chunks
+            if ch.granularity in EXTRACTED_GRANULARITIES
+            and not (reuse and ch.text in by_text)
+        ]
+        if pending:
+            fresh = self._extract(pending)
+            for ch in pending:
+                by_text.setdefault(ch.text, fresh.get(ch.chunk_id, []))
+
+        return {
+            ch.chunk_id: _reattribute(by_text.get(ch.text, []), ch.chunk_id)
+            for ch in chunks
+            if ch.granularity in EXTRACTED_GRANULARITIES
+        }
+
+    def _extract(self, chunks: list[Chunk]) -> dict[str, list[Triple]]:
+        """Extract triples for *chunks*, keyed by chunk id in chunk order.
+
+        Each chunk triggers one (slow) LLM call, so we fan out across a
+        thread pool when ``extract_workers`` > 1. ``ThreadPoolExecutor.map``
+        preserves input order, so the dict — and therefore any triple sequence
+        derived from it — follows chunk order exactly as the legacy serial
+        path did.
+        """
+        if not chunks:
+            return {}
+
+        per_chunk: dict[str, list[Triple]] = {}
+        workers = min(self.extract_workers, len(chunks))
+        if workers <= 1:
+            for ch in self._progress(chunks, total=len(chunks), desc="抽取三元组"):
+                per_chunk[ch.chunk_id] = self.extractor.extract(ch)
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                mapped = pool.map(self.extractor.extract, chunks)
+                for ch, triples in zip(
+                    chunks,
+                    self._progress(mapped, total=len(chunks), desc="抽取三元组"),
+                    strict=True,
+                ):
+                    per_chunk[ch.chunk_id] = triples
+
+        return per_chunk
+
 
 
 # ---------------------------------------------------------------------------
