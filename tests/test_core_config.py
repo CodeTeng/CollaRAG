@@ -61,7 +61,7 @@ query:
   generator:         { active: defaults.prompt, params: {} }
 
 plugins:
-  adagraph:     { enabled: false }
+  prism:     { enabled: false }
   colla_rag: { enabled: false }
 
 web: { host: 0.0.0.0, port: 8000, cors_origins: [http://localhost:5173], static_dir: x }
@@ -92,7 +92,7 @@ def test_load_config_returns_app_config_with_populated_sections(tmp_config):
     assert cfg.ingestion.chunker.active == "defaults.fixed"
     assert cfg.ingestion.chunker.params["chunk_size"] == 300
     assert cfg.query.retriever.active == "defaults.direct"
-    assert cfg.plugins.adagraph.enabled is False
+    assert cfg.plugins.prism.enabled is False
     assert cfg.plugins.colla_rag.enabled is False
     assert cfg.web.port == 8000
     assert cfg.evaluation.metrics == ["em", "f1"]
@@ -139,7 +139,7 @@ def test_load_config_raises_config_error_on_missing_required_field(tmp_path: Pat
     "filename",
     [
         "vanilla.yaml",
-        "adagraph_only.yaml",
+        "prism_only.yaml",
         "colla_rag_only.yaml",
         "full.yaml",
     ],
@@ -161,9 +161,9 @@ def test_plugin_enabled_flag_reflected_per_config(
     from chimera_rag.core.config import load_config
 
     vanilla = load_config(mock_vanilla_yaml)
-    assert vanilla.plugins.adagraph.enabled is False
+    assert vanilla.plugins.prism.enabled is False
     assert vanilla.plugins.colla_rag.enabled is False
 
     full = load_config(mock_full_yaml)
-    assert full.plugins.adagraph.enabled is True
+    assert full.plugins.prism.enabled is True
     assert full.plugins.colla_rag.enabled is True

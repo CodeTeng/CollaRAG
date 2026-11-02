@@ -203,12 +203,10 @@ class QueryConfig(BaseModel):
 # ---------------------------------------------------------------------------
 # Plugins
 # ---------------------------------------------------------------------------
-class AdaGraphConfig(BaseModel):
+class PrismConfig(BaseModel):
     enabled: bool = False
-    # The following are free-form so the plugin can grow without breaking core.
-    dynamic_chunker: dict[str, Any] = Field(default_factory=dict)
-    layered_extractor: dict[str, Any] = Field(default_factory=dict)
-    dual_pruner: dict[str, Any] = Field(default_factory=dict)
+    # Free-form so the plugin can grow without breaking core.
+    chunker: dict[str, Any] = Field(default_factory=dict)
 
 
 class CollaRAGConfig(BaseModel):
@@ -221,7 +219,7 @@ class CollaRAGConfig(BaseModel):
 
 
 class PluginsConfig(BaseModel):
-    adagraph: AdaGraphConfig = Field(default_factory=AdaGraphConfig)
+    prism: PrismConfig = Field(default_factory=PrismConfig)
     colla_rag: CollaRAGConfig = Field(default_factory=CollaRAGConfig)
 
 
@@ -289,9 +287,9 @@ def load_config(path: str | Path) -> AppConfig:
 
 
 __all__ = [
-    "AdaGraphConfig",
     "AppConfig",
     "AppMeta",
+    "CollaRAGConfig",
     "ConfigError",
     "DatasetConfig",
     "EmbeddingConfig",
@@ -300,10 +298,10 @@ __all__ = [
     "HNSWParams",
     "IVFParams",
     "IngestionConfig",
-    "CollaRAGConfig",
     "LLMConfig",
     "LoggingConfig",
     "PluginsConfig",
+    "PrismConfig",
     "QueryConfig",
     "RerankConfig",
     "RetryConfig",

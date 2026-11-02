@@ -48,9 +48,9 @@ def test_plugin_not_found_error_inherits_and_needs_slot_name():
 def test_plugin_not_found_error_carries_slot_and_name():
     from chimera_rag.core.exceptions import PluginNotFoundError
 
-    err = PluginNotFoundError(slot="chunker", name="adagraph.dynamic")
+    err = PluginNotFoundError(slot="chunker", name="prism.chunker")
     assert err.slot == "chunker"
-    assert err.name == "adagraph.dynamic"
+    assert err.name == "prism.chunker"
     # The message should mention both so debugging is easy.
     assert "chunker" in str(err)
-    assert "adagraph.dynamic" in str(err)
+    assert "prism.chunker" in str(err)

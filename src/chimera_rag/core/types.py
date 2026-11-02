@@ -69,7 +69,7 @@ class Triple(BaseModel):
     object: str
     source_chunk_id: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    # AdaGraph layered extractor labels: L1=explicit, L2=implicit, L3=schema, L4=cross-sentence.
+    # Extraction tiers: L1=explicit, L2=implicit, L3=schema, L4=cross-sentence.
     layer: Literal["L1", "L2", "L3", "L4"] = "L1"
     metadata: dict[str, Any] = Field(default_factory=dict)
 

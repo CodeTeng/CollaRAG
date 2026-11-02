@@ -2,10 +2,10 @@
 
 Two research innovations are optional plugins, controlled by ``config.yaml``:
 
-- **AdaGraph** (build-side baseline) — dynamic chunking + layered
-  triple extraction + dual redundancy pruning. NOTE: this is the
-  engineering baseline reserved for innovation #1 (a novel chunking
-  method, not yet implemented), not itself a claimed contribution.
+- **PrismRAG** (innovation #1, in progress) — construction-side chunking
+  aimed at the knowledge graph rather than at text layout. Currently
+  ships the adaptive-size chunker; dual-granularity output and the
+  typed-defect audit/repair loop are still to come.
 - **CollaRAG** (innovation #2) — graph-grounded multi-agent retrieval
   with four sub-contributions: intent-aware query triage (C1),
   G-PER plan-execute-reflect (C2), graph-grounded dual-layer memory
@@ -300,16 +300,12 @@ class ChimeraRAG:
         canonical names; when disabled, we revert to the ``defaults.*``
         baseline.
         """
-        if name == "adagraph":
-            self.config.plugins.adagraph.enabled = enabled
+        if name == "prism":
+            self.config.plugins.prism.enabled = enabled
             if enabled:
-                self.config.ingestion.chunker.active = "adagraph.dynamic"
-                self.config.ingestion.extractor.active = "adagraph.layered"
-                self.config.ingestion.pruner.active = "adagraph.dual_redundancy"
+                self.config.ingestion.chunker.active = "prism.chunker"
             else:
                 self.config.ingestion.chunker.active = "defaults.fixed"
-                self.config.ingestion.extractor.active = "defaults.simple_llm"
-                self.config.ingestion.pruner.active = "defaults.noop"
         elif name == "colla_rag":
             self.config.plugins.colla_rag.enabled = enabled
             if enabled:
@@ -349,13 +345,13 @@ class ChimeraRAG:
         import importlib
 
         plugins_cfg = self.config.plugins
-        if plugins_cfg.adagraph.enabled:
+        if plugins_cfg.prism.enabled:
             try:
-                importlib.import_module("chimera_rag.plugins.adagraph")
+                importlib.import_module("chimera_rag.plugins.prism")
             except ImportError as e:  # pragma: no cover - optional
                 import logging
 
-                logging.getLogger(__name__).warning("adagraph plugin not available: %s", e)
+                logging.getLogger(__name__).warning("prism plugin not available: %s", e)
 
         if plugins_cfg.colla_rag.enabled:
             try:
@@ -394,7 +390,7 @@ class ChimeraRAG:
 
         This lets us reuse the same ``params`` dict across different
         implementations of the same slot (e.g. defaults.fixed vs
-        adagraph.dynamic), which is essential for live plugin toggling.
+        prism.chunker), which is essential for live plugin toggling.
         """
         import inspect
 

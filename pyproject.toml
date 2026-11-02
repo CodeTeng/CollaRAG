@@ -1,7 +1,7 @@
 [project]
 name = "chimera-rag"
 version = "0.1.0"
-description = "Chimera-RAG: a pluggable knowledge-graph based RAG framework with AdaGraph and IntentAgent innovations."
+description = "Chimera-RAG: a pluggable knowledge-graph based RAG framework with PrismRAG and CollaRAG innovations."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

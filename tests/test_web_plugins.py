@@ -32,7 +32,7 @@ def test_plugins_list_returns_status_for_both_innovations(client):
     assert r.status_code == 200
     data = r.json()
     names = {p["name"] for p in data["plugins"]}
-    assert names == {"adagraph", "colla_rag"}
+    assert names == {"prism", "colla_rag"}
     # Initially both disabled under mock_vanilla.yaml.
     for p in data["plugins"]:
         assert p["enabled"] is False
@@ -40,12 +40,12 @@ def test_plugins_list_returns_status_for_both_innovations(client):
 
 
 def test_plugins_toggle_flips_enabled_flag(client):
-    r = client.post("/api/plugins/toggle", json={"name": "adagraph", "enabled": True})
+    r = client.post("/api/plugins/toggle", json={"name": "prism", "enabled": True})
     assert r.status_code == 200
     # After toggle, querying the plugin list shows it enabled.
     r2 = client.get("/api/plugins")
-    ada = next(p for p in r2.json()["plugins"] if p["name"] == "adagraph")
-    assert ada["enabled"] is True
+    prism = next(p for p in r2.json()["plugins"] if p["name"] == "prism")
+    assert prism["enabled"] is True
 
 
 def test_plugins_toggle_unknown_name_returns_404(client):
@@ -58,8 +58,8 @@ def test_plugins_toggle_rebuilds_active_implementations_after_flip(client):
     r1 = client.get("/api/plugins")
     assert r1.json()["active_implementations"]["chunker"] == "defaults.fixed"
 
-    # Flip adagraph on and ask again; the facade rebuilds the pipeline
-    # using the adagraph.* slots.
-    client.post("/api/plugins/toggle", json={"name": "adagraph", "enabled": True})
+    # Flip prism on and ask again; the facade rebuilds the pipeline
+    # using the prism.* slots.
+    client.post("/api/plugins/toggle", json={"name": "prism", "enabled": True})
     r2 = client.get("/api/plugins")
-    assert r2.json()["active_implementations"]["chunker"].startswith("adagraph.")
+    assert r2.json()["active_implementations"]["chunker"] == "prism.chunker"

@@ -19,15 +19,16 @@ def test_filter_params_rejects_kwargs_for_classes_without_own_init():
 def test_plugin_toggle_from_full_to_vanilla_does_not_crash(
     mock_full_yaml: str, tmp_path: Path
 ):
-    """Regression: toggling adagraph off while its params are still in
-    config.ingestion.pruner.params must not crash on NoOpPruner instantiation.
+    """Regression: toggling prism off while its params are still in
+    config.ingestion.chunker.params must not crash on FixedSizeChunker
+    instantiation.
     """
     from chimera_rag import ChimeraRAG
 
     crag = ChimeraRAG.from_config(mock_full_yaml)
-    assert crag.active_implementations()["pruner"] == "adagraph.dual_redundancy"
+    assert crag.active_implementations()["chunker"] == "prism.chunker"
 
-    # Flip adagraph off — config.ingestion.pruner.active becomes 'defaults.noop'
-    # but pruner.params still holds {similarity_threshold: 0.85, ...}.
-    crag.toggle_plugin("adagraph", False)
-    assert crag.active_implementations()["pruner"] == "defaults.noop"
+    # Flip prism off — config.ingestion.chunker.active becomes 'defaults.fixed'
+    # but chunker.params still holds {min_chunk_size: 100, max_chunk_size: 500, ...}.
+    crag.toggle_plugin("prism", False)
+    assert crag.active_implementations()["chunker"] == "defaults.fixed"

@@ -1,20 +1,22 @@
 # ============================================================================
-# adagraph_only.yaml
+# prism_only.yaml
 #
 # 用途：DeepSeek 真实调用 + 云端 text-embedding-3-small embedding，
-#       仅启用构建侧前置基线（AdaGraph：动态分块 + 分层抽取 + 双重剪枝）。
-#       注意：AdaGraph 是创新点一的落点与对照物，本身不构成宣称的创新点。
+#       仅启用创新点一 PrismRAG（面向知识图谱构建的自适应分块）。
 #       查询侧（intent_classifier / retriever / generator）走 defaults.*。
 # 典型场景：
-#   - 消融实验：比较 vs vanilla，单独衡量构建侧基线带来的增益
+#   - 消融实验：比较 vs vanilla，单独衡量构建侧分块带来的增益
 #   - 观察知识图谱节点/边数量 与 EM/F1 的关联性
 # 依赖：.env 中需有 LLM_API_KEY
+#
+# 注：PrismRAG 只占用 chunker 一个插槽。extractor / pruner 保持 defaults.*，
+#     使本配置相对 vanilla 的唯一变量就是分块方法。
 # ============================================================================
 
 app:
   name: chimera-rag
   version: 0.1.0
-  workspace_dir: ./storage/adagraph_only
+  workspace_dir: ./storage/prism_only
 
 logging:
   level: INFO
@@ -42,12 +44,12 @@ rerank:
 storage:
   graph:
     backend: networkx
-    persist_path: ./storage/adagraph_only/graph.gpickle
+    persist_path: ./storage/prism_only/graph.gpickle
   vector:
     backend: faiss
     index_type: hnsw            # flat_ip / flat_l2 / ivf_flat / hnsw
     metric: ip                  # ip / l2
-    persist_path: ./storage/adagraph_only/vectors
+    persist_path: ./storage/prism_only/vectors
     top_k: 5
     hnsw:
       M: 32
@@ -64,23 +66,22 @@ datasets:
     qa_path: ./data/mock_wiki/qa.jsonl
     output_dir: ./output/mock_wiki
 
-# AdaGraph ON — 只测创新点一
+# PrismRAG ON — 只测创新点一
 ingestion:
   chunker:
-    active: adagraph.dynamic
+    active: prism.chunker
     params:
       min_chunk_size: 120
       max_chunk_size: 500
       base_chunk_size: 300
   extractor:
-    active: adagraph.layered
+    active: defaults.simple_llm
     params:
-      layers_enabled: [L1]
+      prompt_template: default
+      max_triples_per_chunk: 30
   pruner:
-    active: adagraph.dual_redundancy
-    params:
-      similarity_threshold: 0.85
-      enable_transitive: false
+    active: defaults.noop
+    params: {}
 
 # CollaRAG OFF — query 侧走 defaults (和 vanilla 相同)
 query:
@@ -95,19 +96,15 @@ query:
     params: {}
 
 plugins:
-  adagraph:
+  prism:
     enabled: true
-    dynamic_chunker:
+    # 参考默认值；实际生效的是上面 ingestion.chunker.params。
+    chunker:
       min_chunk_size: 120
       max_chunk_size: 500
       base_chunk_size: 300
       complexity_weight: 0.5
       density_weight: 0.5
-    layered_extractor:
-      layers_enabled: [L1]
-    dual_pruner:
-      similarity_threshold: 0.85
-      enable_transitive: false
   colla_rag:
     enabled: false
 

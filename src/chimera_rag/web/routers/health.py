@@ -17,7 +17,7 @@ def health(chimera: ChimeraRAG = Depends(get_chimera)) -> HealthResponse:
         status="ok",
         version=__version__,
         active_plugins={
-            "adagraph": chimera.config.plugins.adagraph.enabled,
+            "prism": chimera.config.plugins.prism.enabled,
             "colla_rag": chimera.config.plugins.colla_rag.enabled,
         },
     )

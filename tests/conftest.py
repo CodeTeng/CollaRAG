@@ -55,23 +55,19 @@ def _fake_providers(monkeypatch):
 def _mock_config_yaml(
     *,
     workspace: str,
-    adagraph: bool,
+    prism: bool,
     colla_rag: bool,
 ) -> str:
     sample_path = REPO_ROOT / "examples" / "data" / "sample.txt"
 
-    if adagraph:
+    if prism:
         ingestion_lines = [
             "ingestion:",
             "  chunker:",
-            "    active: adagraph.dynamic",
-            "    params: { chunk_size: 300 }",
-            "  extractor:",
-            "    active: adagraph.layered",
-            "    params: { layers_enabled: [L1] }",
-            "  pruner:",
-            "    active: adagraph.dual_redundancy",
-            "    params: { similarity_threshold: 0.85 }",
+            "    active: prism.chunker",
+            "    params: { min_chunk_size: 100, max_chunk_size: 500, base_chunk_size: 300 }",
+            "  extractor: { active: defaults.simple_llm, params: {} }",
+            "  pruner: { active: defaults.noop, params: {} }",
         ]
     else:
         ingestion_lines = [
@@ -104,11 +100,9 @@ def _mock_config_yaml(
 
     plugins_lines = [
         "plugins:",
-        "  adagraph:",
-        f"    enabled: {str(adagraph).lower()}",
-        "    dynamic_chunker: { min_chunk_size: 100, max_chunk_size: 500, base_chunk_size: 300 }",
-        "    layered_extractor: { layers_enabled: [L1] }",
-        "    dual_pruner: { similarity_threshold: 0.85, enable_transitive: false }",
+        "  prism:",
+        f"    enabled: {str(prism).lower()}",
+        "    chunker: { min_chunk_size: 100, max_chunk_size: 500, base_chunk_size: 300 }",
         "  colla_rag:",
         f"    enabled: {str(colla_rag).lower()}",
         "    memory: { max_history: 10 }",
@@ -178,15 +172,15 @@ def _mock_config_yaml(
 def mock_vanilla_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "vanilla_ws")
     p = tmp_path / "mock_vanilla.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, colla_rag=False))
+    p.write_text(_mock_config_yaml(workspace=ws, prism=False, colla_rag=False))
     return str(p)
 
 
 @pytest.fixture
-def mock_adagraph_only_yaml(tmp_path: Path) -> str:
-    ws = str(tmp_path / "adagraph_ws")
-    p = tmp_path / "mock_adagraph_only.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, colla_rag=False))
+def mock_prism_only_yaml(tmp_path: Path) -> str:
+    ws = str(tmp_path / "prism_ws")
+    p = tmp_path / "mock_prism_only.yaml"
+    p.write_text(_mock_config_yaml(workspace=ws, prism=True, colla_rag=False))
     return str(p)
 
 
@@ -194,7 +188,7 @@ def mock_adagraph_only_yaml(tmp_path: Path) -> str:
 def mock_colla_rag_only_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "intent_ws")
     p = tmp_path / "mock_colla_rag_only.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=False, colla_rag=True))
+    p.write_text(_mock_config_yaml(workspace=ws, prism=False, colla_rag=True))
     return str(p)
 
 
@@ -202,7 +196,7 @@ def mock_colla_rag_only_yaml(tmp_path: Path) -> str:
 def mock_full_yaml(tmp_path: Path) -> str:
     ws = str(tmp_path / "full_ws")
     p = tmp_path / "mock_full.yaml"
-    p.write_text(_mock_config_yaml(workspace=ws, adagraph=True, colla_rag=True))
+    p.write_text(_mock_config_yaml(workspace=ws, prism=True, colla_rag=True))
     return str(p)
 
 

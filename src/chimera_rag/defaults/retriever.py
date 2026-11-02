@@ -89,8 +89,8 @@ _CAPITALISED_RE = re.compile(r"\b[A-Z][a-zA-Z]+\b")
 def _extract_candidate_entities(chunks: list[Chunk], query_text: str) -> list[str]:
     """Pick capitalised tokens from the query + top chunks as seed entities.
 
-    This is a dumb heuristic suitable for the vanilla baseline. AdaGraph /
-    CollaRAG use smarter entity detection via the triple store itself.
+    This is a dumb heuristic suitable for the vanilla baseline. CollaRAG
+    uses smarter entity detection via the triple store itself.
     """
     pool = query_text + "\n" + "\n".join(c.text for c in chunks)
     seen: set[str] = set()

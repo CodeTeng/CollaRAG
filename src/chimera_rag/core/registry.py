@@ -2,7 +2,7 @@
 
 Any class that implements an ABC in :mod:`chimera_rag.interfaces` can be
 attached to a *slot* (e.g. ``chunker``) with a unique *name*
-(e.g. ``adagraph.dynamic``). The :class:`Pipeline` resolves the active
+(e.g. ``prism.chunker``). The :class:`Pipeline` resolves the active
 implementation for each slot by reading ``config.<slot>.active`` and
 calling :meth:`Registry.get`.
 

@@ -1,19 +1,21 @@
 # Chimera-RAG 配置文件索引
 
-本目录保留 **6 份配置**，覆盖"构建侧基线 × 创新点二"的四种组合，加上一份完整字段注释模板与一份本地 Ollama 变体。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
+本目录保留 **6 份配置**，覆盖"创新点一 × 创新点二"的四种组合，加上一份完整字段注释模板与一份本地 Ollama 变体。所有 Mock-based 测试配置已内联到 `tests/conftest.py`。
 
 运行任意子命令都需要用 `--config configs/<name>.yaml` 指定其一。
 
 ## 速查表
 
-| 文件 | 构建侧基线 | CollaRAG | 检索器 | 主要用途 |
+| 文件 | PrismRAG | CollaRAG | 检索器 | 主要用途 |
 |---|:---:|:---:|---|---|
 | `default.yaml` | — | — | — | 全字段注释模板（**注意：其中 `plugins.colla_rag.enabled` 为 `true`，是模板示例值，不直接运行**） |
 | `vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 裸 KG-RAG 基线（消融对照组） |
-| `adagraph_only.yaml` | ✅ | ❌ | `defaults.direct` | 单独衡量**构建侧前置基线**的增益（**不是创新点一**） |
+| `prism_only.yaml` | ✅ | ❌ | `defaults.direct` | 单独衡量**创新点一**（面向图谱构建的自适应分块）的增益 |
 | `colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 单独衡量**创新点二**的增益（云端 DeepSeek） |
-| `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 构建侧基线 + 创新点二叠加 |
+| `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 创新点一 + 创新点二叠加 |
 | `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Ollama Qwen3-8B（免 API 费用） |
+
+四份组合配置构成 **2×2 因子设计**：PrismRAG 只切换 `ingestion.chunker`（`defaults.fixed` ↔ `prism.chunker`），CollaRAG 只切换 `query.intent_classifier` + `query.retriever`，extractor / pruner / generator 在四份中完全一致，因此任意两份之间的差异都可归因到单个创新点。
 
 **公共部分（三份云端配置相同）**：
 - LLM：`deepseek-chat` @ `https://api.deepseek.com`
@@ -31,7 +33,7 @@
 <plugin_combo>.yaml
       │
       ├── vanilla                      开关全关（defaults 裸基线）
-      ├── adagraph_only                仅构建侧前置基线
+      ├── prism_only                   仅创新点一（面向图谱构建的自适应分块）
       ├── colla_rag_only               仅创新点二（多Agent协作检索）
       └── full                         两者全开
 ```
@@ -118,7 +120,7 @@ LLM_API_KEY=sk-xxx
 | 配置 | 注册的 datasets |
 |---|---|
 | `default.yaml` | `hotpotqa` · `two_wiki` · `musique` · `nq` · `popqa`（**不含 `mock_wiki`**） |
-| `vanilla.yaml` / `adagraph_only.yaml` / `colla_rag_only.yaml` / `full.yaml` | 仅 `mock_wiki` |
+| `vanilla.yaml` / `prism_only.yaml` / `colla_rag_only.yaml` / `full.yaml` | 仅 `mock_wiki` |
 | `ollama_colla_rag_only.yaml` | `mock_wiki` · `hotpotqa` · `two_wiki` · `musique` |
 
 跑真实数据集（HotpotQA / 2Wiki / MuSiQue 等）时，建议以 `default.yaml` 为底改出实验配置，或把数据集条目补进目标配置。
@@ -158,7 +160,7 @@ uv run python scripts/convert_to_mock_wiki.py     # 转成 corpus.txt + qa.jsonl
 @pytest.fixture
 def mock_vanilla_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
-def mock_adagraph_only_yaml(tmp_path: Path) -> str: ...
+def mock_prism_only_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
 def mock_colla_rag_only_yaml(tmp_path: Path) -> str: ...
 @pytest.fixture
@@ -167,7 +169,7 @@ def mock_full_yaml(tmp_path: Path) -> str: ...
 
 测试里直接 `def test_xxx(mock_vanilla_yaml: str, ...)` 就能拿到一份
 临时 YAML 路径，workspace_dir 自动挂在 `tmp_path` 下。需要新增 Mock
-配置组合时，调用 `mock_config_yaml_builder(adagraph=..., colla_rag=...)`
+配置组合时，调用 `mock_config_yaml_builder(prism=..., colla_rag=...)`
 即可。
 
 ## 实验专用配置

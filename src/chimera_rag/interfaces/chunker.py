@@ -14,8 +14,8 @@ class BaseChunker(ABC):
 
     * :class:`chimera_rag.defaults.fixed_chunker.FixedSizeChunker` — fixed
       token window with overlap (vanilla baseline).
-    * :class:`chimera_rag.plugins.adagraph.dynamic_chunker.DynamicChunker` —
-      AdaGraph's complexity/density-driven adaptive size.
+    * :class:`chimera_rag.plugins.prism.chunker.PrismChunker` —
+      PrismRAG's complexity/density-driven adaptive size.
     """
 
     @abstractmethod

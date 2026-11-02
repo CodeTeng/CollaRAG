@@ -2,7 +2,7 @@
 # vanilla.yaml
 #
 # 用途：DeepSeek 真实调用 + 云端 text-embedding-3-small embedding，
-#       构建侧基线（AdaGraph）与 CollaRAG 全部关闭（走 defaults.* 裸实现）。
+#       创新点一（PrismRAG）与 CollaRAG 全部关闭（走 defaults.* 裸实现）。
 # 典型场景：
 #   - 真实端到端 baseline：衡量"裸 KG-RAG"在 DeepSeek 下的 EM/F1
 #   - 作为 colla_rag_only / full 的消融对照组
@@ -91,7 +91,7 @@ query:
     params: {}
 
 plugins:
-  adagraph: { enabled: false }
+  prism: { enabled: false }
   colla_rag: { enabled: false }
 
 web:

@@ -61,7 +61,7 @@ datasets:
     qa_path: ./data/mock_wiki/qa.jsonl
     output_dir: ./output/mock_wiki
 
-# AdaGraph OFF — ingestion 走 defaults (和 vanilla 相同)
+# PrismRAG OFF — ingestion 走 defaults (和 vanilla 相同)
 ingestion:
   chunker:
     active: defaults.fixed
@@ -86,7 +86,7 @@ query:
     params: {}
 
 plugins:
-  adagraph:
+  prism:
     enabled: false
   colla_rag:
     enabled: true

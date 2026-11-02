@@ -9,7 +9,7 @@
 #   1) LLM / Embedding / Storage / Datasets     —— 基础设施层
 #   2) ingestion (chunker/extractor/pruner)     —— 知识构建阶段（创新点一）
 #      query (intent_classifier/retriever/...)  —— 查询阶段（创新点二）
-#   3) plugins.adagraph / plugins.colla_rag  —— 两创新点独立开关 + 子配置
+#   3) plugins.prism / plugins.colla_rag  —— 两创新点独立开关 + 子配置
 # ============================================================================
 
 # --------------------------------------------------------------------------
@@ -133,21 +133,21 @@ datasets:
     output_dir: ./output/popqa
 
 # --------------------------------------------------------------------------
-# 摄取阶段（构建知识图谱）——创新点一 AdaGraph 插件入口在这里
+# 摄取阶段（构建知识图谱）——创新点一 PrismRAG 插件入口在这里
 # --------------------------------------------------------------------------
 ingestion:
   chunker:
-    active: defaults.fixed         # defaults.fixed / adagraph.dynamic
+    active: defaults.fixed         # defaults.fixed / prism.chunker
     params:
       chunk_size: 300
       overlap: 50
   extractor:
-    active: defaults.simple_llm    # defaults.simple_llm / adagraph.layered
+    active: defaults.simple_llm
     params:
       prompt_template: default
-      max_triples_per_chunk: 30
+      max_triples_per_chunk: 30    # 触顶即为 PrismRAG 的 D5「预算截断」缺陷信号
   pruner:
-    active: defaults.noop          # defaults.noop / adagraph.dual_redundancy
+    active: defaults.noop          # defaults.noop / defaults.jaccard
     params: {}
 
 # --------------------------------------------------------------------------
@@ -171,20 +171,16 @@ query:
 # 插件开关与子配置
 # --------------------------------------------------------------------------
 plugins:
-  # 创新点一：自适应知识图谱构建
-  adagraph:
+  # 创新点一 PrismRAG：面向知识图谱构建的自适应分块（只占用 chunker 插槽）
+  prism:
     enabled: false
-    dynamic_chunker:
+    # 参考默认值；实际生效的是上面 ingestion.chunker.params。
+    chunker:
       min_chunk_size: 100
       max_chunk_size: 500
       base_chunk_size: 300
       complexity_weight: 0.5       # 文本复杂度权重
       density_weight: 0.5          # 实体密度权重（两者之和必须=1）
-    layered_extractor:
-      layers_enabled: [L1]         # L1=显式三元组；L2/L3/L4 保留位
-    dual_pruner:
-      similarity_threshold: 0.85   # 相似性冗余剪枝阈值（Jaccard）
-      enable_transitive: false     # 传递性冗余（保留位，暂不实装）
 
   # 创新点二：多Agent意图感知检索
   colla_rag:

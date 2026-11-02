@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Restart ollama with multi-request parallelism for ingestion speed.
 #
-# 默认 ollama serve 串行处理请求 — AdaGraph / IntentAgent / vanilla ingest
+# 默认 ollama serve 串行处理请求 — PrismRAG / CollaRAG / vanilla ingest
 # 在 LLM extractor 阶段会有大量并发 LLM 调用（chunker → extractor），
 # 串行模式下并发参数等于摆设。这个脚本：
 #   1) 杀掉已存在的 ollama serve（保留模型权重缓存）

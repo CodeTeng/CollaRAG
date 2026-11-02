@@ -49,16 +49,16 @@ def test_get_config_redacts_sensitive_fields(client):
 
 
 def test_put_config_accepts_partial_update_and_hot_reloads(client):
-    # Flip adagraph on via a config PUT; /api/plugins should reflect it.
+    # Flip prism on via a config PUT; /api/plugins should reflect it.
     r = client.put(
         "/api/config",
-        json={"config": {"plugins": {"adagraph": {"enabled": True}}}},
+        json={"config": {"plugins": {"prism": {"enabled": True}}}},
     )
     assert r.status_code == 200, r.text
     # Verify it took effect.
     plugins = client.get("/api/plugins").json()
-    ada = next(p for p in plugins["plugins"] if p["name"] == "adagraph")
-    assert ada["enabled"] is True
+    prism = next(p for p in plugins["plugins"] if p["name"] == "prism")
+    assert prism["enabled"] is True
 
 
 def test_put_config_rejects_invalid_values(client):

@@ -20,10 +20,8 @@ def list_plugins(chimera: ChimeraRAG = Depends(get_chimera)) -> PluginsResponse:
     cfg = chimera.config
     active = chimera.active_implementations()
 
-    adagraph_slots = {
+    prism_slots = {
         "chunker": cfg.ingestion.chunker.active,
-        "extractor": cfg.ingestion.extractor.active,
-        "pruner": cfg.ingestion.pruner.active,
     }
     colla_rag_slots = {
         "intent_classifier": cfg.query.intent_classifier.active,
@@ -32,9 +30,9 @@ def list_plugins(chimera: ChimeraRAG = Depends(get_chimera)) -> PluginsResponse:
 
     plugins = [
         PluginStatus(
-            name="adagraph",
-            enabled=cfg.plugins.adagraph.enabled,
-            active_slots=adagraph_slots,
+            name="prism",
+            enabled=cfg.plugins.prism.enabled,
+            active_slots=prism_slots,
         ),
         PluginStatus(
             name="colla_rag",
@@ -50,10 +48,10 @@ def toggle(
     body: PluginToggleRequest,
     chimera: ChimeraRAG = Depends(get_chimera),
 ) -> dict:
-    if body.name not in {"adagraph", "colla_rag"}:
+    if body.name not in {"prism", "colla_rag"}:
         raise HTTPException(
             status_code=404,
-            detail=f"unknown plugin: {body.name!r}; supported: adagraph, colla_rag",
+            detail=f"unknown plugin: {body.name!r}; supported: prism, colla_rag",
         )
     chimera.toggle_plugin(body.name, body.enabled)
     return {

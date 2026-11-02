@@ -73,7 +73,7 @@ datasets:
     path: ./data/musique/musique_ans_v1.0_dev.jsonl
     output_dir: ./output/musique
 
-# AdaGraph OFF — ingestion 走 defaults (和 vanilla 相同)
+# PrismRAG OFF — ingestion 走 defaults (和 vanilla 相同)
 ingestion:
   chunker:
     active: defaults.fixed
@@ -98,7 +98,7 @@ query:
     params: {}
 
 plugins:
-  adagraph:
+  prism:
     enabled: false
   colla_rag:
     enabled: true
