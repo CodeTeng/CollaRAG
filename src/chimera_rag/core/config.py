@@ -275,7 +275,7 @@ def load_config(path: str | Path) -> AppConfig:
         raise ConfigError(f"Config file not found: {p}")
 
     try:
-        raw = yaml.safe_load(p.read_text())
+        raw = yaml.safe_load(p.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:
         raise ConfigError(f"Invalid YAML in {p}: {e}") from e
 
