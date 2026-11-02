@@ -349,8 +349,7 @@ export function QueryPage() {
                       <div className="font-medium text-[var(--color-text)]">
                         {(step.step as string) || JSON.stringify(step)}
                       </div>
-                      {step.tools_hint &&
-                        Array.isArray(step.tools_hint) &&
+                      {Array.isArray(step.tools_hint) &&
                         (step.tools_hint as string[]).length > 0 && (
                           <div className="mt-1 flex gap-1">
                             {(step.tools_hint as string[]).map((t) => (
