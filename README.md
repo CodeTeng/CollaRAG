@@ -30,7 +30,7 @@
 |---|---|
 | Corpus → Graph | Automatic chunking, LLM triple extraction, dual graph + vector storage |
 | Question → Answer | Tree intent classification → routing to 5 specialist agents → evidence-grounded generation |
-| Ablation | Four configurations on the same dataset: `vanilla / adagraph_only / colla_rag_only / full` |
+| Ablation | Four configurations on the same dataset: `vanilla / prism_only / colla_rag_only / full` |
 | Offline evaluation | EM / F1 / ROUGE-L + latency and token distributions + multi-config comparison reports |
 | Single-port deployment | FastAPI + React, one `serve` command |
 
@@ -129,14 +129,16 @@ bash experiments/run_all.sh --limit 500   # larger run (500 per dataset; paper r
 └────────────┘         └───────────────┘          └─────────────────┘
       ↑                        ↑
   defaults.*              defaults.*
-  adagraph.*              colla_rag.*
+  prism.*                 colla_rag.*
 ```
 
-Three dependency invariants, all guarded by tests:
+Three dependency invariants:
 
 1. `core/` must not import `defaults/` or `plugins/`
-2. `plugins/adagraph/` and `plugins/colla_rag/` must not depend on each other
+2. `plugins/prism/` and `plugins/colla_rag/` must not depend on each other
 3. All cross-boundary calls go through `interfaces/*` ABCs + the registry
+
+Invariant 3 is exercised by the registry and pipeline tests; invariants 1–2 currently rest on directory structure and code review rather than an automated check.
 
 ---
 
@@ -144,14 +146,16 @@ Three dependency invariants, all guarded by tests:
 
 `configs/` ships 6 YAML presets:
 
-| File | AdaGraph | CollaRAG | Purpose |
+| File | PrismRAG | CollaRAG | Purpose |
 |---|:---:|:---:|---|
 | `default.yaml` | — | — | Fully annotated template |
 | `vanilla.yaml` | off | off | Bare KG-RAG baseline |
-| `adagraph_only.yaml` | on | off | Construction-side baseline only |
-| `colla_rag_only.yaml` | off | on | CollaRAG only (cloud DeepSeek) |
+| `prism_only.yaml` | on | off | Construction-side adaptive chunking only |
+| `colla_rag_only.yaml` | off | on | CollaRAG only (cloud DeepSeek) — **the setting used for the paper's results** |
 | `full.yaml` | on | on | Everything enabled |
 | `ollama_colla_rag_only.yaml` | off | on | CollaRAG only (local Ollama, no API cost) |
+
+The four cloud presets form a clean 2×2 factorial: PrismRAG switches only `ingestion.chunker`, CollaRAG switches only `query.intent_classifier` + `query.retriever`, and the extractor / pruner / generator are identical across all four — so any pairwise difference is attributable to a single innovation.
 
 ---
 
@@ -179,7 +183,7 @@ chimera-rag/
 │   ├── providers/                # LLM / Embedding / Rerank: OpenAI-compatible clients
 │   ├── stores/                   # NetworkX (graph) + FAISS (vector)
 │   ├── plugins/
-│   │   ├── adagraph/             # Construction-side baseline plugin
+│   │   ├── prism/                # PrismRAG: construction-side adaptive chunking (WIP)
 │   │   └── colla_rag/            # CollaRAG: intent-aware multi-agent retrieval
 │   │       ├── classifier.py     #   TreeIntentClassifier (C1)
 │   │       ├── orchestrator.py   #   MultiAgentRetriever orchestrator (facade)
