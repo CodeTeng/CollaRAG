@@ -67,18 +67,35 @@ datasets:
     output_dir: ./output/mock_wiki
 
 # PrismRAG ON — 只测创新点一
+#
+# 双粒度：fine 层进 extractor（保三元组纯度），coarse 层进 vector_store
+# （保证据可读性），fine 通过 parent_chunk_id 绑到其 coarse 父块。
+# 审计循环：抽取后按 D1–D6 检测类型化缺陷，只改分块边界（不重抽），
+# 最多 audit_rounds 轮。
 ingestion:
   chunker:
     active: prism.chunker
     params:
-      min_chunk_size: 120
-      max_chunk_size: 500
-      base_chunk_size: 300
+      dual_granularity: true
+      fine_min_size: 120           # 抽取层：小块，压制 D1 实体碰撞 / D6 矛盾
+      fine_max_size: 300
+      coarse_min_size: 400         # 检索层：大块，压制 D2 指代丢失 / D4 上下文饥饿
+      coarse_max_size: 800
+      complexity_weight: 0.5
+      density_weight: 0.5
+      audit_enabled: true          # false = 消融 E2 第 4 行（双粒度但无审计）
+      repair_enabled: true         # false = 消融 E2 第 5 行（记录缺陷但不修复）
+      audit_rounds: 2              # k_max，上限；由 pipeline 读取而非 chunker 构造函数
+      triple_budget: 30            # ⚠️ 必须等于下面 max_triples_per_chunk，否则 D5 失灵
+      # dual_granularity: false 时改用这三个键（消融 E2 第 2 行：单粒度过渡版）
+      # min_chunk_size: 120
+      # max_chunk_size: 500
+      # base_chunk_size: 300
   extractor:
     active: defaults.simple_llm
     params:
       prompt_template: default
-      max_triples_per_chunk: 30
+      max_triples_per_chunk: 30    # 触顶即 D5「预算截断」信号；须与 triple_budget 一致
   pruner:
     active: defaults.noop
     params: {}
@@ -100,11 +117,17 @@ plugins:
     enabled: true
     # 参考默认值；实际生效的是上面 ingestion.chunker.params。
     chunker:
-      min_chunk_size: 120
-      max_chunk_size: 500
-      base_chunk_size: 300
+      dual_granularity: true
+      fine_min_size: 120
+      fine_max_size: 300
+      coarse_min_size: 400
+      coarse_max_size: 800
       complexity_weight: 0.5
       density_weight: 0.5
+      audit_enabled: true
+      repair_enabled: true
+      audit_rounds: 2
+      triple_budget: 30
   colla_rag:
     enabled: false
 

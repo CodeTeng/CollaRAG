@@ -61,18 +61,30 @@ datasets:
     output_dir: ./output/mock_wiki
 
 # PrismRAG ON — 只占用 chunker 插槽
+#
+# 双粒度：fine 层进 extractor，coarse 层进 vector_store，父子链由
+# parent_chunk_id 绑定。审计循环按 D1–D6 只改分块边界，最多 audit_rounds 轮。
 ingestion:
   chunker:
     active: prism.chunker
     params:
-      min_chunk_size: 120
-      max_chunk_size: 500
-      base_chunk_size: 300
+      dual_granularity: true
+      fine_min_size: 120
+      fine_max_size: 300
+      coarse_min_size: 400
+      coarse_max_size: 800
+      complexity_weight: 0.5
+      density_weight: 0.5
+      audit_enabled: true
+      repair_enabled: true
+      audit_rounds: 2
+      triple_budget: 30            # ⚠️ 必须等于下面 max_triples_per_chunk，否则 D5 失灵
+      # dual_granularity: false 时改用 min_/max_/base_chunk_size 三个键
   extractor:
     active: defaults.simple_llm
     params:
       prompt_template: default
-      max_triples_per_chunk: 30
+      max_triples_per_chunk: 30    # 触顶即 D5「预算截断」信号；须与 triple_budget 一致
   pruner:
     active: defaults.noop
     params: {}
@@ -94,9 +106,15 @@ plugins:
     enabled: true
     # 参考默认值；实际生效的是上面 ingestion.chunker.params。
     chunker:
-      min_chunk_size: 120
-      max_chunk_size: 500
-      base_chunk_size: 300
+      dual_granularity: true
+      fine_min_size: 120
+      fine_max_size: 300
+      coarse_min_size: 400
+      coarse_max_size: 800
+      audit_enabled: true
+      repair_enabled: true
+      audit_rounds: 2
+      triple_budget: 30
   colla_rag:
     enabled: true
     multi_agent:

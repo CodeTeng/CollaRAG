@@ -171,16 +171,23 @@ query:
 # 插件开关与子配置
 # --------------------------------------------------------------------------
 plugins:
-  # 创新点一 PrismRAG：面向知识图谱构建的自适应分块（只占用 chunker 插槽）
+  # 创新点一 PrismRAG：面向知识图谱构建的双粒度自适应分块 + D1–D6 审计修复
+  # （只占用 chunker 插槽）
   prism:
     enabled: false
     # 参考默认值；实际生效的是上面 ingestion.chunker.params。
     chunker:
-      min_chunk_size: 100
-      max_chunk_size: 500
-      base_chunk_size: 300
+      dual_granularity: true       # fine 进 extractor / coarse 进 vector_store
+      fine_min_size: 100
+      fine_max_size: 250
+      coarse_min_size: 400
+      coarse_max_size: 800
       complexity_weight: 0.5       # 文本复杂度权重
       density_weight: 0.5          # 实体密度权重（两者之和必须=1）
+      audit_enabled: true          # Phase 3：抽取后检测类型化缺陷 D1–D6
+      repair_enabled: true         # Phase 4：只改分块边界，不重抽
+      audit_rounds: 2              # k_max，上限
+      triple_budget: 30            # ⚠️ 须等于 ingestion.extractor.params.max_triples_per_chunk
 
   # 创新点二：多Agent意图感知检索
   colla_rag:

@@ -10,12 +10,16 @@
 |---|:---:|:---:|---|---|
 | `default.yaml` | — | — | — | 全字段注释模板（**注意：其中 `plugins.colla_rag.enabled` 为 `true`，是模板示例值，不直接运行**） |
 | `vanilla.yaml` | ❌ | ❌ | `defaults.direct` | 裸 KG-RAG 基线（消融对照组） |
-| `prism_only.yaml` | ✅ | ❌ | `defaults.direct` | 单独衡量**创新点一**（面向图谱构建的自适应分块）的增益 |
+| `prism_only.yaml` | ✅ | ❌ | `defaults.direct` | 单独衡量**创新点一**（双粒度分块 + D1–D6 缺陷审计修复）的增益 |
 | `colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 单独衡量**创新点二**的增益（云端 DeepSeek） |
 | `full.yaml` | ✅ | ✅ | `colla_rag.multi_agent` | 创新点一 + 创新点二叠加 |
 | `ollama_colla_rag_only.yaml` | ❌ | ✅ | `colla_rag.multi_agent` | 本地 Ollama Qwen3-8B（免 API 费用） |
 
 四份组合配置构成 **2×2 因子设计**：PrismRAG 只切换 `ingestion.chunker`（`defaults.fixed` ↔ `prism.chunker`），CollaRAG 只切换 `query.intent_classifier` + `query.retriever`，extractor / pruner / generator 在四份中完全一致，因此任意两份之间的差异都可归因到单个创新点。
+
+> ⚠️ 唯一的跨插槽约束：`ingestion.chunker.params.triple_budget` 必须等于
+> `ingestion.extractor.params.max_triples_per_chunk`。D5「预算截断」缺陷是把抽取器的
+> 触顶次数当信号读的，两者不一致会让 D5 提前误报或永不触发，从而污染消融对比。
 
 **公共部分（三份云端配置相同）**：
 - LLM：`deepseek-chat` @ `https://api.deepseek.com`
@@ -33,7 +37,7 @@
 <plugin_combo>.yaml
       │
       ├── vanilla                      开关全关（defaults 裸基线）
-      ├── prism_only                   仅创新点一（面向图谱构建的自适应分块）
+      ├── prism_only                   仅创新点一（双粒度分块 + D1–D6 审计修复）
       ├── colla_rag_only               仅创新点二（多Agent协作检索）
       └── full                         两者全开
 ```
