@@ -7,16 +7,48 @@
 
 刻意保持零依赖：两者都只用正则与计数，不引入 spaCy / NER 模型。
 生产环境可无缝替换为 NER 或依存分析版本，公共签名不变。
+
+:func:`find_entity_mentions` 是唯一的例外——它同时被 D2 / D4 检测器复用
+（见 ``defects.py``），因为「块内是否有命名实体」必须是同一个判定，
+否则密度特征与缺陷审计会各说各话。
 """
 
 from __future__ import annotations
 
 import re
-from collections import Counter
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _WORD_RE = re.compile(r"\b\w+\b")
 _CAP_RE = re.compile(r"\b[A-Z][a-zA-Z]+\b")
+
+
+def find_entity_mentions(text: str) -> list[tuple[int, str]]:
+    """``(char offset, token)`` for every capitalised token that is not
+    sentence-initial.
+
+    This is the zero-dependency entity proxy shared by
+    :func:`estimate_entity_density` (which only needs the count) and the D2 /
+    D4 defect detectors (which need positions, to tell whether an anaphor has
+    an antecedent *before* it in the chunk). Keeping one implementation means
+    the density feature and the detectors can never disagree about what counts
+    as an entity.
+    """
+    sentence_starts: set[int] = set()
+    pos = 0
+    for sent in _SENTENCE_RE.split(text):
+        idx = text.find(sent, pos)
+        if idx < 0:
+            continue
+        pos = idx + len(sent)
+        first = _WORD_RE.search(sent)
+        if first:
+            sentence_starts.add(idx + first.start())
+
+    return [
+        (m.start(), m.group(0))
+        for m in _CAP_RE.finditer(text)
+        if m.start() not in sentence_starts
+    ]
 
 
 def estimate_complexity(text: str) -> float:
@@ -60,14 +92,7 @@ def estimate_entity_density(text: str) -> float:
     tokens = _WORD_RE.findall(text)
     if not tokens:
         return 0.0
-    cap_tokens = _CAP_RE.findall(text)
-    sentence_starts: Counter[str] = Counter()
-    for sent in _SENTENCE_RE.split(text):
-        first = _WORD_RE.search(sent.lstrip())
-        if first:
-            sentence_starts[first.group(0)] += 1
-    adjusted = sum(1 for tok in cap_tokens if sentence_starts.get(tok, 0) == 0)
-    return max(0.0, min(1.0, adjusted / len(tokens)))
+    return max(0.0, min(1.0, len(find_entity_mentions(text)) / len(tokens)))
 
 
 def split_sentences(text: str) -> list[str]:
@@ -79,5 +104,6 @@ def split_sentences(text: str) -> list[str]:
 __all__ = [
     "estimate_complexity",
     "estimate_entity_density",
+    "find_entity_mentions",
     "split_sentences",
 ]
