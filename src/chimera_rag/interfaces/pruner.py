@@ -10,9 +10,8 @@ from chimera_rag.core.types import Triple
 class BasePruner(ABC):
     """Remove noisy / redundant triples before they enter the graph.
 
-    The vanilla baseline uses a :class:`NoOpPruner`; AdaGraph contributes a
-    DualRedundancyPruner that removes similarity-redundant and transitive
-    triples.
+    The vanilla baseline uses a :class:`NoOpPruner`; :class:`JaccardPruner`
+    is available as a generic near-duplicate filter.
     """
 
     @abstractmethod
