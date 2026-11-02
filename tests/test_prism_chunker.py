@@ -16,10 +16,12 @@ The adaptive size formula is::
 so a complex / entity-dense document yields *smaller* chunks while simple
 prose gets larger ones.
 
-⚠️ This is PrismRAG's **transitional single-granularity** implementation.
-Dual-granularity output (fine / coarse + ``parent_chunk_id``) and the
-typed-defect audit loop are not covered here — see
-``docs/innovation-1/design.md``.
+⚠️ The end-to-end ``chunk()`` tests below pin PrismRAG's **transitional
+single-granularity** path (``dual_granularity=False``), because that is what
+ablation row 2 of E2 needs and the ``min_/max_/base_chunk_size`` knobs only
+apply there. Dual-granularity output lives in
+``tests/test_prism_dual_granularity.py`` and the audit/repair loop in
+``tests/test_prism_repair_loop.py``; the D1–D6 detectors have one file each.
 """
 
 from __future__ import annotations
@@ -89,7 +91,9 @@ def test_prism_chunker_returns_nonempty_chunks_for_nonempty_document():
         "Alfred Nobel was a Swedish chemist. He invented dynamite in 1867. "
         "Nobel later founded the Nobel Prize in 1901. "
     ) * 10
-    chunker = PrismChunker(min_chunk_size=100, max_chunk_size=500, base_chunk_size=300)
+    chunker = PrismChunker(
+        min_chunk_size=100, max_chunk_size=500, base_chunk_size=300, dual_granularity=False
+    )
 
     chunks = chunker.chunk(Document(doc_id="nobel", content=text))
     assert len(chunks) >= 1
@@ -146,7 +150,9 @@ def test_prism_chunker_never_splits_a_sentence():
     from chimera_rag.plugins.prism.chunker import PrismChunker
 
     text = "Alfred Nobel invented dynamite. " * 20
-    chunker = PrismChunker(min_chunk_size=60, max_chunk_size=60, base_chunk_size=60)
+    chunker = PrismChunker(
+        min_chunk_size=60, max_chunk_size=60, base_chunk_size=60, dual_granularity=False
+    )
 
     for ch in chunker.chunk(Document(doc_id="d", content=text)):
         assert ch.text.endswith(".")
