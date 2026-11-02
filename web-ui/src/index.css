@@ -5,8 +5,8 @@
  * Chimera-RAG · 学术研究 × 神话怪兽 主题
  *
  * 深空墨黑 + 丹青金（Chimera 龙/狮/蛇三色呼应）
- *   - AdaGraph  创新点一：青铜黄金 gold      (#d4af37 线)
- *   - IntentAgent 创新点二：古拙丹砂 crimson (#c43c3c 线)
+ *   - PrismRAG  创新点一：青铜黄金 gold      (#d4af37 线)
+ *   - CollaRAG  创新点二：古拙丹砂 crimson (#c43c3c 线)
  * ------------------------------------------------------------------ */
 @theme {
   /* 画布：深墨 */
@@ -28,8 +28,8 @@
   --color-accent-fg: oklch(0.17 0.015 260);
 
   /* 两创新点的语义色 */
-  --color-adagraph: oklch(0.72 0.14 82);      /* 金 */
-  --color-adagraph-soft: oklch(0.72 0.14 82 / 0.12);
+  --color-prism: oklch(0.72 0.14 82);      /* 金 */
+  --color-prism-soft: oklch(0.72 0.14 82 / 0.12);
   --color-intent: oklch(0.64 0.20 20);        /* 丹砂 */
   --color-intent-soft: oklch(0.64 0.20 20 / 0.14);
 

@@ -12,7 +12,7 @@ interface Props {
   /** 让卡片根容器以 flex 纵向布局，配合 bodyClassName="flex-1" 撑满剩余高度 */
   fill?: boolean;
   /** 高亮色带：左侧 2px 竖条；用于强调某些卡片隶属的创新点 */
-  accent?: "adagraph" | "intent" | "accent";
+  accent?: "prism" | "intent" | "accent";
   children: ReactNode;
 }
 
@@ -27,8 +27,8 @@ export function Card({
   children,
 }: Props) {
   const accentBar =
-    accent === "adagraph"
-      ? "before:bg-[var(--color-adagraph)]"
+    accent === "prism"
+      ? "before:bg-[var(--color-prism)]"
       : accent === "intent"
       ? "before:bg-[var(--color-intent)]"
       : accent === "accent"

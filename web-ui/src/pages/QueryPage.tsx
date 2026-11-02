@@ -435,7 +435,7 @@ export function QueryPage() {
               }
               titleIcon={<Network className="h-4 w-4" />}
               className="md:col-span-3"
-              accent="adagraph"
+              accent="prism"
             >
               <div className="flex flex-wrap gap-2">
                 {result.triples.map((t, i) => (
@@ -443,13 +443,13 @@ export function QueryPage() {
                     key={i}
                     className="group inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-hi)] px-2.5 py-1 text-xs"
                   >
-                    <span className="font-medium text-[var(--color-adagraph)]">
+                    <span className="font-medium text-[var(--color-prism)]">
                       {t.subject}
                     </span>
                     <span className="text-[var(--color-text-subtle)]">
                       —{t.predicate}→
                     </span>
-                    <span className="font-medium text-[var(--color-adagraph)]">
+                    <span className="font-medium text-[var(--color-prism)]">
                       {t.object}
                     </span>
                     <span className="ml-1 rounded bg-[var(--color-bg-soft)] px-1 font-mono text-[0.65rem] text-[var(--color-text-subtle)]">

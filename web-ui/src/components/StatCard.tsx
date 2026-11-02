@@ -9,7 +9,7 @@ interface Props {
   /** 前置图标 */
   icon?: ReactNode;
   /** 给某些关键指标加一抹色彩强调 */
-  tone?: "default" | "adagraph" | "intent" | "accent";
+  tone?: "default" | "prism" | "intent" | "accent";
   className?: string;
 }
 
@@ -20,14 +20,14 @@ interface Props {
 export function StatCard({ label, value, unit, icon, tone = "default", className }: Props) {
   const toneRing = {
     default: "border-[var(--color-border)]",
-    adagraph: "border-[var(--color-adagraph)]/30 shadow-[0_0_0_1px_inset_var(--color-adagraph-soft)]",
+    prism: "border-[var(--color-prism)]/30 shadow-[0_0_0_1px_inset_var(--color-prism-soft)]",
     intent: "border-[var(--color-intent)]/30 shadow-[0_0_0_1px_inset_var(--color-intent-soft)]",
     accent: "border-[var(--color-accent)]/30",
   }[tone];
 
   const toneIcon = {
     default: "text-[var(--color-text-muted)]",
-    adagraph: "text-[var(--color-adagraph)]",
+    prism: "text-[var(--color-prism)]",
     intent: "text-[var(--color-intent)]",
     accent: "text-[var(--color-accent)]",
   }[tone];

@@ -16,13 +16,13 @@ import type { PluginsResponse } from "@/lib/types";
 
 const PLUGIN_META: Record<
   string,
-  { cn: string; tagline: string; accent: "adagraph" | "intent" }
+  { cn: string; tagline: string; accent: "prism" | "intent" }
 > = {
-  adagraph: {
-    cn: "AdaGraph · 自适应图谱构建",
+  prism: {
+    cn: "PrismRAG · 面向图谱构建的自适应分块",
     tagline:
-      "创新点一 — 动态粒度分块 + 分层三元组抽取 + 双重冗余剪枝，让图谱构建按语义密度自适应伸缩。",
-    accent: "adagraph",
+      "创新点一 — 按文本复杂度与实体密度自适应伸缩分块粒度，为知识图谱构建生产更纯的抽取单元。（双粒度输出与类型化缺陷审计修复循环在研）",
+    accent: "prism",
   },
   colla_rag: {
     cn: "CollaRAG · 多智能体协作检索",
@@ -84,8 +84,8 @@ export function PluginsPage() {
                   <div className="flex items-center gap-2">
                     <Sparkles
                       className={
-                        meta.accent === "adagraph"
-                          ? "h-4 w-4 text-[var(--color-adagraph)]"
+                        meta.accent === "prism"
+                          ? "h-4 w-4 text-[var(--color-prism)]"
                           : "h-4 w-4 text-[var(--color-intent)]"
                       }
                     />

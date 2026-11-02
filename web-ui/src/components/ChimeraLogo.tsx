@@ -11,8 +11,8 @@ interface Props {
  *
  * 视觉语义：
  *   中央菱形 = 知识图谱节点（中枢），外围三条对称分叉 = 狮 / 羊 / 蛇三头。
- *   左侧金色分支 → 创新点一 AdaGraph
- *   右侧丹砂分支 → 创新点二 IntentAgent
+ *   左侧金色分支 → 创新点一 PrismRAG
+ *   右侧丹砂分支 → 创新点二 CollaRAG
  *   顶部青色分支 → 检索 / 问答枢纽
  */
 export function ChimeraLogo({ className, showBranches = true }: Props) {
@@ -63,13 +63,13 @@ export function ChimeraLogo({ className, showBranches = true }: Props) {
 
       {showBranches && (
         <>
-          {/* 左分支：AdaGraph，从中心指向左下角 */}
+          {/* 左分支：PrismRAG，从中心指向左下角 */}
           <g stroke="url(#cmr-gold)" strokeWidth="2" strokeLinecap="round" fill="none">
             <line x1="23" y1="36" x2="10" y2="50" />
             <circle cx="10" cy="50" r="3" fill="#d4af37" stroke="none" />
           </g>
 
-          {/* 右分支：IntentAgent，从中心指向右下角 */}
+          {/* 右分支：CollaRAG，从中心指向右下角 */}
           <g stroke="url(#cmr-crimson)" strokeWidth="2" strokeLinecap="round" fill="none">
             <line x1="41" y1="36" x2="54" y2="50" />
             <circle cx="54" cy="50" r="3" fill="#c43c3c" stroke="none" />

@@ -89,13 +89,13 @@ export function IngestPage() {
           <StatCard
             label="分块数"
             value={result.stats.chunks}
-            tone="adagraph"
+            tone="prism"
             icon={<Sparkles className="h-3 w-3" />}
           />
           <StatCard
             label="抽取三元组（原始）"
             value={result.stats.triples_raw}
-            tone="adagraph"
+            tone="prism"
           />
           <StatCard
             label="剪枝后保留"
@@ -107,7 +107,7 @@ export function IngestPage() {
                   )}%`
                 : undefined
             }
-            tone="adagraph"
+            tone="prism"
           />
         </div>
       )}
@@ -117,7 +117,7 @@ export function IngestPage() {
         <Card
           title="从已注册数据集摄取"
           titleIcon={<FolderOpen className="h-4 w-4" />}
-          accent="adagraph"
+          accent="prism"
         >
           <p className="mb-3 text-xs text-[var(--color-text-muted)]">
             数据集在 <code className="font-mono">config.datasets</code> 段注册，

@@ -50,12 +50,12 @@ export function Layout() {
           <div className="text-[0.65rem] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
             研究创新点
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-[var(--color-adagraph)]/30 bg-[var(--color-adagraph-soft)] px-3 py-2 text-xs">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--color-adagraph)]" />
+          <div className="flex items-center gap-2 rounded-md border border-[var(--color-prism)]/30 bg-[var(--color-prism-soft)] px-3 py-2 text-xs">
+            <Sparkles className="h-3.5 w-3.5 text-[var(--color-prism)]" />
             <div className="flex-1 leading-tight">
-              <div className="font-semibold text-[var(--color-text)]">AdaGraph</div>
+              <div className="font-semibold text-[var(--color-text)]">PrismRAG</div>
               <div className="text-[0.65rem] text-[var(--color-text-subtle)]">
-                自适应图谱构建
+                面向图谱的自适应分块
               </div>
             </div>
           </div>
