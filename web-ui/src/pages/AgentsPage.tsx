@@ -81,7 +81,7 @@ export function AgentsPage() {
       <PageHeader
         icon={<Bot className="h-5 w-5" />}
         title="多智能体架构"
-        subtitle="创新点二 · CollaRAG — 5 个专长智能体 × 31 个工具 × 10 个功能类别"
+        subtitle="创新点二 · CollaRAG — 5 个专长智能体 × 34 个工具 × 10 个功能类别"
       />
 
       {/* 概览统计 */}

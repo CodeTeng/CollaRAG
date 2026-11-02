@@ -55,7 +55,7 @@ export function Layout() {
             <div className="flex-1 leading-tight">
               <div className="font-semibold text-[var(--color-text)]">PrismRAG</div>
               <div className="text-[0.65rem] text-[var(--color-text-subtle)]">
-                面向图谱的自适应分块
+                面向图谱的双粒度缺陷修复分块
               </div>
             </div>
           </div>

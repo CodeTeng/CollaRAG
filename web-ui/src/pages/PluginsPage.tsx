@@ -19,15 +19,15 @@ const PLUGIN_META: Record<
   { cn: string; tagline: string; accent: "prism" | "intent" }
 > = {
   prism: {
-    cn: "PrismRAG · 面向图谱构建的自适应分块",
+    cn: "PrismRAG · 面向图谱构建的双粒度分块",
     tagline:
-      "创新点一 — 按文本复杂度与实体密度自适应伸缩分块粒度，为知识图谱构建生产更纯的抽取单元。（双粒度输出与类型化缺陷审计修复循环在研）",
+      "创新点一 — 一篇文档分出抽取层（fine）与检索层（coarse）两套独立分块，再用 D1–D6 类型化缺陷审计驱动闭环修复分块边界。",
     accent: "prism",
   },
   colla_rag: {
     cn: "CollaRAG · 多智能体协作检索",
     tagline:
-      "创新点二 — 5 个专长智能体 + 31 个工具 + 10 类功能，Plan-Execute-Reflect 多跳推理 + 意图路由 + 工具权限矩阵。",
+      "创新点二 — 5 个专长智能体 + 34 个工具 + 10 类功能，Plan-Execute-Reflect 多跳推理 + 意图路由 + 工具权限矩阵。",
     accent: "intent",
   },
 };

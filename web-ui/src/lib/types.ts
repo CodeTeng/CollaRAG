@@ -26,7 +26,10 @@ export interface IngestStats {
   chunks: number;
   triples_raw: number;
   triples_pruned: number;
-  [key: string]: number;
+  audit_rounds: number;
+  repairs_applied: number;
+  defects: number;
+  defects_by_code: Record<string, number>;
 }
 
 export interface IngestState {
