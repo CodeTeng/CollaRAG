@@ -150,7 +150,7 @@ Invariant 3 is exercised by the registry and pipeline tests; invariants 1–2 cu
 |---|:---:|:---:|---|
 | `default.yaml` | — | — | Fully annotated template |
 | `vanilla.yaml` | off | off | Bare KG-RAG baseline |
-| `prism_only.yaml` | on | off | Construction-side adaptive chunking only |
+| `prism_only.yaml` | on | off | Dual-granularity chunking + D1–D6 defect audit/repair only |
 | `colla_rag_only.yaml` | off | on | CollaRAG only (cloud DeepSeek) — **the setting used for the paper's results** |
 | `full.yaml` | on | on | Everything enabled |
 | `ollama_colla_rag_only.yaml` | off | on | CollaRAG only (local Ollama, no API cost) |
@@ -183,7 +183,12 @@ chimera-rag/
 │   ├── providers/                # LLM / Embedding / Rerank: OpenAI-compatible clients
 │   ├── stores/                   # NetworkX (graph) + FAISS (vector)
 │   ├── plugins/
-│   │   ├── prism/                # PrismRAG: construction-side adaptive chunking (WIP)
+│   │   ├── prism/                # PrismRAG: dual-granularity chunking + typed-defect repair
+│   │   │   ├── chunker.py        #   fine/coarse construction + BaseChunkAuditor capability
+│   │   │   ├── features.py       #   zero-dependency structure signals (internal Phase-2 features)
+│   │   │   ├── defects.py        #   D1–D6 typed chunk-defect detectors
+│   │   │   ├── audit.py          #   detector assembly + per-round audit graph view
+│   │   │   └── repair.py         #   5 boundary-change repair actions (never re-extracts)
 │   │   └── colla_rag/            # CollaRAG: intent-aware multi-agent retrieval
 │   │       ├── classifier.py     #   TreeIntentClassifier (C1)
 │   │       ├── orchestrator.py   #   MultiAgentRetriever orchestrator (facade)
@@ -197,7 +202,7 @@ chimera-rag/
 │   ├── evaluation/               # Inference runner + scorers + RAGAS reports
 │   └── web/                      # FastAPI + React statics
 │
-└── tests/                        # 69 test files
+└── tests/                        # 75 test files
 ```
 
 ---
